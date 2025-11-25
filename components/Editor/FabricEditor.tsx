@@ -668,7 +668,7 @@ export default function FabricEditor() {
     const canvas = fabricRef.current
     if (!canvas) return
 
-    const dataURL = canvas.toDataURL({ format: 'png', quality: 1 })
+    const dataURL = canvas.toDataURL({ format: 'png', quality: 1, multiplier: 1 })
     const link = document.createElement('a')
     link.href = dataURL
     link.download = 'design.png'
