@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth, googleProvider } from '@/lib/firebase'
+import { auth, googleProvider, ensureFirebaseInitialized } from '@/lib/firebase'
 import { signInWithPopup, onAuthStateChanged } from 'firebase/auth'
 import { Loader2 } from 'lucide-react'
 
@@ -10,25 +10,56 @@ export default function LoginPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [checking, setChecking] = useState(true)
+  const [firebaseReady, setFirebaseReady] = useState(false)
 
   useEffect(() => {
-    if (!auth || !googleProvider) {
-      setChecking(false)
-      return
+    // Firebase 초기화 확인 및 시도
+    const init = () => {
+      if (typeof window === 'undefined') return
+      
+      const initialized = ensureFirebaseInitialized()
+      if (initialized && auth && googleProvider) {
+        setFirebaseReady(true)
+        
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+          if (user) {
+            router.push('/')
+          } else {
+            setChecking(false)
+          }
+        })
+
+        return () => unsubscribe()
+      } else {
+        // 초기화 실패 시 재시도
+        setTimeout(() => {
+          const retryInitialized = ensureFirebaseInitialized()
+          if (retryInitialized && auth && googleProvider) {
+            setFirebaseReady(true)
+            setChecking(false)
+          } else {
+            setChecking(false)
+            console.error('Firebase 초기화 실패 - 환경 변수를 확인하세요')
+          }
+        }, 100)
+      }
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        router.push('/')
-      } else {
-        setChecking(false)
-      }
-    })
-
-    return () => unsubscribe()
+    const cleanup = init()
+    return cleanup
   }, [router])
 
   const handleGoogleLogin = async () => {
+    // Firebase 초기화 재시도
+    if (!firebaseReady) {
+      const initialized = ensureFirebaseInitialized()
+      if (!initialized || !auth || !googleProvider) {
+        alert('Firebase가 초기화되지 않았습니다. 환경 변수를 확인하세요.')
+        return
+      }
+      setFirebaseReady(true)
+    }
+
     if (!auth || !googleProvider) {
       alert('Firebase가 초기화되지 않았습니다.')
       return
@@ -40,7 +71,13 @@ export default function LoginPage() {
       router.push('/')
     } catch (error: any) {
       console.error('로그인 실패:', error)
-      alert('로그인에 실패했습니다: ' + (error.message || '알 수 없는 오류'))
+      if (error.code === 'auth/popup-closed-by-user') {
+        alert('로그인 창이 닫혔습니다. 다시 시도해주세요.')
+      } else if (error.code === 'auth/popup-blocked') {
+        alert('팝업이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.')
+      } else {
+        alert('로그인에 실패했습니다: ' + (error.message || '알 수 없는 오류'))
+      }
     } finally {
       setLoading(false)
     }

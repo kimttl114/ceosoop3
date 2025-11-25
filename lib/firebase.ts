@@ -13,38 +13,110 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// 빌드 시점에는 초기화하지 않음
+// Firebase 인스턴스
 let app: ReturnType<typeof initializeApp> | null = null;
 let _db: Firestore | null = null;
 let _auth: Auth | null = null;
 let _storage: FirebaseStorage | null = null;
 let _googleProvider: GoogleAuthProvider | null = null;
 
-// 클라이언트 사이드에서만 초기화
-if (typeof window !== "undefined") {
-  // 모든 필수 환경 변수가 있을 때만 초기화
-  if (
-    firebaseConfig.apiKey &&
-    firebaseConfig.authDomain &&
-    firebaseConfig.projectId &&
-    firebaseConfig.storageBucket &&
-    firebaseConfig.messagingSenderId &&
-    firebaseConfig.appId
-  ) {
-    try {
-      app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-      _db = getFirestore(app);
-      _auth = getAuth(app);
-      _storage = getStorage(app);
-      _googleProvider = new GoogleAuthProvider();
-    } catch (error) {
-      console.error("Firebase 초기화 오류:", error);
-    }
+// Firebase 초기화 함수
+const initFirebase = () => {
+  // 서버 사이드에서는 초기화하지 않음
+  if (typeof window === "undefined") {
+    return false;
   }
+
+  // 이미 초기화되어 있으면 성공
+  if (app && _auth && _db) {
+    return true;
+  }
+
+  // 모든 필수 환경 변수가 있는지 확인
+  if (
+    !firebaseConfig.apiKey ||
+    !firebaseConfig.authDomain ||
+    !firebaseConfig.projectId ||
+    !firebaseConfig.storageBucket ||
+    !firebaseConfig.messagingSenderId ||
+    !firebaseConfig.appId
+  ) {
+    console.warn("Firebase 환경 변수가 설정되지 않았습니다.");
+    return false;
+  }
+
+  try {
+    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    _db = getFirestore(app);
+    _auth = getAuth(app);
+    _storage = getStorage(app);
+    _googleProvider = new GoogleAuthProvider();
+    return true;
+  } catch (error) {
+    console.error("Firebase 초기화 오류:", error);
+    return false;
+  }
+};
+
+// 클라이언트 사이드에서 자동 초기화 시도
+if (typeof window !== "undefined") {
+  initFirebase();
 }
 
-// 타입 단언을 사용하여 export (클라이언트 사이드에서만 사용)
-export const db = _db as Firestore;
-export const auth = _auth as Auth;
-export const storage = _storage as FirebaseStorage;
-export const googleProvider = _googleProvider as GoogleAuthProvider;
+// Getter 함수들 - 필요할 때 초기화 시도
+const getAuthInstance = (): Auth | null => {
+  if (!_auth && typeof window !== "undefined") {
+    initFirebase();
+  }
+  return _auth;
+};
+
+const getGoogleProvider = (): GoogleAuthProvider | null => {
+  if (!_googleProvider && typeof window !== "undefined") {
+    initFirebase();
+  }
+  return _googleProvider;
+};
+
+const getDb = (): Firestore | null => {
+  if (!_db && typeof window !== "undefined") {
+    initFirebase();
+  }
+  return _db;
+};
+
+const getStorageInstance = (): FirebaseStorage | null => {
+  if (!_storage && typeof window !== "undefined") {
+    initFirebase();
+  }
+  return _storage;
+};
+
+// 초기화 확인 및 강제 초기화 함수
+export const ensureFirebaseInitialized = (): boolean => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  return initFirebase();
+};
+
+// Export - 타입 단언 사용 (클라이언트 사이드에서만 사용)
+export const db = (() => {
+  const instance = getDb();
+  return instance as Firestore;
+})();
+
+export const auth = (() => {
+  const instance = getAuthInstance();
+  return instance as Auth;
+})();
+
+export const storage = (() => {
+  const instance = getStorageInstance();
+  return instance as FirebaseStorage;
+})();
+
+export const googleProvider = (() => {
+  const instance = getGoogleProvider();
+  return instance as GoogleAuthProvider;
+})();
