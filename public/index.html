@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Character Creator</title>
+</head>
+<body>
+    <!-- 이 파일은 saveCharacter 함수 예시를 위한 것입니다 -->
+    
+    <script>
+        /**
+         * 캐릭터 저장 함수 (이미지 리사이징 및 압축 포함)
+         * @param {string} generatedBase64Result - 원본 Base64 이미지 데이터
+         * @param {string} characterName - 저장할 캐릭터 이름
+         */
+        async function saveCharacter(generatedBase64Result, characterName) {
+            try {
+                // 1. 이미지를 Image 객체로 로드
+                const img = new Image();
+                
+                // 이미지 로드 Promise
+                const imageLoadPromise = new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    img.src = generatedBase64Result;
+                });
+                
+                await imageLoadPromise;
+                
+                // 2. 캔버스 생성 및 리사이징 (512x512)
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = 512;
+                canvas.height = 512;
+                
+                // 이미지를 512x512로 그리기 (비율 유지하면서 중앙 정렬)
+                ctx.drawImage(img, 0, 0, 512, 512);
+                
+                // 3. JPEG 포맷으로 압축 (품질 0.7)
+                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+                
+                // 4. localStorage에 안전하게 저장
+                try {
+                    // 기존 캐릭터 목록 가져오기
+                    const existingCharacters = JSON.parse(localStorage.getItem('characters') || '[]');
+                    
+                    // 새 캐릭터 데이터 추가
+                    const newCharacter = {
+                        name: characterName || `캐릭터_${Date.now()}`,
+                        image: compressedBase64,
+                        createdAt: new Date().toISOString()
+                    };
+                    
+                    existingCharacters.push(newCharacter);
+                    
+                    // localStorage에 저장 시도
+                    localStorage.setItem('characters', JSON.stringify(existingCharacters));
+                    
+                    // 저장 성공
+                    alert('저장 완료!');
+                    
+                    // 모달 닫기 (모달이 있다면)
+                    const modal = document.getElementById('characterModal');
+                    if (modal) {
+                        modal.style.display = 'none';
+                    }
+                    
+                } catch (storageError) {
+                    // localStorage 용량 초과 오류 처리
+                    if (storageError.name === 'QuotaExceededError' || 
+                        storageError.code === 22 || 
+                        storageError.code === 1014) {
+                        alert('저장 공간이 부족합니다! 갤러리에서 옛날 부캐를 지워주세요.');
+                    } else {
+                        throw storageError; // 다른 오류는 다시 throw
+                    }
+                    return; // 함수 종료
+                }
+                
+            } catch (error) {
+                console.error('캐릭터 저장 오류:', error);
+                alert('캐릭터 저장 중 오류가 발생했습니다: ' + error.message);
+            }
+        }
+        
+        // 사용 예시:
+        // saveCharacter(generatedBase64Result, '내 캐릭터');
+    </script>
+</body>
+</html>
+
