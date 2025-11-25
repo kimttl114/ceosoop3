@@ -41,11 +41,6 @@ export default function PostsPage() {
   const [processing, setProcessing] = useState(false)
 
   useEffect(() => {
-    if (!db) {
-      setLoading(false)
-      return
-    }
-
     const fetchPosts = async () => {
       try {
         let q
@@ -80,8 +75,6 @@ export default function PostsPage() {
   }, [filter])
 
   const handleHide = async (postId: string, hide: boolean) => {
-    if (!db) return
-
     setProcessing(true)
     try {
       const postRef = doc(db, 'posts', postId)
@@ -107,8 +100,6 @@ export default function PostsPage() {
     if (!confirm('정말 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
       return
     }
-
-    if (!db) return
 
     setProcessing(true)
     try {

@@ -36,11 +36,6 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!db) {
-      setLoading(false)
-      return
-    }
-
     const fetchStats = async () => {
       try {
         // 오늘 날짜 계산

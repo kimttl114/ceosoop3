@@ -47,11 +47,6 @@ export default function ReportsPage() {
   const [processing, setProcessing] = useState(false)
 
   useEffect(() => {
-    if (!db) {
-      setLoading(false)
-      return
-    }
-
     const fetchReports = async () => {
       try {
         let q
@@ -83,8 +78,6 @@ export default function ReportsPage() {
   }, [filter])
 
   const handleStatusChange = async (reportId: string, newStatus: 'resolved' | 'rejected') => {
-    if (!db) return
-
     setProcessing(true)
     try {
       const reportRef = doc(db, 'reports', reportId)
