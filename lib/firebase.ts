@@ -101,22 +101,8 @@ export const ensureFirebaseInitialized = (): boolean => {
 };
 
 // Export - 타입 단언 사용 (클라이언트 사이드에서만 사용)
-export const db = (() => {
-  const instance = getDb();
-  return instance as Firestore;
-})();
-
-export const auth = (() => {
-  const instance = getAuthInstance();
-  return instance as Auth;
-})();
-
-export const storage = (() => {
-  const instance = getStorageInstance();
-  return instance as FirebaseStorage;
-})();
-
-export const googleProvider = (() => {
-  const instance = getGoogleProvider();
-  return instance as GoogleAuthProvider;
-})();
+// 실제로는 null일 수 있으므로 사용하는 쪽에서 null 체크 필요
+export const db = getDb() as Firestore;
+export const auth = getAuthInstance() as Auth;
+export const storage = getStorageInstance() as FirebaseStorage;
+export const googleProvider = getGoogleProvider() as GoogleAuthProvider;

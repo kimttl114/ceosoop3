@@ -13,25 +13,30 @@ export default function LoginPage() {
   const [firebaseReady, setFirebaseReady] = useState(false)
 
   useEffect(() => {
-    // Firebase 초기화 확인 및 시도
-    const init = () => {
-      if (typeof window === 'undefined') return
-      
+    if (typeof window === 'undefined') {
+      setChecking(false)
+      return
+    }
+    
+    // Firebase 초기화 시도
+    const initFirebase = () => {
       const initialized = ensureFirebaseInitialized()
+      
       if (initialized && auth && googleProvider) {
         setFirebaseReady(true)
+        setChecking(false)
         
+        // 인증 상태 확인
         const unsubscribe = onAuthStateChanged(auth, (user) => {
           if (user) {
             router.push('/')
-          } else {
-            setChecking(false)
           }
         })
 
         return () => unsubscribe()
       } else {
-        // 초기화 실패 시 재시도
+        // 재시도
+        console.warn('Firebase 초기화 실패, 재시도 중...')
         setTimeout(() => {
           const retryInitialized = ensureFirebaseInitialized()
           if (retryInitialized && auth && googleProvider) {
@@ -39,44 +44,70 @@ export default function LoginPage() {
             setChecking(false)
           } else {
             setChecking(false)
-            console.error('Firebase 초기화 실패 - 환경 변수를 확인하세요')
+            console.error('Firebase 초기화 실패:', {
+              initialized: retryInitialized,
+              hasAuth: !!auth,
+              hasProvider: !!googleProvider,
+              envVars: {
+                apiKey: !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+                authDomain: !!process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+                projectId: !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+              }
+            })
           }
-        }, 100)
+        }, 500)
       }
     }
 
-    const cleanup = init()
+    const cleanup = initFirebase()
     return cleanup
   }, [router])
 
   const handleGoogleLogin = async () => {
-    // Firebase 초기화 재시도
-    if (!firebaseReady) {
+    setLoading(true)
+    
+    try {
+      // Firebase 초기화 강제 실행
       const initialized = ensureFirebaseInitialized()
-      if (!initialized || !auth || !googleProvider) {
-        alert('Firebase가 초기화되지 않았습니다. 환경 변수를 확인하세요.')
+      
+      if (!initialized) {
+        alert('Firebase 초기화에 실패했습니다. 환경 변수를 확인해주세요.')
+        console.error('Firebase 초기화 실패')
+        setLoading(false)
         return
       }
-      setFirebaseReady(true)
-    }
 
-    if (!auth || !googleProvider) {
-      alert('Firebase가 초기화되지 않았습니다.')
-      return
-    }
+      // 실제 auth와 googleProvider 가져오기
+      const currentAuth = auth
+      const currentProvider = googleProvider
 
-    setLoading(true)
-    try {
-      await signInWithPopup(auth, googleProvider)
+      if (!currentAuth || !currentProvider) {
+        alert('Firebase 인증이 초기화되지 않았습니다. 페이지를 새로고침해주세요.')
+        console.error('auth 또는 googleProvider가 null입니다', { currentAuth, currentProvider })
+        setLoading(false)
+        return
+      }
+
+      console.log('로그인 시도 중...', { auth: !!currentAuth, provider: !!currentProvider })
+      
+      // Google 로그인 팝업 열기
+      await signInWithPopup(currentAuth, currentProvider)
+      
+      console.log('로그인 성공')
       router.push('/')
     } catch (error: any) {
       console.error('로그인 실패:', error)
+      
       if (error.code === 'auth/popup-closed-by-user') {
         alert('로그인 창이 닫혔습니다. 다시 시도해주세요.')
       } else if (error.code === 'auth/popup-blocked') {
         alert('팝업이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.')
+      } else if (error.code === 'auth/invalid-api-key') {
+        alert('Firebase API 키가 잘못되었습니다. 환경 변수를 확인해주세요.')
+      } else if (error.code === 'auth/unauthorized-domain') {
+        alert('인증되지 않은 도메인입니다. Firebase 콘솔에서 도메인을 추가해주세요.')
       } else {
-        alert('로그인에 실패했습니다: ' + (error.message || '알 수 없는 오류'))
+        alert('로그인에 실패했습니다: ' + (error.message || error.code || '알 수 없는 오류'))
       }
     } finally {
       setLoading(false)
