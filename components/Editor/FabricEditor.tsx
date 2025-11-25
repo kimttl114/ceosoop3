@@ -99,11 +99,11 @@ export default function FabricEditor() {
   }
 
   // 복사
-  const handleCopy = () => {
+  const handleCopy = async () => {
     const canvas = fabricRef.current
     if (!canvas || !selected) return
 
-    const cloned = selected.clone() as FabricObject
+    const cloned = await selected.clone()
     cloned.set({
       left: (selected.left || 0) + 20,
       top: (selected.top || 0) + 20,
