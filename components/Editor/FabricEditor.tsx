@@ -601,8 +601,17 @@ export default function FabricEditor() {
     const canvas = fabricRef.current
     if (!canvas) return
 
-    canvas.bringForward(selected)
-    canvas.renderAll()
+    const objects = canvas.getObjects()
+    const currentIndex = objects.indexOf(selected)
+    if (currentIndex < objects.length - 1 && currentIndex >= 0) {
+      // 배열에서 위치 교환
+      objects[currentIndex] = objects[currentIndex + 1]
+      objects[currentIndex + 1] = selected
+      // 모든 객체 제거 후 순서대로 다시 추가
+      objects.forEach(obj => canvas.remove(obj))
+      objects.forEach(obj => canvas.add(obj))
+      canvas.renderAll()
+    }
     saveHistory()
   }
 
@@ -611,8 +620,17 @@ export default function FabricEditor() {
     const canvas = fabricRef.current
     if (!canvas) return
 
-    canvas.sendBackwards(selected)
-    canvas.renderAll()
+    const objects = canvas.getObjects()
+    const currentIndex = objects.indexOf(selected)
+    if (currentIndex > 0) {
+      // 배열에서 위치 교환
+      objects[currentIndex] = objects[currentIndex - 1]
+      objects[currentIndex - 1] = selected
+      // 모든 객체 제거 후 순서대로 다시 추가
+      objects.forEach(obj => canvas.remove(obj))
+      objects.forEach(obj => canvas.add(obj))
+      canvas.renderAll()
+    }
     saveHistory()
   }
 
@@ -621,7 +639,8 @@ export default function FabricEditor() {
     const canvas = fabricRef.current
     if (!canvas) return
 
-    canvas.bringToFront(selected)
+    canvas.remove(selected)
+    canvas.add(selected)
     canvas.renderAll()
     saveHistory()
   }
@@ -631,7 +650,16 @@ export default function FabricEditor() {
     const canvas = fabricRef.current
     if (!canvas) return
 
-    canvas.sendToBack(selected)
+    const allObjects = canvas.getObjects()
+    // 모든 객체 제거
+    allObjects.forEach(obj => canvas.remove(obj))
+    // 선택된 객체를 먼저 추가하고 나머지 추가
+    canvas.add(selected)
+    allObjects.forEach(obj => {
+      if (obj !== selected) {
+        canvas.add(obj)
+      }
+    })
     canvas.renderAll()
     saveHistory()
   }
