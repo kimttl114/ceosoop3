@@ -65,7 +65,7 @@ export default function PostDetailPage() {
           const postData = {
             id: postSnap.id,
             ...postSnap.data(),
-          }
+          } as any
           setPost(postData)
 
           // 좋아요한 사용자 목록 불러오기

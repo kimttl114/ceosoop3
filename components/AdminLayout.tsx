@@ -70,6 +70,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const handleLogout = async () => {
     if (!confirm('로그아웃하시겠습니까?')) return
 
+    if (!auth) {
+      console.error('Auth가 초기화되지 않았습니다.')
+      return
+    }
+
     try {
       await signOut(auth)
       router.push('/')

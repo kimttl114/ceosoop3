@@ -70,7 +70,7 @@ export default function FabricEditor() {
       canvas.renderAll()
       setHistoryIndex(newIndex)
       const activeObject = canvas.getActiveObject()
-      setSelected(activeObject)
+      setSelected(activeObject || null)
       if (activeObject) {
         updatePropertiesFromSelection(activeObject)
       }
@@ -91,7 +91,7 @@ export default function FabricEditor() {
       canvas.renderAll()
       setHistoryIndex(newIndex)
       const activeObject = canvas.getActiveObject()
-      setSelected(activeObject)
+      setSelected(activeObject || null)
       if (activeObject) {
         updatePropertiesFromSelection(activeObject)
       }
@@ -103,17 +103,16 @@ export default function FabricEditor() {
     const canvas = fabricRef.current
     if (!canvas || !selected) return
 
-    selected.clone((cloned: FabricObject) => {
-      cloned.set({
-        left: (selected.left || 0) + 20,
-        top: (selected.top || 0) + 20,
-      })
-      canvas.add(cloned)
-      canvas.setActiveObject(cloned)
-      setSelected(cloned)
-      canvas.renderAll()
-      saveHistory()
+    const cloned = selected.clone() as FabricObject
+    cloned.set({
+      left: (selected.left || 0) + 20,
+      top: (selected.top || 0) + 20,
     })
+    canvas.add(cloned)
+    canvas.setActiveObject(cloned)
+    setSelected(cloned)
+    canvas.renderAll()
+    saveHistory()
   }
 
   // 정렬
@@ -202,13 +201,17 @@ export default function FabricEditor() {
 
     canvas.on('selection:created', (e) => {
       const activeObject = canvas.getActiveObject()
-      setSelected(activeObject)
-      updatePropertiesFromSelection(activeObject)
+      setSelected(activeObject || null)
+      if (activeObject) {
+        updatePropertiesFromSelection(activeObject)
+      }
     })
     canvas.on('selection:updated', (e) => {
       const activeObject = canvas.getActiveObject()
-      setSelected(activeObject)
-      updatePropertiesFromSelection(activeObject)
+      setSelected(activeObject || null)
+      if (activeObject) {
+        updatePropertiesFromSelection(activeObject)
+      }
     })
     canvas.on('selection:cleared', () => {
       setSelected(null)

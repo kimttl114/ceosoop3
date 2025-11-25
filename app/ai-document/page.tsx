@@ -251,20 +251,12 @@ export default function AIDocumentPage() {
 
         saveAs(blob, fileName)
 
-        // Firebase Storage에 저장
+        // Firebase Storage에 저장 (DOCX 형식으로 저장)
         if (user && storage) {
           try {
-            let finalFileName = fileName
-            let blobToSave = blob
-            
-            if (downloadFormat === 'txt') {
-              finalFileName = fileName.replace('.docx', '.txt')
-              blobToSave = new Blob([contentToDownload], { type: 'text/plain;charset=utf-8' })
-            } else if (downloadFormat === 'hwp') {
-              finalFileName = fileName.replace('.docx', '.rtf')
-              const rtfContent = convertToRTF(contentToDownload)
-              blobToSave = new Blob([rtfContent], { type: 'application/x-rtf' })
-            }
+            const finalFileName = fileName
+            const blobToSave = blob
+            const storageRef = ref(storage, `generated_documents/${user.uid}/${Date.now()}_${finalFileName}`)
             await uploadBytes(storageRef, blobToSave)
             const downloadUrl = await getDownloadURL(storageRef)
 
