@@ -346,7 +346,8 @@ export default function FabricEditor() {
     setBackgroundColor(color)
     const canvas = fabricRef.current
     if (canvas) {
-      canvas.setBackgroundColor(color, canvas.renderAll.bind(canvas))
+      canvas.backgroundColor = color
+      canvas.renderAll()
       saveHistory()
     }
   }
