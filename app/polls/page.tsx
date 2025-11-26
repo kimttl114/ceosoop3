@@ -824,14 +824,19 @@ export default function CommunityPage() {
       )}
 
       {/* 신고 모달 */}
-      <ReportModal
-        isOpen={isReportModalOpen}
-        onClose={() => {
-          setIsReportModalOpen(false)
-          setReportTarget(null)
-        }}
-        target={reportTarget}
-      />
+      {reportTarget && (
+        <ReportModal
+          isOpen={isReportModalOpen}
+          onClose={() => {
+            setIsReportModalOpen(false)
+            setReportTarget(null)
+          }}
+          reportType={reportTarget.type}
+          targetId={reportTarget.id}
+          targetAuthorId={reportTarget.authorId}
+          targetContent={reportTarget.content}
+        />
+      )}
 
       {/* 하단 네비게이션 */}
       <BottomNav />
