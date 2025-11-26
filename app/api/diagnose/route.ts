@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
     const { rank, rankTier } = getRank(hourlyWage);
 
     // 폐업률 계산 (시급, 마진율, 등급 기반)
-    function calculateClosureRate(hourlyWage: number, marginRate: number, rankTier: number): number {
+    const calculateClosureRate = (hourlyWage: number, marginRate: number, rankTier: number): number => {
       let rate = 0;
       
       // 시급 기반 (최저시급 대비)
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
       
       // 최대 95% 제한, 최소 1%
       return Math.min(Math.max(rate, 1), 95);
-    }
+    };
 
     const closureRate = calculateClosureRate(hourlyWage, marginRate, rankTier);
 
