@@ -765,7 +765,7 @@ export default function CommunityPage() {
                     <div className="flex items-center justify-between pt-1 border-t border-gray-100">
                       <div className="flex items-center gap-1">
                         <AvatarMini size={20} avatarUrl={userAvatars[item.uid]} userId={item.uid} />
-                        <PostAuthorBadge userId={item.uid} />
+                        <PostAuthorBadge authorId={item.uid} />
                         <div className="flex items-center gap-0.5 text-[11px] text-gray-500">
                           <span className="font-medium text-gray-700">{item.anonymousName || '익명의 사장님'}</span>
                           <span>·</span>
