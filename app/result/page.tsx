@@ -32,7 +32,6 @@ interface DiagnosisResult {
   // 월 진단 필드
   monthlyRevenue?: number;
   monthlyNetProfit?: number;
-  dailyHours?: number;
   weeklyDays?: number;
 }
 
