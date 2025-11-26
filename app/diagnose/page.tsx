@@ -13,19 +13,19 @@ interface FormData {
   diagnosisType: DiagnosisType;
   // 하루 진단 필드
   dailyRevenue: number;
-  dailyNetProfit: number;
+  dailyNetProfit?: number;
   dailyHours: number;
   dailyKnowsNetProfit: boolean;
-  dailyFixedCost: number;
+  dailyFixedCost?: number;
   dailyCostRate: number;
   dailyCommissionRate: number;
   // 월 진단 필드
   monthlyRevenue: number;
-  monthlyNetProfit: number;
+  monthlyNetProfit?: number;
   monthlyDailyHours: number;
   monthlyWeeklyDays: number;
   monthlyKnowsNetProfit: boolean;
-  monthlyFixedCost: number;
+  monthlyFixedCost?: number;
   monthlyCostRate: number;
   monthlyCommissionRate: number;
 }
@@ -42,7 +42,7 @@ export default function DiagnosePage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   
-  const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
+  const { control, handleSubmit, watch, setValue, resetField, formState: { errors } } = useForm<FormData>({
     defaultValues: {
       diagnosisType: undefined,
       // 하루 진단 기본값
@@ -406,7 +406,7 @@ export default function DiagnosePage() {
                           type="button"
                           onClick={() => {
                             field.onChange(true);
-                            setValue('dailyFixedCost', undefined);
+                            resetField('dailyFixedCost');
                             setValue('dailyCostRate', 35);
                             setValue('dailyCommissionRate', 10);
                           }}
@@ -423,7 +423,7 @@ export default function DiagnosePage() {
                           type="button"
                           onClick={() => {
                             field.onChange(false);
-                            setValue('dailyNetProfit', undefined);
+                            resetField('dailyNetProfit');
                           }}
                           className={cn(
                             "flex-1 py-4 rounded-xl font-semibold transition-colors",
@@ -618,7 +618,7 @@ export default function DiagnosePage() {
                           type="button"
                           onClick={() => {
                             field.onChange(true);
-                            setValue('monthlyFixedCost', undefined);
+                            resetField('monthlyFixedCost');
                             setValue('monthlyCostRate', 35);
                             setValue('monthlyCommissionRate', 10);
                           }}
@@ -635,7 +635,7 @@ export default function DiagnosePage() {
                           type="button"
                           onClick={() => {
                             field.onChange(false);
-                            setValue('monthlyNetProfit', undefined);
+                            resetField('monthlyNetProfit');
                           }}
                           className={cn(
                             "flex-1 py-4 rounded-xl font-semibold transition-colors",
