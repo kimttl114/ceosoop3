@@ -810,14 +810,18 @@ export default function CommunityPage() {
       />
 
       {/* 쪽지 모달 */}
-      <MessageModal
-        isOpen={isMessageModalOpen}
-        onClose={() => {
-          setIsMessageModalOpen(false)
-          setMessageReceiver(null)
-        }}
-        receiver={messageReceiver}
-      />
+      {messageReceiver && (
+        <MessageModal
+          isOpen={isMessageModalOpen}
+          onClose={() => {
+            setIsMessageModalOpen(false)
+            setMessageReceiver(null)
+          }}
+          receiverId={messageReceiver.id}
+          receiverName={messageReceiver.name}
+          postTitle={messageReceiver.postTitle}
+        />
+      )}
 
       {/* 신고 모달 */}
       <ReportModal
