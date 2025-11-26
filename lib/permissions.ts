@@ -103,7 +103,7 @@ export function getPermissionsForRole(
   
   // 커스텀 권한 추가
   if (customPermissions && customPermissions.length > 0) {
-    return [...new Set([...basePermissions, ...customPermissions])]
+    return Array.from(new Set([...basePermissions, ...customPermissions]))
   }
   
   return basePermissions

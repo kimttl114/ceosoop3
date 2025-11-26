@@ -65,7 +65,7 @@ export default function PollsPage() {
       setPolls(activePolls)
 
       // 아바타 불러오기
-      const uniqueUserIds = [...new Set(activePolls.map((p: any) => p.authorId))]
+      const uniqueUserIds = Array.from(new Set(activePolls.map((p: any) => p.authorId)))
       const avatarPromises = uniqueUserIds.map(async (uid: string) => {
         if (userAvatars[uid]) return null
         try {
