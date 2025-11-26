@@ -67,12 +67,14 @@ export default function DiagnosePage() {
 
   const diagnosisType = watch('diagnosisType');
   const dailyRevenue = watch('dailyRevenue');
+  const dailyNetProfit = watch('dailyNetProfit');
   const dailyFixedCost = watch('dailyFixedCost');
   const dailyCostRate = watch('dailyCostRate');
   const dailyCommissionRate = watch('dailyCommissionRate');
   const dailyKnowsNetProfit = watch('dailyKnowsNetProfit');
   
   const monthlyRevenue = watch('monthlyRevenue');
+  const monthlyNetProfit = watch('monthlyNetProfit');
   const monthlyFixedCost = watch('monthlyFixedCost');
   const monthlyCostRate = watch('monthlyCostRate');
   const monthlyCommissionRate = watch('monthlyCommissionRate');
@@ -583,8 +585,8 @@ export default function DiagnosePage() {
                     type="button"
                     onClick={nextStep}
                     disabled={
-                      (dailyKnowsNetProfit && (!watch('dailyNetProfit') || watch('dailyNetProfit') <= 0 || watch('dailyNetProfit') === undefined)) ||
-                      (!dailyKnowsNetProfit && (estimatedDailyNetProfit <= 0 || !dailyRevenue))
+                      (dailyKnowsNetProfit && (!dailyNetProfit || dailyNetProfit <= 0)) ||
+                      (!dailyKnowsNetProfit && (estimatedDailyNetProfit <= 0 || !dailyRevenue || dailyRevenue <= 0))
                     }
                     className="flex-1 bg-indigo-600 text-white py-4 rounded-xl font-semibold hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                   >
@@ -795,8 +797,8 @@ export default function DiagnosePage() {
                     type="button"
                     onClick={nextStep}
                     disabled={
-                      (monthlyKnowsNetProfit && (!watch('monthlyNetProfit') || watch('monthlyNetProfit') <= 0 || watch('monthlyNetProfit') === undefined)) ||
-                      (!monthlyKnowsNetProfit && (estimatedMonthlyNetProfit <= 0 || !monthlyRevenue))
+                      (monthlyKnowsNetProfit && (!monthlyNetProfit || monthlyNetProfit <= 0)) ||
+                      (!monthlyKnowsNetProfit && (estimatedMonthlyNetProfit <= 0 || !monthlyRevenue || monthlyRevenue <= 0))
                     }
                     className="flex-1 bg-indigo-600 text-white py-4 rounded-xl font-semibold hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                   >
