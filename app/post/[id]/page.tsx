@@ -409,10 +409,10 @@ export default function PostDetailPage() {
                 <span className="font-semibold text-gray-900">{post.author || '익명의 사장님'}</span>
                 <PostAuthorBadge authorId={post.uid} />
               </div>
-              <div className="text-xs text-gray-400">{formatRelativeTime(post.timestamp)}</div>
+              <div className="text-sm text-gray-400">{formatRelativeTime(post.timestamp)}</div>
             </div>
             {post.businessType && (
-              <span className="text-xs font-semibold bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full">
+              <span className="text-sm font-semibold bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full">
                 {post.businessType}
               </span>
             )}
@@ -422,18 +422,18 @@ export default function PostDetailPage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-4">{post.title}</h1>
 
           {/* 본문 */}
-          <div className="text-gray-700 leading-relaxed mb-6 whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+          <div className="text-base text-gray-700 leading-relaxed mb-6 whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
             {!user ? (
               <div className="text-center py-8 bg-gray-50 rounded-xl">
-                <p className="text-gray-600 mb-4">🔒 로그인이 필요합니다</p>
+                <p className="text-base text-gray-600 mb-4">🔒 로그인이 필요합니다</p>
                 <Link href="/" className="text-[#1A2B4E] font-semibold hover:underline">
                   로그인하러 가기
                 </Link>
               </div>
             ) : !isVerified && !verificationLoading ? (
               <div className="text-center py-8 bg-amber-50 rounded-xl border-2 border-amber-200">
-                <p className="text-gray-900 font-semibold mb-2">🔒 사업자 인증이 필요합니다</p>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-base text-gray-900 font-semibold mb-2">🔒 사업자 인증이 필요합니다</p>
+                <p className="text-base text-gray-600 mb-4">
                   인증된 찐사장들만 게시글을 볼 수 있습니다.
                 </p>
                 <button
@@ -489,8 +489,8 @@ export default function PostDetailPage() {
             </h2>
             {comments.length === 0 ? (
               <div className="text-center text-gray-400 py-8">
-                <p>아직 댓글이 없습니다.</p>
-                <p className="text-sm mt-2">첫 번째 댓글을 남겨보세요!</p>
+                <p className="text-base">아직 댓글이 없습니다.</p>
+                <p className="text-base mt-2">첫 번째 댓글을 남겨보세요!</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -500,10 +500,10 @@ export default function PostDetailPage() {
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm text-gray-900">
+                          <span className="font-semibold text-base text-gray-900">
                             {comment.author || '익명'}
                           </span>
-                          <span className="text-xs text-gray-400">
+                          <span className="text-sm text-gray-400">
                             {formatRelativeTime(comment.timestamp)}
                           </span>
                         </div>
@@ -518,7 +518,7 @@ export default function PostDetailPage() {
                               })
                               setIsReportModalOpen(true)
                             }}
-                            className="flex items-center gap-1 px-2 py-1 rounded-md bg-orange-50 text-orange-600 hover:bg-orange-100 transition text-xs font-medium"
+                            className="flex items-center gap-1 px-2 py-1 rounded-md bg-orange-50 text-orange-600 hover:bg-orange-100 transition text-sm font-medium"
                             title="댓글 신고"
                           >
                             <Flag size={12} />
@@ -526,7 +526,7 @@ export default function PostDetailPage() {
                           </button>
                         )}
                       </div>
-                      <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                      <p className="text-gray-700 text-base leading-relaxed whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                         {comment.content}
                       </p>
                     </div>

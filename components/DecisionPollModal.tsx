@@ -227,6 +227,27 @@ export default function DecisionPollModal({
             </button>
           </div>
 
+          {/* 등록 버튼 (헤더 바로 아래 고정) */}
+          <div className="px-6 py-3 border-b border-gray-100 flex-shrink-0 bg-gray-50">
+            <button
+              onClick={handleCreatePoll}
+              disabled={isSubmitting || !title.trim() || !optionA.trim() || !optionB.trim()}
+              className="w-full py-3 bg-[#FFBF00] text-[#1A2B4E] rounded-xl font-bold hover:bg-[#FFBF00]/90 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="animate-spin" size={20} />
+                  <span>등록 중...</span>
+                </>
+              ) : (
+                <>
+                  <Check size={20} />
+                  <span>투표 등록하기</span>
+                </>
+              )}
+            </button>
+          </div>
+
           {/* 폼 (스크롤 가능) */}
           <div className="flex-1 overflow-y-auto px-6 py-4">
             <div className="space-y-3">
@@ -333,26 +354,8 @@ export default function DecisionPollModal({
               </p>
             </div>
 
-            {/* 등록 버튼 (안내 메시지 바로 아래) */}
-            <div className="pt-4 pb-6">
-              <button
-                onClick={handleCreatePoll}
-                disabled={isSubmitting || !title.trim() || !optionA.trim() || !optionB.trim()}
-                className="w-full py-4 bg-[#FFBF00] text-[#1A2B4E] rounded-xl font-bold hover:bg-[#FFBF00]/90 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-lg"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="animate-spin" size={24} />
-                    <span>등록 중...</span>
-                  </>
-                ) : (
-                  <>
-                    <Check size={24} />
-                    <span>투표 등록하기</span>
-                  </>
-                )}
-              </button>
-            </div>
+            {/* 하단 여백 */}
+            <div className="pb-6"></div>
             </div>
           </div>
         </div>

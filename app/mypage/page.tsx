@@ -4,13 +4,17 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth, db } from '@/lib/firebase'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
-import { doc, getDoc, setDoc, collection, query, where, orderBy, onSnapshot, deleteDoc } from 'firebase/firestore'
-import { ArrowLeft, LogOut, User, MapPin, Building2, UserCircle, Loader2, FileText, Trash2, Shield, CheckCircle, Sparkles } from 'lucide-react'
+import { doc, getDoc, setDoc, collection, query, where, orderBy, onSnapshot, deleteDoc, getDocs, limit } from 'firebase/firestore'
+import { ArrowLeft, LogOut, User, MapPin, Building2, UserCircle, Loader2, FileText, Trash2, Shield, CheckCircle, Sparkles, Trophy, Award, Crown } from 'lucide-react'
 import AvatarMini from '@/components/AvatarMini'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
 import VerificationBadge from '@/components/VerificationBadge'
 import { getVerificationStatus, VerificationStatus } from '@/lib/verification'
+import { getLevelByPoints, getNextLevel, getProgressToNextLevel } from '@/lib/levels'
+import { getUnlockedBadges, getNewBadges, UserStats } from '@/lib/badges'
+import { formatNumber } from '@/lib/utils'
+import { motion, AnimatePresence } from 'framer-motion'
 
 // 지역 목록
 const regions = [
@@ -45,6 +49,19 @@ export default function MyPage() {
   const [loadingPosts, setLoadingPosts] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState<string>('')
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus | null>(null)
+  const [userPoints, setUserPoints] = useState(0)
+  const [userBadges, setUserBadges] = useState<string[]>([])
+  const [userStats, setUserStats] = useState<UserStats>({
+    points: 0,
+    consecutiveDays: 0,
+    postsCount: 0,
+    commentsCount: 0,
+    gamesPlayed: 0,
+  })
+  const [ranking, setRanking] = useState<Array<{ uid: string; anonymousName: string; points: number }>>([])
+  const [myRank, setMyRank] = useState<number | null>(null)
+  const [loadingRanking, setLoadingRanking] = useState(false)
+  const [showRankingModal, setShowRankingModal] = useState(false)
 
   // 로그인 상태 확인 및 사용자 정보 불러오기
   useEffect(() => {
@@ -67,6 +84,10 @@ export default function MyPage() {
           const userRef = doc(db, 'users', currentUser.uid)
           const userSnap = await getDoc(userRef)
           
+          // 포인트와 뱃지 초기값 설정
+          let points = 0
+          let badges: string[] = []
+          
           if (userSnap.exists()) {
             const userData = userSnap.data()
             if (userData.anonymousName) {
@@ -78,9 +99,48 @@ export default function MyPage() {
             if (userData.businessType) {
               setBusinessType(userData.businessType)
             }
-              if (userData.avatarUrl) {
-                setAvatarUrl(userData.avatarUrl)
-              }
+            if (userData.avatarUrl) {
+              setAvatarUrl(userData.avatarUrl)
+            }
+            // 포인트 불러오기
+            points = userData.points || 0
+            setUserPoints(points)
+            
+            // 뱃지 불러오기
+            badges = userData.badges || []
+            setUserBadges(badges)
+          }
+
+          // 출석 기록 불러오기
+          const checkInRef = doc(db, 'user_checkin', currentUser.uid)
+          const checkInSnap = await getDoc(checkInRef)
+          let consecutiveDays = 0
+          if (checkInSnap.exists()) {
+            consecutiveDays = checkInSnap.data()?.consecutiveDays || 0
+          }
+
+          // 내 글 수 계산
+          const postsRef = collection(db, 'posts')
+          const postsQuery = query(postsRef, where('uid', '==', currentUser.uid))
+          const postsSnapshot = await getDocs(postsQuery)
+          const postsCount = postsSnapshot.size || 0
+
+          // 통계 계산
+          const stats: UserStats = {
+            points: points,
+            consecutiveDays: consecutiveDays,
+            postsCount: postsCount,
+            commentsCount: 0, // TODO: 댓글 수 집계
+            gamesPlayed: 0, // TODO: 게임 플레이 수 집계
+          }
+            setUserStats(stats)
+            
+            // 새로운 뱃지 확인 및 추가
+            const newBadges = getNewBadges(stats, badges)
+            if (newBadges.length > 0) {
+              const updatedBadges = [...badges, ...newBadges.map(b => b.id)]
+              await setDoc(userRef, { badges: updatedBadges }, { merge: true })
+              setUserBadges(updatedBadges)
             }
 
             // 인증 상태 불러오기
@@ -108,10 +168,11 @@ export default function MyPage() {
 
     setLoadingPosts(true)
     const postsRef = collection(db, 'posts')
+    
+    // 인덱스가 없을 수 있으므로 orderBy 없이 먼저 시도
     const q = query(
       postsRef,
-      where('uid', '==', user.uid),
-      orderBy('timestamp', 'desc')
+      where('uid', '==', user.uid)
     )
 
     const unsubscribe = onSnapshot(
@@ -121,17 +182,78 @@ export default function MyPage() {
           id: doc.id,
           ...doc.data(),
         }))
+        // 클라이언트 사이드에서 시간순 정렬
+        posts.sort((a: any, b: any) => {
+          const timeA = a.timestamp?.toMillis?.() || 0
+          const timeB = b.timestamp?.toMillis?.() || 0
+          return timeB - timeA
+        })
         setMyPosts(posts)
         setLoadingPosts(false)
       },
-      (error) => {
+      (error: any) => {
         console.error('내 글 불러오기 오류:', error)
+        // 인덱스 오류인 경우 무시하고 빈 배열 설정
+        if (error?.code === 'failed-precondition') {
+          console.warn('Firestore 인덱스가 필요합니다. Firebase 콘솔에서 인덱스를 생성해주세요.')
+          setMyPosts([])
+        }
         setLoadingPosts(false)
       }
     )
 
     return () => unsubscribe()
   }, [user, db])
+
+  // 랭킹 데이터 가져오기
+  useEffect(() => {
+    if (!db || !user) return
+
+    const loadRanking = async () => {
+      setLoadingRanking(true)
+      try {
+        // 상위 10명 가져오기
+        const usersRef = collection(db, 'users')
+        const rankingQuery = query(
+          usersRef,
+          orderBy('points', 'desc'),
+          limit(10)
+        )
+        
+        const snapshot = await getDocs(rankingQuery)
+        const topUsers = snapshot.docs.map((doc) => ({
+          uid: doc.id,
+          anonymousName: doc.data().anonymousName || '익명',
+          points: doc.data().points || 0,
+        }))
+        
+        setRanking(topUsers)
+
+        // 내 순위 계산 (전체 사용자 중)
+        const allUsersQuery = query(usersRef, orderBy('points', 'desc'))
+        const allSnapshot = await getDocs(allUsersQuery)
+        const allUsers = allSnapshot.docs.map((doc) => ({
+          uid: doc.id,
+          points: doc.data().points || 0,
+        }))
+        
+        const myRankIndex = allUsers.findIndex((u) => u.uid === user.uid)
+        if (myRankIndex !== -1) {
+          setMyRank(myRankIndex + 1)
+        }
+      } catch (error: any) {
+        console.error('랭킹 불러오기 오류:', error)
+        // 인덱스 오류인 경우 무시
+        if (error?.code !== 'failed-precondition') {
+          alert('랭킹을 불러올 수 없습니다.')
+        }
+      } finally {
+        setLoadingRanking(false)
+      }
+    }
+
+    loadRanking()
+  }, [db, user, userPoints])
 
   // 상대적 시간 포맷팅
   const formatRelativeTime = (timestamp: any) => {
@@ -302,6 +424,161 @@ export default function MyPage() {
               <p className="text-sm text-gray-500">ID: {userId.substring(0, 8)}...</p>
             </div>
           </div>
+        </div>
+
+        {/* 레벨 & 포인트 카드 */}
+        {user && (() => {
+          const currentLevel = getLevelByPoints(userPoints);
+          const nextLevel = getNextLevel(currentLevel);
+          const progress = getProgressToNextLevel(userPoints, currentLevel);
+          const unlockedBadges = getUnlockedBadges(userStats, userBadges);
+          const newBadges = getNewBadges(userStats, userBadges);
+
+          return (
+            <>
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl shadow-lg p-6 mb-6 border-2 border-purple-200">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-16 h-16 rounded-xl bg-gradient-to-br ${currentLevel.color} flex items-center justify-center text-3xl shadow-lg`}>
+                      {currentLevel.emoji}
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 mb-1">현재 레벨</div>
+                      <div className="text-xl font-bold text-gray-800">{currentLevel.level}. {currentLevel.name}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-gray-500 mb-1">포인트</div>
+                    <div className="text-xl font-bold text-purple-600">{formatNumber(userPoints)}P</div>
+                  </div>
+                </div>
+
+                {nextLevel && (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between text-xs text-gray-600 mb-2">
+                      <span>다음 레벨: {nextLevel.emoji} {nextLevel.name}</span>
+                      <span>{userPoints} / {nextLevel.minPoints}P</span>
+                    </div>
+                    <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full bg-gradient-to-r ${nextLevel.color} transition-all duration-500 rounded-full`}
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 뱃지 섹션 */}
+              {unlockedBadges.length > 0 && (
+                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Award className="w-5 h-5 text-yellow-600" />
+                    <h3 className="text-lg font-bold text-gray-800">획득한 뱃지</h3>
+                    {newBadges.length > 0 && (
+                      <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                        새로 {newBadges.length}개!
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-4 gap-3">
+                    {unlockedBadges.map((badge) => (
+                      <div
+                        key={badge.id}
+                        className={`p-3 rounded-xl bg-gradient-to-br ${badge.color} text-white text-center shadow-md ${
+                          newBadges.find(b => b.id === badge.id) ? 'ring-4 ring-yellow-400 animate-pulse' : ''
+                        }`}
+                        title={badge.description}
+                      >
+                        <div className="text-2xl mb-1">{badge.emoji}</div>
+                        <div className="text-xs font-semibold">{badge.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {unlockedBadges.length < 8 && (
+                    <div className="mt-4 text-center">
+                      <p className="text-xs text-gray-500">
+                        {8 - unlockedBadges.length}개의 뱃지를 더 획득할 수 있어요!
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          );
+        })()}
+
+        {/* 포인트 랭킹 섹션 */}
+        <div className="bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50 rounded-2xl shadow-lg p-6 mb-6 border-2 border-yellow-200">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-yellow-600" />
+              <h3 className="text-lg font-bold text-gray-800">포인트 랭킹</h3>
+            </div>
+            {myRank !== null && (
+              <div className="text-right">
+                <div className="text-xs text-gray-600 mb-1">내 순위</div>
+                <div className="text-xl font-bold text-amber-600">#{myRank}</div>
+              </div>
+            )}
+          </div>
+
+          {loadingRanking ? (
+            <div className="text-center py-4">
+              <Loader2 className="animate-spin text-gray-400 mx-auto mb-2" size={24} />
+              <p className="text-sm text-gray-500">랭킹 로딩 중...</p>
+            </div>
+          ) : ranking.length === 0 ? (
+            <div className="text-center py-4">
+              <p className="text-sm text-gray-500">아직 랭킹 데이터가 없습니다.</p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2 mb-4">
+                {ranking.slice(0, 5).map((user, index) => {
+                  const isMe = user.uid === userId
+                  const rankMedals = ['🥇', '🥈', '🥉']
+                  const medal = index < 3 ? rankMedals[index] : null
+                  
+                  return (
+                    <div
+                      key={user.uid}
+                      className={`flex items-center justify-between p-3 rounded-xl ${
+                        isMe
+                          ? 'bg-gradient-to-r from-amber-200 to-orange-200 border-2 border-amber-400'
+                          : 'bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="text-xl font-bold text-gray-700 w-8">
+                          {medal || `${index + 1}`}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-semibold text-gray-800">
+                            {user.anonymousName}
+                            {isMe && <span className="text-amber-600 ml-1">(나)</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-lg font-bold text-amber-600">
+                        {formatNumber(user.points)}P
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              
+              {ranking.length >= 5 && (
+                <button
+                  onClick={() => setShowRankingModal(true)}
+                  className="w-full py-3 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl font-bold hover:shadow-lg transition flex items-center justify-center gap-2"
+                >
+                  <Crown size={18} />
+                  <span>전체 랭킹 보기</span>
+                </button>
+              )}
+            </>
+          )}
         </div>
 
         {/* 사업자 인증 카드 - 프로필 카드 바로 다음 */}
@@ -601,6 +878,101 @@ export default function MyPage() {
           </ul>
         </div>
       </main>
+
+      {/* 전체 랭킹 모달 */}
+      <AnimatePresence>
+        {showRankingModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowRankingModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Trophy className="w-6 h-6 text-yellow-600" />
+                  <h2 className="text-xl font-bold text-gray-900">전체 랭킹</h2>
+                </div>
+                <button
+                  onClick={() => setShowRankingModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition"
+                >
+                  <span className="text-2xl">×</span>
+                </button>
+              </div>
+
+              <div className="overflow-y-auto flex-1">
+                {loadingRanking ? (
+                  <div className="text-center py-8">
+                    <Loader2 className="animate-spin text-gray-400 mx-auto mb-2" size={24} />
+                    <p className="text-sm text-gray-500">로딩 중...</p>
+                  </div>
+                ) : ranking.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-gray-500">랭킹 데이터가 없습니다.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {ranking.map((user, index) => {
+                      const isMe = user.uid === userId
+                      const rankMedals = ['🥇', '🥈', '🥉']
+                      const medal = index < 3 ? rankMedals[index] : null
+                      
+                      return (
+                        <div
+                          key={user.uid}
+                          className={`flex items-center justify-between p-4 rounded-xl ${
+                            isMe
+                              ? 'bg-gradient-to-r from-amber-200 to-orange-200 border-2 border-amber-400'
+                              : index < 3
+                              ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200'
+                              : 'bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-4 flex-1">
+                            <div className={`text-2xl font-bold ${index < 3 ? 'text-yellow-600' : 'text-gray-400'} w-10 text-center`}>
+                              {medal || `${index + 1}`}
+                            </div>
+                            <div className="flex-1">
+                              <div className={`font-bold ${isMe ? 'text-amber-700' : 'text-gray-800'}`}>
+                                {user.anonymousName}
+                                {isMe && <span className="text-amber-600 ml-2 text-sm">(나)</span>}
+                              </div>
+                            </div>
+                          </div>
+                          <div className={`text-lg font-bold ${index < 3 ? 'text-yellow-600' : 'text-amber-600'}`}>
+                            {formatNumber(user.points)}P
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {myRank !== null && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="flex items-center justify-between bg-gradient-to-r from-amber-100 to-orange-100 rounded-xl p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">📍</span>
+                      <span className="font-semibold text-gray-800">내 순위</span>
+                    </div>
+                    <div className="text-xl font-bold text-amber-600">#{myRank}</div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 하단 네비게이션 */}
       <BottomNav />

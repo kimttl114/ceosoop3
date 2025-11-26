@@ -326,12 +326,15 @@ export default function PollDetailPage() {
       <header className="bg-gradient-to-br from-[#1A2B4E] to-[#2C3E50] sticky top-0 z-30 shadow-lg">
         <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
           <button
-            onClick={() => router.back()}
+            onClick={() => router.push('/polls')}
             className="p-2 hover:bg-white/20 rounded-full transition text-white"
           >
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-lg font-bold text-white">투표 상세</h1>
+          <h1 className="text-lg font-bold text-white flex items-center gap-2">
+            <span>💬</span>
+            <span>커뮤니티</span>
+          </h1>
           <div className="w-9" />
         </div>
       </header>

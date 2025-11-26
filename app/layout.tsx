@@ -9,8 +9,8 @@ const notoSansKR = Noto_Sans_KR({
 })
 
 export const metadata: Metadata = {
-  title: '자영업자 대나무숲 - 자영업자 익명 커뮤니티',
-  description: '자영업자 전용 익명 커뮤니티',
+  title: '자영업자 놀이동산 - 재미와 유용함을 한 곳에',
+  description: '자영업자를 위한 게임, 도구, 커뮤니티 - 스트레스 풀고, 재미있게, 유용하게!',
 }
 
 export default function RootLayout({

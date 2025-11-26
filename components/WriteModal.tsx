@@ -17,6 +17,7 @@ const blindCategories = [
   { value: '빌런박제소', label: '❓빌런박제소', emoji: '❓' },
   { value: '꿀팁공유', label: '🍯꿀팁공유', emoji: '🍯' },
   { value: '비틱방(자랑방)', label: '비틱방(자랑방)', emoji: '🥕' },
+  { value: '결정장애', label: '💭결정장애', emoji: '💭' },
 ]
 
 // 업종 목록

@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth, db } from '@/lib/firebase'
+import { auth, db, storage } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { ref, uploadString, getDownloadURL } from 'firebase/storage'
 import { ArrowLeft, Loader2, Sparkles, Image as ImageIcon } from 'lucide-react'
 import AIAvatarGenerator from '@/components/AIAvatarGenerator'
 import BottomNav from '@/components/BottomNav'
@@ -57,18 +58,50 @@ export default function AvatarPage() {
     if (!user || !db) return
 
     try {
+      // 이미지를 Firebase Storage에 저장 (URL 만료 방지)
+      let finalAvatarUrl = imageUrl
+      
+      // DALL-E URL인 경우 Storage에 저장
+      if (imageUrl.includes('oaidalleapiprodscus')) {
+        try {
+          // 이미지 다운로드
+          const imageResponse = await fetch(imageUrl)
+          const blob = await imageResponse.blob()
+          
+          // Base64로 변환
+          const reader = new FileReader()
+          const base64Promise = new Promise<string>((resolve, reject) => {
+            reader.onloadend = () => resolve(reader.result as string)
+            reader.onerror = reject
+            reader.readAsDataURL(blob)
+          })
+          
+          const base64String = await base64Promise
+          
+          // Firebase Storage에 업로드
+          if (storage) {
+            const storageRef = ref(storage, `avatars/${user.uid}/${Date.now()}.png`)
+            await uploadString(storageRef, base64String, 'data_url')
+            finalAvatarUrl = await getDownloadURL(storageRef)
+          }
+        } catch (storageError) {
+          console.error('Storage 저장 실패, 원본 URL 사용:', storageError)
+          // Storage 저장 실패 시 원본 URL 사용
+        }
+      }
+
       const userRef = doc(db, 'users', user.uid)
       // avatarUrl만 업데이트 (생성 횟수는 유지)
       await setDoc(
         userRef,
         {
-          avatarUrl: imageUrl,
+          avatarUrl: finalAvatarUrl,
           updatedAt: new Date().toISOString(),
         },
         { merge: true }
       )
       
-      setCurrentAvatarUrl(imageUrl)
+      setCurrentAvatarUrl(finalAvatarUrl)
       alert('아바타가 저장되었습니다!')
     } catch (error: any) {
       console.error('아바타 저장 실패:', error)

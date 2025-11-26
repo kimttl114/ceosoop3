@@ -15,7 +15,7 @@ import {
   serverTimestamp,
   where,
 } from 'firebase/firestore'
-import { User, Trash2, Image, Search, Bell, Mail, Flag } from 'lucide-react'
+import { User, Trash2, Image, Search, Bell, Mail, Flag, ShoppingBag } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import AvatarMini from '@/components/AvatarMini'
@@ -27,14 +27,9 @@ import PostAuthorBadge from '@/components/PostAuthorBadge'
 import MorphingBackground from '@/components/MorphingBackground'
 import { useVerification } from '@/hooks/useVerification'
 
-// 블라인드 스타일 카테고리
+// 블라인드 스타일 카테고리 (메인 페이지는 베스트만)
 const blindCategories = [
-  { value: '전체', label: '전체', emoji: '' },
   { value: '베스트', label: '🔥베스트', emoji: '🔥' },
-  { value: '대나무숲', label: '🗣️대나무슾', emoji: '🗣️' },
-  { value: '빌런박제소', label: '❓빌런박제소', emoji: '❓' },
-  { value: '꿀팁공유', label: '🍯꿀팁공유', emoji: '🍯' },
-  { value: '비틱방(자랑질)', label: '비틱방(자랑질)', emoji: '🥕' },
 ]
 
 // 업종 목록 (글쓰기 모달용)
@@ -57,7 +52,7 @@ export default function Home() {
   const [userBusinessType, setUserBusinessType] = useState<string>('치킨')
   const [posts, setPosts] = useState<any[]>([])
   const [polls, setPolls] = useState<any[]>([])
-  const [selectedCategory, setSelectedCategory] = useState('전체')
+  const [selectedCategory, setSelectedCategory] = useState('베스트')
   const [isWriteMode, setIsWriteMode] = useState(false)
   const [unreadMessageCount, setUnreadMessageCount] = useState(0)
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
@@ -425,23 +420,14 @@ export default function Home() {
   })
 
   const filteredItems = allItems.filter((item: any) => {
-    // 투표글은 항상 표시 (카테고리 필터와 무관)
+    // 투표글은 베스트 페이지에서 표시하지 않음
     if (item.type === 'poll') {
-      return true
+      return false
     }
     
-    // 일반 게시글은 기존 필터링 로직 적용
+    // 일반 게시글: 베스트만 표시
     const postCategory = item.category || '잡담'
-    
-    if (selectedCategory === '전체') {
-      return true
-    }
-    
-    if (selectedCategory === '베스트') {
-      return postCategory === '베스트' || (item.likes && item.likes >= 10)
-    }
-    
-    return postCategory === selectedCategory
+    return postCategory === '베스트' || (item.likes && item.likes >= 10)
   })
 
   return (
@@ -455,13 +441,13 @@ export default function Home() {
           {/* 상단: 로고 + 검색 + 알림 + 프로필 */}
           <div className="px-4 py-3 flex justify-between items-center">
             <h1 className="text-xl font-bold text-white flex items-center gap-2 animate-title-fade-in">
-              <span className="text-2xl animate-emoji-bounce filter drop-shadow-lg">🎋</span>
+              <span className="text-2xl animate-emoji-bounce filter drop-shadow-lg">🎠</span>
               <span className="relative inline-block">
                 <span className="relative z-10 animate-title-glow font-extrabold drop-shadow-[0_2px_8px_rgba(255,191,0,0.5)]">
-                  자영업자 <span className="text-green-500 animate-forest-glow inline-block">대나무숲</span>
+                  자영업자 <span className="text-yellow-400 animate-welcome-neon-color-shift inline-block">놀이동산</span>
                 </span>
                 <span className="absolute inset-0 animate-title-glow opacity-50 blur-[2px] font-extrabold">
-                  자영업자 <span className="text-green-500">대나무숲</span>
+                  자영업자 <span className="text-yellow-400">놀이동산</span>
                 </span>
               </span>
             </h1>
@@ -520,22 +506,26 @@ export default function Home() {
           {/* 구분선 */}
           <div className="h-1 bg-gradient-to-r from-transparent via-[#FFBF00]/40 to-transparent"></div>
 
-          {/* 카테고리 탭 (통합) */}
-          <div className="px-3 py-2">
-            <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
-              {blindCategories.map((cat) => (
-                <button
-                  key={cat.value}
-                  onClick={() => setSelectedCategory(cat.value)}
-                  className={`flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition whitespace-nowrap ${
-                    selectedCategory === cat.value
-                      ? 'bg-[#FFBF00] text-[#1A2B4E] shadow-md font-bold'
-                      : 'bg-white/20 text-white hover:bg-white/30'
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
+          {/* 출석체크, 포인트 상점, 베스트 배지 */}
+          <div className="px-4 py-2 flex items-center justify-between gap-2">
+            <button
+              onClick={() => router.push('/checkin')}
+              className="px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full text-sm font-bold shadow-md hover:shadow-lg transition-all transform hover:scale-105 flex items-center gap-1.5 flex-shrink-0"
+            >
+              <span>✅</span>
+              <span className="hidden sm:inline">출석체크</span>
+            </button>
+            <button
+              onClick={() => router.push('/shop')}
+              className="px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full text-sm font-bold shadow-md hover:shadow-lg transition-all transform hover:scale-105 flex items-center gap-1.5 flex-shrink-0"
+            >
+              <ShoppingBag size={16} />
+              <span className="hidden sm:inline">포인트상점</span>
+            </button>
+            <div className="flex items-center justify-center flex-1">
+              <span className="px-3 py-1 bg-[#FFBF00] text-[#1A2B4E] rounded-full text-xs font-bold shadow-md">
+                🔥 베스트
+              </span>
             </div>
           </div>
         </div>
@@ -543,12 +533,34 @@ export default function Home() {
 
       {/* 환영 문구 - 가게 간판 스타일 */}
       <div className="max-w-md mx-auto px-4 pt-5 pb-4">
-        <div className="relative animate-welcome-fade-in scale-[0.75] origin-top">
+        <div className="relative animate-welcome-fade-in animate-welcome-float-smooth scale-[0.85] origin-top">
+          {/* 좌우 장식 이모티콘 */}
+          <div className="absolute -left-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-3">
+            <div className="text-3xl animate-welcome-sparkle" style={{ animationDelay: '0s' }}>✨</div>
+            <div className="text-2xl animate-welcome-sparkle" style={{ animationDelay: '0.5s' }}>🌟</div>
+            <div className="text-3xl animate-welcome-sparkle" style={{ animationDelay: '1s' }}>💫</div>
+          </div>
+          <div className="absolute -right-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-3">
+            <div className="text-3xl animate-welcome-sparkle" style={{ animationDelay: '0.3s' }}>⭐</div>
+            <div className="text-2xl animate-welcome-sparkle" style={{ animationDelay: '0.8s' }}>✨</div>
+            <div className="text-3xl animate-welcome-sparkle" style={{ animationDelay: '1.3s' }}>🌟</div>
+          </div>
+          
+          {/* 상단 장식 이모티콘 */}
+          <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 flex gap-4">
+            <div className="text-2xl animate-welcome-sparkle" style={{ animationDelay: '0s' }}>🎉</div>
+            <div className="text-2xl animate-welcome-sparkle" style={{ animationDelay: '0.4s' }}>🎊</div>
+            <div className="text-2xl animate-welcome-sparkle" style={{ animationDelay: '0.8s' }}>🎈</div>
+          </div>
+          
           {/* 간판 본체 */}
-          <div className="bg-gradient-to-br from-[#3a3a3a] via-[#2a2a2a] to-[#3a3a3a] rounded-lg p-5 border-2 border-[#FFBF00]/70 relative overflow-hidden shadow-lg">
-            {/* LED 배경 효과 (매우 약하게) */}
-            <div className="absolute inset-0 opacity-[0.02]">
+          <div className="bg-gradient-to-br from-[#1a1a1a] via-[#2a2a2a] to-[#1a1a1a] rounded-lg p-6 border-2 border-white/20 relative overflow-hidden shadow-2xl" style={{
+            boxShadow: '0 0 30px rgba(96, 165, 250, 0.3), inset 0 0 30px rgba(0, 0, 0, 0.5)',
+          }}>
+            {/* LED 배경 효과 (더 화려하게) */}
+            <div className="absolute inset-0 opacity-[0.05]">
               <div className="absolute inset-0 led-background animate-led-scroll"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#FFBF00]/10 to-transparent animate-welcome-shimmer"></div>
             </div>
             
             {/* 간판 상하단 라인 (약하게) */}
@@ -562,36 +574,50 @@ export default function Home() {
             <div className="absolute bottom-1 right-1 w-2 h-2 border-r border-b border-[#FFBF00]/40"></div>
             
             <div className="relative z-10 text-center">
-              {/* 메인 제목 - 선명하게 */}
-              <h2 className="text-2xl font-black mb-2.5 text-[#FFBF00] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" style={{
-                letterSpacing: '1px',
-                textShadow: '0 2px 8px rgba(0, 0, 0, 0.8), 0 0 15px rgba(255, 191, 0, 0.3)',
-              }}>
-                환영합니다.!!
-              </h2>
+              {/* 메인 제목 - 놀이동산 간판 스타일 */}
+              <div className="flex items-center justify-center gap-3 mb-3">
+                <span className="text-2xl animate-welcome-sparkle" style={{ animationDelay: '0s' }}>🎠</span>
+                <h2 className="text-3xl font-black animate-welcome-pulse animate-welcome-neon-color-shift" style={{
+                  letterSpacing: '2px',
+                }}>
+                  놀이동산에 오신 것을 환영합니다! 🎉
+                </h2>
+                <span className="text-2xl animate-welcome-sparkle" style={{ animationDelay: '0.5s' }}>🎡</span>
+              </div>
               
               {/* 부제목 */}
-              <div className="space-y-1">
-                <p className="text-sm font-bold text-white leading-relaxed drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]" style={{
-                  letterSpacing: '0.5px',
-                }}>
-                  인증된 찐사장들만을 위한
-                </p>
-                <p className="text-base font-black text-[#FFBF00] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" style={{
-                  letterSpacing: '1px',
-                  textShadow: '0 2px 8px rgba(0, 0, 0, 0.8), 0 0 12px rgba(255, 191, 0, 0.25)',
-                }}>
-                  익명 커뮤니티!!
-                </p>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-lg animate-welcome-sparkle" style={{ animationDelay: '0.2s' }}>🎮</span>
+                  <p className="text-base font-bold leading-relaxed animate-welcome-pulse animate-welcome-neon-color-shift" style={{
+                    letterSpacing: '1px',
+                  }}>
+                    스트레스 풀고, 재미있게, 유용하게!
+                  </p>
+                  <span className="text-lg animate-welcome-sparkle" style={{ animationDelay: '0.7s' }}>🎮</span>
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-xl animate-welcome-sparkle" style={{ animationDelay: '0.4s' }}>🎁</span>
+                  <p className="text-lg font-black animate-welcome-pulse animate-welcome-neon-color-shift" style={{
+                    letterSpacing: '1.5px',
+                  }}>
+                    게임부터 실용 도구까지 한 곳에!
+                  </p>
+                  <span className="text-xl animate-welcome-sparkle" style={{ animationDelay: '0.9s' }}>🎁</span>
+                </div>
               </div>
             </div>
             
-            {/* 간판 하단 LED 점등 효과 (작고 약하게) */}
-            <div className="absolute bottom-0.5 left-1/2 transform -translate-x-1/2 flex gap-0.5">
-              {[...Array(5)].map((_, i) => (
+            {/* 간판 하단 LED 점등 효과 (더 화려하게) */}
+            <div className="absolute bottom-0.5 left-1/2 transform -translate-x-1/2 flex gap-1">
+              {Array.from({ length: 7 }).map((_, i) => (
                 <div
                   key={i}
-                  className="w-1 h-1 rounded-full bg-[#FFBF00]/40"
+                  className="w-1.5 h-1.5 rounded-full bg-[#FFBF00] animate-welcome-sparkle"
+                  style={{
+                    animationDelay: `${i * 0.2}s`,
+                    boxShadow: '0 0 5px rgba(255, 191, 0, 0.8), 0 0 10px rgba(255, 191, 0, 0.5)',
+                  }}
                 ></div>
               ))}
             </div>
@@ -599,9 +625,91 @@ export default function Home() {
           
           {/* 간판 지지대 */}
           <div className="mx-auto mt-2 flex justify-center gap-3.5">
-            <div className="w-7 h-2.5 bg-gradient-to-b from-gray-500 to-gray-700 rounded-b-lg opacity-50"></div>
-            <div className="w-7 h-2.5 bg-gradient-to-b from-gray-500 to-gray-700 rounded-b-lg opacity-50"></div>
+            <div className="w-8 h-3 bg-gradient-to-b from-gray-500 to-gray-700 rounded-b-lg opacity-60"></div>
+            <div className="w-8 h-3 bg-gradient-to-b from-gray-500 to-gray-700 rounded-b-lg opacity-60"></div>
           </div>
+          
+          {/* 하단 장식 이모티콘 */}
+          <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-3">
+            <div className="text-xl animate-welcome-sparkle" style={{ animationDelay: '0.2s' }}>🎀</div>
+            <div className="text-xl animate-welcome-sparkle" style={{ animationDelay: '0.6s' }}>🌸</div>
+            <div className="text-xl animate-welcome-sparkle" style={{ animationDelay: '1s' }}>🎀</div>
+          </div>
+        </div>
+      </div>
+
+      {/* 놀이동산 Zone 카드 섹션 */}
+      <div className="max-w-md mx-auto px-4 py-4">
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          {/* 랜덤 박스 */}
+          <button
+            onClick={() => router.push('/games/box')}
+            className="bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl p-4 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105"
+          >
+            <div className="text-3xl mb-2">📦</div>
+            <div className="text-sm font-bold">랜덤 박스</div>
+            <div className="text-xs opacity-90">매일 무료 박스 열기</div>
+          </button>
+
+          {/* 내 시급은? */}
+          <button
+            onClick={() => router.push('/diagnose')}
+            className="bg-gradient-to-br from-[#FFBF00] to-[#F59E0B] rounded-2xl p-4 text-[#1A2B4E] shadow-lg hover:shadow-xl transition transform hover:scale-105"
+          >
+            <div className="text-3xl mb-2">💸</div>
+            <div className="text-sm font-bold">내 시급은?</div>
+            <div className="text-xs opacity-90">AI가 내 시급 판독</div>
+          </button>
+        </div>
+
+        {/* 게임존 & 도구존 */}
+        <div className="space-y-3 mb-4">
+          <Link
+            href="/games"
+            className="block bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-5 border-2 border-purple-200 hover:border-purple-300 transition shadow-md hover:shadow-lg"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl mb-1">🎮</div>
+                <div className="font-bold text-gray-800">게임존</div>
+                <div className="text-sm text-gray-600">스트레스 해소 게임</div>
+              </div>
+              <div className="text-purple-600 font-bold">→</div>
+            </div>
+          </Link>
+
+          <Link
+            href="/tools"
+            className="block bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-5 border-2 border-blue-200 hover:border-blue-300 transition shadow-md hover:shadow-lg"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl mb-1">🛠️</div>
+                <div className="font-bold text-gray-800">도구존</div>
+                <div className="text-sm text-gray-600">실용 도구 모음</div>
+              </div>
+              <div className="text-blue-600 font-bold">→</div>
+            </div>
+          </Link>
+
+          <a
+            href="https://all-fo.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-5 border-2 border-purple-200 hover:border-purple-300 transition shadow-md hover:shadow-lg relative overflow-hidden"
+          >
+            {/* 반짝이는 효과 */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-welcome-shimmer"></div>
+            
+            <div className="flex items-center justify-between relative z-10">
+              <div>
+                <div className="text-2xl mb-1">✨</div>
+                <div className="font-bold text-gray-800">운세존</div>
+                <div className="text-sm text-gray-600">AI 올인원 운세</div>
+              </div>
+              <div className="text-purple-600 font-bold">→</div>
+            </div>
+          </a>
         </div>
       </div>
 
@@ -632,12 +740,12 @@ export default function Home() {
                     <div className="pl-2.5 pr-2.5 py-2">
                       {/* 투표 배지 */}
                       <div className="flex items-center gap-1.5 mb-1.5">
-                        <span className="text-[10px] font-semibold bg-purple-600 text-white px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                        <span className="text-[12px] font-semibold bg-purple-600 text-white px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                           <span>💭</span>
                           <span>투표</span>
                         </span>
                         {isPopular && (
-                          <span className="px-1.5 py-0.5 bg-gradient-to-r from-[#FFBF00] to-[#F59E0B] text-[#1A2B4E] text-[10px] font-bold rounded-full shadow-sm flex items-center gap-0.5">
+                          <span className="px-1.5 py-0.5 bg-gradient-to-r from-[#FFBF00] to-[#F59E0B] text-[#1A2B4E] text-[12px] font-bold rounded-full shadow-sm flex items-center gap-0.5">
                             <span>🔥</span>
                             <span>인기</span>
                           </span>
@@ -645,7 +753,7 @@ export default function Home() {
                       </div>
 
                       {/* 제목 */}
-                      <h3 className="font-bold line-clamp-1 text-xs text-gray-900 mb-1.5">
+                      <h3 className="font-bold line-clamp-1 text-sm text-gray-900 mb-1.5">
                         {item.title}
                       </h3>
 
@@ -653,8 +761,8 @@ export default function Home() {
                       <div className="space-y-1.5 mb-1.5">
                         <div className="bg-white/70 rounded-lg p-1.5">
                           <div className="flex items-center justify-between mb-0.5">
-                            <span className="text-[10px] font-medium text-gray-700">A. {item.optionA?.text || ''}</span>
-                            <span className="text-[10px] font-bold text-purple-700">{optionAPercent}%</span>
+                            <span className="text-[12px] font-medium text-gray-700">A. {item.optionA?.text || ''}</span>
+                            <span className="text-[12px] font-bold text-purple-700">{optionAPercent}%</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-1">
                             <div
@@ -665,8 +773,8 @@ export default function Home() {
                         </div>
                         <div className="bg-white/70 rounded-lg p-1.5">
                           <div className="flex items-center justify-between mb-0.5">
-                            <span className="text-[10px] font-medium text-gray-700">B. {item.optionB?.text || ''}</span>
-                            <span className="text-[10px] font-bold text-blue-700">{optionBPercent}%</span>
+                            <span className="text-[12px] font-medium text-gray-700">B. {item.optionB?.text || ''}</span>
+                            <span className="text-[12px] font-bold text-blue-700">{optionBPercent}%</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-1">
                             <div
@@ -681,23 +789,23 @@ export default function Home() {
                       <div className="flex items-center justify-between pt-1 border-t border-purple-200">
                         <div className="flex items-center gap-1">
                           <AvatarMini size={20} avatarUrl={userAvatars[item.authorId]} userId={item.authorId} />
-                          <div className="flex items-center gap-0.5 text-[9px] text-gray-500">
+                          <div className="flex items-center gap-0.5 text-[11px] text-gray-500">
                             <span className="font-medium text-gray-700">{item.authorName || '익명의 사장님'}</span>
                             <span>·</span>
                             <span>{formatRelativeTime(item.createdAt)}</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1.5 text-[9px] text-gray-400">
+                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
                           <span className="flex items-center gap-0.5">
-                            <span className="text-[10px]">🗳️</span>
+                            <span className="text-[12px]">🗳️</span>
                             <span>{totalVotes}</span>
                           </span>
                           <span className="flex items-center gap-0.5">
-                            <span className="text-[10px]">💬</span>
+                            <span className="text-[12px]">💬</span>
                             <span>{item.comments || 0}</span>
                           </span>
-                          <span className="flex items-center gap-0.5 text-[8px]">
-                            <span className="text-[9px]">⏰</span>
+                          <span className="flex items-center gap-0.5 text-[10px]">
+                            <span className="text-[11px]">⏰</span>
                             <span>{getPollTimeRemaining(item.deadline)}</span>
                           </span>
                         </div>
@@ -731,14 +839,14 @@ export default function Home() {
                     <div className="flex items-center gap-1.5 mb-1.5">
                       {/* 카테고리 배지 */}
                       {item.category && (
-                        <span className="text-[10px] font-semibold bg-[#1A2B4E] text-white px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                        <span className="text-[12px] font-semibold bg-[#1A2B4E] text-white px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                           {blindCategories.find(cat => cat.value === item.category)?.emoji || ''}
                           <span>{blindCategories.find(cat => cat.value === item.category)?.label || item.category}</span>
                         </span>
                       )}
                       {/* 인기글 배지 */}
                       {isBest && (
-                        <span className="px-1.5 py-0.5 bg-gradient-to-r from-[#FFBF00] to-[#F59E0B] text-[#1A2B4E] text-[10px] font-bold rounded-full shadow-sm flex items-center gap-0.5">
+                        <span className="px-1.5 py-0.5 bg-gradient-to-r from-[#FFBF00] to-[#F59E0B] text-[#1A2B4E] text-[12px] font-bold rounded-full shadow-sm flex items-center gap-0.5">
                           <span>🔥</span>
                           <span>인기글</span>
                         </span>
@@ -747,7 +855,7 @@ export default function Home() {
 
                     {/* 제목 */}
                     <div className="flex items-start justify-between gap-1.5 mb-1">
-                      <h3 className={`font-bold line-clamp-1 flex-1 text-xs text-gray-900`}>
+                      <h3 className={`font-bold line-clamp-1 flex-1 text-sm text-gray-900`}>
                         {item.title}
                       </h3>
                       {user && user.uid === item.uid && (
@@ -792,18 +900,18 @@ export default function Home() {
                     )}
 
                     {/* 본문 */}
-                    <p className="text-[11px] text-gray-600 line-clamp-1 mb-1 leading-relaxed whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                    <p className="text-[13px] text-gray-600 line-clamp-1 mb-1 leading-relaxed whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                       {user && isVerified ? item.content : !user ? '🔒 로그인이 필요합니다' : !isVerified ? '🔒 사업자 인증이 필요합니다' : item.content}
                     </p>
 
                     {/* 뱃지 - 매우 작게 */}
                     <div className="flex flex-wrap gap-0.5 mb-1">
                       {item.region && (
-                        <span className="flex-shrink-0 text-[8px] font-medium bg-blue-100 text-blue-700 px-1 py-0.5 rounded-full leading-tight">
+                        <span className="flex-shrink-0 text-[10px] font-medium bg-blue-100 text-blue-700 px-1 py-0.5 rounded-full leading-tight">
                           {item.region}
                         </span>
                       )}
-                      <span className="flex-shrink-0 text-[8px] font-medium bg-amber-100 text-amber-700 px-1 py-0.5 rounded-full leading-tight">
+                      <span className="flex-shrink-0 text-[10px] font-medium bg-amber-100 text-amber-700 px-1 py-0.5 rounded-full leading-tight">
                         {item.businessType ? `${getBusinessEmoji(item.businessType)} ${item.businessType}` : '🏪 기타'}
                       </span>
                     </div>
@@ -812,7 +920,7 @@ export default function Home() {
                     <div className="flex items-center justify-between pt-1 border-t border-gray-100">
                       <div className="flex items-center gap-1">
                         <AvatarMini size={20} avatarUrl={userAvatars[item.uid]} userId={item.uid} />
-                        <div className="flex items-center gap-0.5 text-[9px] text-gray-500">
+                        <div className="flex items-center gap-0.5 text-[11px] text-gray-500">
                           <span className="font-medium text-gray-700">{item.author || '익명의 사장님'}</span>
                           <PostAuthorBadge authorId={item.uid} />
                           <span>·</span>
@@ -838,13 +946,13 @@ export default function Home() {
                             <Mail size={11} />
                           </button>
                         )}
-                        <div className="flex items-center gap-1.5 text-[9px] text-gray-400">
+                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
                           <span className="flex items-center gap-0.5">
-                            <span className="text-[10px]">❤️</span>
+                            <span className="text-[12px]">❤️</span>
                             <span>{item.likes || 0}</span>
                           </span>
                           <span className="flex items-center gap-0.5">
-                            <span className="text-[10px]">💬</span>
+                            <span className="text-[12px]">💬</span>
                             <span>{item.comments || 0}</span>
                           </span>
                         </div>
