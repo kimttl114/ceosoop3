@@ -31,14 +31,23 @@ export default function FloatingParticles() {
     // 파티클 애니메이션
     const animate = () => {
       setParticles((prev) =>
-        prev.map((particle) => ({
-          ...particle,
-          x: particle.x + particle.speedX,
-          y: particle.y + particle.speedY,
+        prev.map((particle) => {
+          // 속도에 따라 새 위치 계산
+          let newX = particle.x + particle.speedX
+          let newY = particle.y + particle.speedY
+          
           // 화면 밖으로 나가면 반대편에서 다시 시작
-          x: particle.x > 100 ? 0 : particle.x < 0 ? 100 : particle.x,
-          y: particle.y > 100 ? 0 : particle.y < 0 ? 100 : particle.y,
-        }))
+          if (newX > 100) newX = 0
+          if (newX < 0) newX = 100
+          if (newY > 100) newY = 0
+          if (newY < 0) newY = 100
+          
+          return {
+            ...particle,
+            x: newX,
+            y: newY,
+          }
+        })
       )
     }
 
