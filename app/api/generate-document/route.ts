@@ -81,7 +81,7 @@ function validateDocument(data: any, documentType: string): { valid: boolean; er
 }
 
 // GPT-4o를 통한 의도 파악 및 정보 추출
-async function analyzeUserInput(userInput: string, documentType?: string) {
+async function analyzeUserInput(userInput: string, documentType: string) {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error('OpenAI API 키가 설정되지 않았습니다.')
   }
@@ -90,12 +90,10 @@ async function analyzeUserInput(userInput: string, documentType?: string) {
 사용자의 요청을 분석하여 다음 정보를 JSON 형식으로 반환하세요:
 
 사용자 입력: "${userInput}"
-
-먼저 사용자 요청에서 문서 유형을 자동으로 판단하세요 (근로계약서, 영수증, 임대차계약서, 급여명세서, 공급계약서, 세금계산서 등).
+문서 유형: "${documentType}"
 
 다음 JSON 형식으로 반환하세요:
 {
-  "documentType": "판단된 문서 유형 (예: 근로계약서, 영수증 등)",
   "extractedData": {
     "employeeName": "직원명 (있는 경우)",
     "hourlyWage": 시급 숫자 (있는 경우),
@@ -294,20 +292,15 @@ export async function POST(request: NextRequest) {
 
     // 재생성 모드: 입력 내용을 그대로 문서로 변환
     if (regenerateOnly) {
-      // 문서 유형 자동 판단
-      const analysis = await analyzeUserInput(userInput)
-      const detectedType = analysis.documentType || documentType || '근로계약서'
-      const finalType = documentType || detectedType
-      
-      const docxBuffer = await createDocxFile(userInput, finalType)
+      const docxBuffer = await createDocxFile(userInput, documentType)
       const base64 = docxBuffer.toString('base64')
       
       return NextResponse.json({
         success: true,
         documentContent: userInput,
         documentBase64: base64,
-        fileName: `${finalType}_${Date.now()}.docx`,
-        documentType: finalType,
+        fileName: `${documentType}_${Date.now()}.docx`,
+        documentType: documentType,
       })
     }
 
@@ -318,14 +311,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 1. 사용자 입력 분석 (문서 유형 자동 판단)
+    // 1. 사용자 입력 분석
     const analysis = await analyzeUserInput(userInput, documentType)
-    const detectedDocumentType = analysis.documentType || documentType || '근로계약서'
     const extractedData = analysis.extractedData || {}
     const missingFields = analysis.missingFields || []
     
-    // 문서 유형 업데이트
-    const finalDocumentType = documentType || detectedDocumentType
+    // 문서 유형은 사용자가 선택한 것으로 사용
+    const finalDocumentType = documentType
 
     // 누락된 필드가 있어도 기본값으로 채워서 진행
     const finalData = { ...extractedData, ...additionalData }

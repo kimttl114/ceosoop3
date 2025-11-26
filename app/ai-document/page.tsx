@@ -89,6 +89,11 @@ export default function AIDocumentPage() {
       return
     }
 
+    if (!documentType) {
+      setError('문서 유형을 선택해주세요.')
+      return
+    }
+
     setIsGenerating(true)
     setError(null)
     setGeneratedDocument(null)
@@ -129,10 +134,6 @@ export default function AIDocumentPage() {
       setWarnings(data.warnings || [])
       setShowAdditionalForm(false)
       setMissingFields([])
-      // AI가 판단한 문서 유형 업데이트
-      if (data.documentType) {
-        setDocumentType(data.documentType)
-      }
     } catch (error: any) {
       console.error('문서 생성 오류:', error)
       setError('문서 생성 중 오류가 발생했습니다: ' + (error.message || '알 수 없는 오류'))
@@ -330,7 +331,7 @@ export default function AIDocumentPage() {
             onChange={(e) => setDocumentType(e.target.value)}
             className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1A2B4E] text-gray-800 bg-white"
           >
-            <option value="">자동 판단 (AI가 선택)</option>
+            <option value="">문서 유형을 선택하세요</option>
             <option value="근로계약서">근로계약서</option>
             <option value="영수증">영수증</option>
             <option value="임대차계약서">임대차계약서</option>
@@ -400,7 +401,7 @@ export default function AIDocumentPage() {
         {/* 생성 버튼 */}
         <button
           onClick={handleGenerate}
-          disabled={isGenerating || !userInput.trim()}
+          disabled={isGenerating || !userInput.trim() || !documentType}
           className="w-full py-4 bg-gradient-to-r from-[#1A2B4E] to-[#2C3E50] text-white rounded-xl font-bold hover:from-[#1A2B4E]/90 hover:to-[#2C3E50]/90 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isGenerating ? (

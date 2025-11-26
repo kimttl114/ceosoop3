@@ -58,6 +58,7 @@ export default function AvatarPage() {
 
     try {
       const userRef = doc(db, 'users', user.uid)
+      // avatarUrl만 업데이트 (생성 횟수는 유지)
       await setDoc(
         userRef,
         {

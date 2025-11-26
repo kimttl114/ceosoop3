@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, User, Plus, Sparkles, FileText } from 'lucide-react'
+import { Home, User, Plus, Sparkles, FileText, Vote } from 'lucide-react'
 
 interface BottomNavProps {
   onWriteClick?: () => void
@@ -13,6 +13,7 @@ export default function BottomNav({ onWriteClick }: BottomNavProps) {
 
   const navItems = [
     { path: '/', label: '홈', icon: Home, isExternal: false },
+    { path: '/polls', label: '투표', icon: Vote, isExternal: false },
     { path: '/ai-document', label: 'AI서류', icon: FileText, isExternal: false },
     { path: 'https://all-fo.vercel.app/', label: '운세', icon: Sparkles, isExternal: true },
     { path: '/mypage', label: '마이', icon: User, isExternal: false },
@@ -58,7 +59,7 @@ export default function BottomNav({ onWriteClick }: BottomNavProps) {
 
               return (
                 <div key={item.path} className="flex items-center">
-                  {index === 2 && (
+                  {index === 3 && (
                     // 중앙 글쓰기 버튼 공간 (플레이스홀더)
                     <div className="w-16 h-16 flex-shrink-0" />
                   )}

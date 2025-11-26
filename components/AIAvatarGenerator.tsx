@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Sparkles, Loader2, Check, X, RefreshCw } from 'lucide-react'
+import { auth, db } from '@/lib/firebase'
+import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 
 interface AIAvatarGeneratorProps {
   onAvatarGenerated: (imageUrl: string) => void
@@ -17,7 +19,67 @@ export default function AIAvatarGenerator({
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [generationCount, setGenerationCount] = useState(0)
+  const [loading, setLoading] = useState(true)
   const maxGenerations = 2
+
+  // Firebase에서 생성 횟수와 날짜 불러오기
+  useEffect(() => {
+    const loadGenerationCount = async () => {
+      if (!auth || !db) {
+        setLoading(false)
+        return
+      }
+
+      const user = auth.currentUser
+      if (!user) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        const userRef = doc(db, 'users', user.uid)
+        const userSnap = await getDoc(userRef)
+        
+        if (userSnap.exists()) {
+          const userData = userSnap.data()
+          const lastDate = userData.lastAvatarGenerationDate
+          const count = userData.avatarGenerationCount || 0
+          
+          // 날짜 확인
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          
+          if (lastDate) {
+            const lastDateObj = lastDate.toDate ? lastDate.toDate() : new Date(lastDate)
+            lastDateObj.setHours(0, 0, 0, 0)
+            
+            // 날짜가 다르면 (하루가 지났으면) 리셋
+            if (lastDateObj.getTime() !== today.getTime()) {
+              setGenerationCount(0)
+              // Firebase도 리셋
+              await updateDoc(userRef, {
+                avatarGenerationCount: 0,
+                lastAvatarGenerationDate: serverTimestamp(),
+              })
+            } else {
+              setGenerationCount(count)
+            }
+          } else {
+            setGenerationCount(0)
+          }
+        } else {
+          setGenerationCount(0)
+        }
+      } catch (error) {
+        console.error('생성 횟수 불러오기 오류:', error)
+        setGenerationCount(0)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadGenerationCount()
+  }, [])
 
   // 키워드 예시
   const keywordExamples = [
@@ -34,6 +96,18 @@ export default function AIAvatarGenerator({
       return
     }
 
+    if (!auth || !db) {
+      setError('로그인이 필요합니다.')
+      return
+    }
+
+    const user = auth.currentUser
+    if (!user) {
+      setError('로그인이 필요합니다.')
+      return
+    }
+
+    // 최신 횟수 확인
     if (generationCount >= maxGenerations) {
       setError(`하루 최대 ${maxGenerations}회까지 생성할 수 있습니다.`)
       return
@@ -44,6 +118,18 @@ export default function AIAvatarGenerator({
     setGeneratedImageUrl(null)
 
     try {
+      // Firebase에 생성 횟수 증가 (선반영)
+      const userRef = doc(db, 'users', user.uid)
+      const newCount = generationCount + 1
+      
+      await updateDoc(userRef, {
+        avatarGenerationCount: newCount,
+        lastAvatarGenerationDate: serverTimestamp(),
+      })
+      
+      setGenerationCount(newCount)
+
+      // API 호출
       const response = await fetch('/api/generate-avatar', {
         method: 'POST',
         headers: {
@@ -55,11 +141,15 @@ export default function AIAvatarGenerator({
       const data = await response.json()
 
       if (!response.ok) {
+        // 실패 시 횟수 되돌리기
+        await updateDoc(userRef, {
+          avatarGenerationCount: generationCount,
+        })
+        setGenerationCount(generationCount)
         throw new Error(data.error || '이미지 생성에 실패했습니다.')
       }
 
       setGeneratedImageUrl(data.imageUrl)
-      setGenerationCount((prev) => prev + 1)
     } catch (err: any) {
       setError(err.message || '이미지 생성 중 오류가 발생했습니다.')
     } finally {
@@ -67,12 +157,12 @@ export default function AIAvatarGenerator({
     }
   }
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (generatedImageUrl) {
       onAvatarGenerated(generatedImageUrl)
       setGeneratedImageUrl(null)
       setKeywords('')
-      setGenerationCount(0)
+      // 생성 횟수는 유지 (확정 후에도 리셋하지 않음)
     }
   }
 
@@ -107,11 +197,14 @@ export default function AIAvatarGenerator({
       )}
 
       {/* 생성 횟수 표시 */}
-      <div className="bg-blue-50 rounded-lg p-3 mb-4">
-        <p className="text-sm text-gray-700">
-          남은 생성 횟수: <span className="font-bold text-[#1A2B4E]">{maxGenerations - generationCount}</span> / {maxGenerations}
-        </p>
-      </div>
+      {!loading && (
+        <div className="bg-blue-50 rounded-lg p-3 mb-4">
+          <p className="text-sm text-gray-700">
+            남은 생성 횟수: <span className="font-bold text-[#1A2B4E]">{maxGenerations - generationCount}</span> / {maxGenerations}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">매일 자정에 횟수가 초기화됩니다.</p>
+        </div>
+      )}
 
       {/* 키워드 입력 */}
       <div>

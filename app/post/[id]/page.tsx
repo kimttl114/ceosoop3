@@ -23,6 +23,7 @@ import AvatarMini from '@/components/AvatarMini'
 import Link from 'next/link'
 import ReportModal from '@/components/ReportModal'
 import PostAuthorBadge from '@/components/PostAuthorBadge'
+import { useVerification } from '@/hooks/useVerification'
 
 export default function PostDetailPage() {
   const router = useRouter()
@@ -41,6 +42,7 @@ export default function PostDetailPage() {
   const [reportTarget, setReportTarget] = useState<{ type: 'post' | 'comment', id: string, authorId?: string, content?: string } | null>(null)
   const [authorAvatarUrl, setAuthorAvatarUrl] = useState<string | null>(null)
   const [commentAvatars, setCommentAvatars] = useState<Record<string, string>>({})
+  const { isVerified, loading: verificationLoading } = useVerification()
 
   // 로그인 상태 확인
   useEffect(() => {
@@ -263,6 +265,12 @@ export default function PostDetailPage() {
       return
     }
 
+    if (!isVerified) {
+      alert('사업자 인증이 필요합니다. 인증된 찐사장들만 댓글을 작성할 수 있습니다.')
+      router.push('/auth/verify')
+      return
+    }
+
     if (!commentText.trim()) {
       alert('댓글을 입력해주세요.')
       return
@@ -414,8 +422,30 @@ export default function PostDetailPage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-4">{post.title}</h1>
 
           {/* 본문 */}
-          <div className="text-gray-700 leading-relaxed mb-6 whitespace-pre-wrap">
-            {user ? post.content : '🔒 로그인해야 볼 수 있어요'}
+          <div className="text-gray-700 leading-relaxed mb-6 whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+            {!user ? (
+              <div className="text-center py-8 bg-gray-50 rounded-xl">
+                <p className="text-gray-600 mb-4">🔒 로그인이 필요합니다</p>
+                <Link href="/" className="text-[#1A2B4E] font-semibold hover:underline">
+                  로그인하러 가기
+                </Link>
+              </div>
+            ) : !isVerified && !verificationLoading ? (
+              <div className="text-center py-8 bg-amber-50 rounded-xl border-2 border-amber-200">
+                <p className="text-gray-900 font-semibold mb-2">🔒 사업자 인증이 필요합니다</p>
+                <p className="text-sm text-gray-600 mb-4">
+                  인증된 찐사장들만 게시글을 볼 수 있습니다.
+                </p>
+                <button
+                  onClick={() => router.push('/auth/verify')}
+                  className="bg-[#FFBF00] text-[#1A2B4E] px-6 py-2 rounded-lg font-bold hover:bg-[#FFBF00]/90 transition"
+                >
+                  사업자 인증하기
+                </button>
+              </div>
+            ) : (
+              post.content
+            )}
           </div>
 
           {/* 좋아요 및 신고 버튼 */}
@@ -496,7 +526,7 @@ export default function PostDetailPage() {
                           </button>
                         )}
                       </div>
-                      <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
+                      <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                         {comment.content}
                       </p>
                     </div>
@@ -509,7 +539,7 @@ export default function PostDetailPage() {
       </main>
 
       {/* 댓글 입력창 (Sticky) */}
-      {user && (
+      {user && isVerified && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
           <div className="max-w-md mx-auto px-4 py-3">
             <form onSubmit={handleCommentSubmit} className="flex gap-2">
@@ -533,17 +563,31 @@ export default function PostDetailPage() {
         </div>
       )}
 
-      {/* 비로그인 사용자 안내 */}
-      {!user && (
+      {/* 비로그인/미인증 사용자 안내 */}
+      {(!user || (user && !isVerified && !verificationLoading)) && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
           <div className="max-w-md mx-auto px-4 py-3 text-center">
-            <p className="text-sm text-gray-600">
-              댓글을 남기려면{' '}
-              <Link href="/" className="text-[#1A2B4E] font-semibold hover:underline">
-                로그인
-              </Link>
-              이 필요합니다.
-            </p>
+            {!user ? (
+              <p className="text-sm text-gray-600">
+                댓글을 남기려면{' '}
+                <Link href="/" className="text-[#1A2B4E] font-semibold hover:underline">
+                  로그인
+                </Link>
+                이 필요합니다.
+              </p>
+            ) : (
+              <div>
+                <p className="text-sm text-gray-700 font-medium mb-2">
+                  🔒 사업자 인증이 필요합니다
+                </p>
+                <button
+                  onClick={() => router.push('/auth/verify')}
+                  className="bg-[#FFBF00] text-[#1A2B4E] px-6 py-2 rounded-lg text-sm font-semibold hover:bg-[#FFBF00]/90 transition"
+                >
+                  사업자 인증하기
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
