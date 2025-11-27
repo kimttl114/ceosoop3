@@ -763,7 +763,7 @@ export default function WriteModal({
       {/* 등록 성공 모달 */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-end">
-          <div className="bg-white w-full rounded-t-3xl p-6 animate-slide-up">
+          <div className="bg-white w-full rounded-t-3xl p-6">
             <div className="text-center">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg

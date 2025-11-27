@@ -444,7 +444,7 @@ export default function Home() {
               <span className="text-2xl filter drop-shadow-lg">🎠</span>
               <span className="relative inline-block">
                 <span className="relative z-10 animate-title-glow font-extrabold drop-shadow-[0_2px_8px_rgba(255,191,0,0.5)]">
-                  자영업자 <span className="text-yellow-400 animate-welcome-neon-color-shift inline-block">놀이동산</span>
+                  자영업자 <span className="text-yellow-400 inline-block">놀이동산</span>
                 </span>
                 <span className="absolute inset-0 animate-title-glow opacity-50 blur-[2px] font-extrabold">
                   자영업자 <span className="text-yellow-400">놀이동산</span>
@@ -510,14 +510,14 @@ export default function Home() {
           <div className="px-4 py-2 flex items-center justify-between gap-2">
             <button
               onClick={() => router.push('/checkin')}
-              className="px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full text-sm font-bold shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.02] flex items-center gap-1.5 flex-shrink-0"
+              className="px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full text-sm font-bold shadow-md flex items-center gap-1.5 flex-shrink-0"
             >
               <span>✅</span>
               <span className="hidden sm:inline">출석체크</span>
             </button>
             <button
               onClick={() => router.push('/shop')}
-              className="px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full text-sm font-bold shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.02] flex items-center gap-1.5 flex-shrink-0"
+              className="px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full text-sm font-bold shadow-md flex items-center gap-1.5 flex-shrink-0"
             >
               <ShoppingBag size={16} />
               <span className="hidden sm:inline">포인트상점</span>
@@ -533,24 +533,24 @@ export default function Home() {
 
       {/* 환영 문구 - 가게 간판 스타일 */}
       <div className="max-w-md mx-auto px-4 pt-5 pb-4">
-        <div className="relative animate-welcome-fade-in animate-welcome-float-smooth scale-[0.85] origin-top">
+        <div className="relative animate-welcome-fade-in animate-welcome-float scale-[0.85] origin-top">
           {/* 좌우 장식 이모티콘 */}
           <div className="absolute -left-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-3">
-            <div className="text-3xl animate-welcome-sparkle" style={{ animationDelay: '0s' }}>✨</div>
-            <div className="text-2xl animate-welcome-sparkle" style={{ animationDelay: '0.5s' }}>🌟</div>
-            <div className="text-3xl animate-welcome-sparkle" style={{ animationDelay: '1s' }}>💫</div>
+            <div className="text-3xl">✨</div>
+            <div className="text-2xl">🌟</div>
+            <div className="text-3xl">💫</div>
           </div>
           <div className="absolute -right-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-3">
-            <div className="text-3xl animate-welcome-sparkle" style={{ animationDelay: '0.3s' }}>⭐</div>
-            <div className="text-2xl animate-welcome-sparkle" style={{ animationDelay: '0.8s' }}>✨</div>
-            <div className="text-3xl animate-welcome-sparkle" style={{ animationDelay: '1.3s' }}>🌟</div>
+            <div className="text-3xl">⭐</div>
+            <div className="text-2xl">✨</div>
+            <div className="text-3xl">🌟</div>
           </div>
           
           {/* 상단 장식 이모티콘 */}
           <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 flex gap-4">
-            <div className="text-2xl animate-welcome-sparkle" style={{ animationDelay: '0s' }}>🎉</div>
-            <div className="text-2xl animate-welcome-sparkle" style={{ animationDelay: '0.4s' }}>🎊</div>
-            <div className="text-2xl animate-welcome-sparkle" style={{ animationDelay: '0.8s' }}>🎈</div>
+            <div className="text-2xl">🎉</div>
+            <div className="text-2xl">🎊</div>
+            <div className="text-2xl">🎈</div>
           </div>
           
           {/* 간판 본체 */}
@@ -559,8 +559,8 @@ export default function Home() {
           }}>
             {/* LED 배경 효과 (더 화려하게) */}
             <div className="absolute inset-0 opacity-[0.05]">
-              <div className="absolute inset-0 led-background animate-led-scroll"></div>
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#FFBF00]/10 to-transparent animate-welcome-shimmer"></div>
+              <div className="absolute inset-0 led-background"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#FFBF00]/10 to-transparent"></div>
             </div>
             
             {/* 간판 상하단 라인 (약하게) */}
@@ -576,34 +576,34 @@ export default function Home() {
             <div className="relative z-10 text-center">
               {/* 메인 제목 - 놀이동산 간판 스타일 */}
               <div className="flex items-center justify-center gap-3 mb-3">
-                <span className="text-2xl animate-welcome-sparkle" style={{ animationDelay: '0s' }}>🎠</span>
+                <span className="text-2xl">🎠</span>
                 <h2 className="text-3xl font-black animate-welcome-pulse animate-welcome-neon-color-shift" style={{
                   letterSpacing: '2px',
                 }}>
                   놀이동산에 오신 것을 환영합니다! 🎉
                 </h2>
-                <span className="text-2xl animate-welcome-sparkle" style={{ animationDelay: '0.5s' }}>🎡</span>
+                <span className="text-2xl">🎡</span>
               </div>
               
               {/* 부제목 */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg animate-welcome-sparkle" style={{ animationDelay: '0.2s' }}>🎮</span>
+                  <span className="text-lg">🎮</span>
                   <p className="text-base font-bold leading-relaxed animate-welcome-pulse animate-welcome-neon-color-shift" style={{
                     letterSpacing: '1px',
                   }}>
                     스트레스 풀고, 재미있게, 유용하게!
                   </p>
-                  <span className="text-lg animate-welcome-sparkle" style={{ animationDelay: '0.7s' }}>🎮</span>
+                  <span className="text-lg">🎮</span>
                 </div>
                 <div className="flex items-center justify-center gap-2">
-                  <span className="text-xl animate-welcome-sparkle" style={{ animationDelay: '0.4s' }}>🎁</span>
+                  <span className="text-xl">🎁</span>
                   <p className="text-lg font-black animate-welcome-pulse animate-welcome-neon-color-shift" style={{
                     letterSpacing: '1.5px',
                   }}>
                     게임부터 실용 도구까지 한 곳에!
                   </p>
-                  <span className="text-xl animate-welcome-sparkle" style={{ animationDelay: '0.9s' }}>🎁</span>
+                  <span className="text-xl">🎁</span>
                 </div>
               </div>
             </div>
@@ -613,9 +613,8 @@ export default function Home() {
               {Array.from({ length: 7 }).map((_, i) => (
                 <div
                   key={i}
-                  className="w-1.5 h-1.5 rounded-full bg-[#FFBF00] animate-welcome-sparkle"
+                  className="w-1.5 h-1.5 rounded-full bg-[#FFBF00]"
                   style={{
-                    animationDelay: `${i * 0.2}s`,
                     boxShadow: '0 0 5px rgba(255, 191, 0, 0.8), 0 0 10px rgba(255, 191, 0, 0.5)',
                   }}
                 ></div>
@@ -631,9 +630,9 @@ export default function Home() {
           
           {/* 하단 장식 이모티콘 */}
           <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-3">
-            <div className="text-xl animate-welcome-sparkle" style={{ animationDelay: '0.2s' }}>🎀</div>
-            <div className="text-xl animate-welcome-sparkle" style={{ animationDelay: '0.6s' }}>🌸</div>
-            <div className="text-xl animate-welcome-sparkle" style={{ animationDelay: '1s' }}>🎀</div>
+            <div className="text-xl">🎀</div>
+            <div className="text-xl">🌸</div>
+            <div className="text-xl">🎀</div>
           </div>
         </div>
       </div>
@@ -644,7 +643,7 @@ export default function Home() {
           {/* 랜덤 박스 */}
           <button
             onClick={() => router.push('/games/box')}
-            className="bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl p-4 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
+            className="bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl p-4 text-white shadow-lg"
           >
             <div className="text-3xl mb-2">📦</div>
             <div className="text-sm font-bold">랜덤 박스</div>
@@ -654,7 +653,7 @@ export default function Home() {
           {/* 내 시급은? */}
           <button
             onClick={() => router.push('/diagnose')}
-            className="bg-gradient-to-br from-[#FFBF00] to-[#F59E0B] rounded-2xl p-4 text-[#1A2B4E] shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
+            className="bg-gradient-to-br from-[#FFBF00] to-[#F59E0B] rounded-2xl p-4 text-[#1A2B4E] shadow-lg"
           >
             <div className="text-3xl mb-2">💸</div>
             <div className="text-sm font-bold">내 시급은?</div>
@@ -699,7 +698,7 @@ export default function Home() {
             className="block bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-5 border-2 border-purple-200 hover:border-purple-300 transition shadow-md hover:shadow-lg relative overflow-hidden"
           >
             {/* 반짝이는 효과 */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-welcome-shimmer"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
             
             <div className="flex items-center justify-between relative z-10">
               <div>
