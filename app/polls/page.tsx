@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { auth, db } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -38,7 +38,8 @@ const communityCategories = [
   { value: '결정장애', label: '💭결정장애', emoji: '💭' },
 ]
 
-export default function CommunityPage() {
+// useSearchParams를 사용하는 내부 컴포넌트
+function CommunityPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [user, setUser] = useState<any>(null)
@@ -805,5 +806,18 @@ export default function CommunityPage() {
         </div>
       )}
     </MainLayout>
+  )
+}
+
+// 메인 컴포넌트 - Suspense로 감싸기
+export default function CommunityPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="animate-spin text-[#1A2B4E]" size={48} />
+      </div>
+    }>
+      <CommunityPageContent />
+    </Suspense>
   )
 }
