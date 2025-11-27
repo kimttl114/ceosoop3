@@ -441,7 +441,7 @@ export default function Home() {
           {/* 상단: 로고 + 검색 + 알림 + 프로필 */}
           <div className="px-4 py-3 flex justify-between items-center">
             <h1 className="text-xl font-bold text-white flex items-center gap-2 animate-title-fade-in">
-              <span className="text-2xl animate-emoji-bounce filter drop-shadow-lg">🎠</span>
+              <span className="text-2xl filter drop-shadow-lg">🎠</span>
               <span className="relative inline-block">
                 <span className="relative z-10 animate-title-glow font-extrabold drop-shadow-[0_2px_8px_rgba(255,191,0,0.5)]">
                   자영업자 <span className="text-yellow-400 animate-welcome-neon-color-shift inline-block">놀이동산</span>

@@ -220,28 +220,12 @@ body::after {
   }
 }
 
-@keyframes emoji-bounce {
-  0%, 100% {
-    transform: translateY(0) rotate(0deg);
-  }
-  25% {
-    transform: translateY(-2px) rotate(-2deg);
-  }
-  75% {
-    transform: translateY(-2px) rotate(2deg);
-  }
-}
-
 .animate-title-fade-in {
   animation: title-fade-in 1.2s ease-out;
 }
 
 .animate-title-glow {
   animation: title-glow 5s ease-in-out infinite;
-}
-
-.animate-emoji-bounce {
-  animation: emoji-bounce 4s ease-in-out infinite;
 }
 
 /* 숲색 발광 애니메이션 */
