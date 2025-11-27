@@ -510,14 +510,14 @@ export default function Home() {
           <div className="px-4 py-2 flex items-center justify-between gap-2">
             <button
               onClick={() => router.push('/checkin')}
-              className="px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full text-sm font-bold shadow-md hover:shadow-lg transition-all transform hover:scale-105 flex items-center gap-1.5 flex-shrink-0"
+              className="px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full text-sm font-bold shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.02] flex items-center gap-1.5 flex-shrink-0"
             >
               <span>✅</span>
               <span className="hidden sm:inline">출석체크</span>
             </button>
             <button
               onClick={() => router.push('/shop')}
-              className="px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full text-sm font-bold shadow-md hover:shadow-lg transition-all transform hover:scale-105 flex items-center gap-1.5 flex-shrink-0"
+              className="px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full text-sm font-bold shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.02] flex items-center gap-1.5 flex-shrink-0"
             >
               <ShoppingBag size={16} />
               <span className="hidden sm:inline">포인트상점</span>
@@ -644,7 +644,7 @@ export default function Home() {
           {/* 랜덤 박스 */}
           <button
             onClick={() => router.push('/games/box')}
-            className="bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl p-4 text-white shadow-lg hover:shadow-xl transition transform hover:scale-105"
+            className="bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl p-4 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
           >
             <div className="text-3xl mb-2">📦</div>
             <div className="text-sm font-bold">랜덤 박스</div>
@@ -654,7 +654,7 @@ export default function Home() {
           {/* 내 시급은? */}
           <button
             onClick={() => router.push('/diagnose')}
-            className="bg-gradient-to-br from-[#FFBF00] to-[#F59E0B] rounded-2xl p-4 text-[#1A2B4E] shadow-lg hover:shadow-xl transition transform hover:scale-105"
+            className="bg-gradient-to-br from-[#FFBF00] to-[#F59E0B] rounded-2xl p-4 text-[#1A2B4E] shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
           >
             <div className="text-3xl mb-2">💸</div>
             <div className="text-sm font-bold">내 시급은?</div>
