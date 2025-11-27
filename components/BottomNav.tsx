@@ -45,7 +45,7 @@ export default function BottomNav({ onWriteClick }: BottomNavProps) {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-lg">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-lg" style={{ willChange: 'auto' }}>
         <div className="max-w-md mx-auto relative">
           <div className="flex items-center justify-around py-2 relative">
             {/* 중앙 글쓰기 버튼 위치 (4개 아이템 기준 중앙) */}
@@ -68,6 +68,11 @@ export default function BottomNav({ onWriteClick }: BottomNavProps) {
                       ? 'text-[#1A2B4E]'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
+                  style={{
+                    outline: 'none',
+                    WebkitTapHighlightColor: 'transparent',
+                    touchAction: 'manipulation',
+                  }}
                   type="button"
                 >
                   <Icon
@@ -94,6 +99,11 @@ export default function BottomNav({ onWriteClick }: BottomNavProps) {
           <button
             onClick={handleWriteClick}
             className="w-16 h-16 bg-[#1A2B4E] text-white rounded-full shadow-xl flex items-center justify-center hover:bg-[#1A2B4E]/90 pointer-events-auto"
+            style={{
+              outline: 'none',
+              WebkitTapHighlightColor: 'transparent',
+              touchAction: 'manipulation',
+            }}
             type="button"
             title="글쓰기"
           >
