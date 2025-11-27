@@ -14,6 +14,8 @@ import {
   getDoc,
   serverTimestamp,
   where,
+  limit,
+  getDocs,
 } from 'firebase/firestore'
 import { User, Trash2, Image, Search, Bell, Mail, Flag, ShoppingBag, Heart, MessageCircle, Clock, Vote } from 'lucide-react'
 import Link from 'next/link'
@@ -27,9 +29,14 @@ import PostAuthorBadge from '@/components/PostAuthorBadge'
 import MainLayout from '@/components/MainLayout'
 import { useVerification } from '@/hooks/useVerification'
 
-// 블라인드 스타일 카테고리 (메인 페이지는 베스트만)
-const blindCategories = [
-  { value: '베스트', label: '베스트', emoji: '' },
+// 게시판 카테고리 목록
+const boardCategories = [
+  { value: '베스트', label: '🔥 베스트', emoji: '🔥' },
+  { value: '대나무숲', label: '🗣️ 대나무숲', emoji: '🗣️' },
+  { value: '빌런박제소', label: '❓ 빌런박제소', emoji: '❓' },
+  { value: '유머 & 이슈', label: '유머 & 이슈', emoji: '' },
+  { value: '비틱방(자랑방)', label: '🥕 비틱방', emoji: '🥕' },
+  { value: '결정장애', label: '💭 결정장애', emoji: '💭' },
 ]
 
 // 업종 목록 (글쓰기 모달용)
@@ -60,6 +67,7 @@ export default function Home() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false)
   const [reportTarget, setReportTarget] = useState<{ type: 'post', id: string, authorId?: string, content?: string } | null>(null)
   const [userAvatars, setUserAvatars] = useState<Record<string, string>>({})
+  const [ranking, setRanking] = useState<Array<{ uid: string; anonymousName: string; points: number }>>([])
   const { isVerified, loading: verificationLoading } = useVerification()
 
   // 익명 닉네임 생성: [형용사] + [명사] 조합
@@ -360,6 +368,42 @@ export default function Home() {
     return () => window.removeEventListener('openWriteModal', handleOpenWriteModal)
   }, [user])
 
+  // 포인트 랭킹 불러오기
+  useEffect(() => {
+    if (!db) return
+
+    const loadRanking = async () => {
+      try {
+        const usersRef = collection(db, 'users')
+        const rankingQuery = query(
+          usersRef,
+          orderBy('points', 'desc'),
+          limit(10)
+        )
+        
+        const snapshot = await getDocs(rankingQuery)
+        const topUsers = snapshot.docs.map((doc) => ({
+          uid: doc.id,
+          anonymousName: doc.data().anonymousName || doc.data().displayName || '익명',
+          points: doc.data().points || 0,
+        }))
+        
+        setRanking(topUsers)
+      } catch (error: any) {
+        console.error('랭킹 불러오기 오류:', error)
+        // 인덱스 오류는 무시
+        if (error?.code !== 'failed-precondition') {
+          console.warn('랭킹을 불러올 수 없습니다.')
+        }
+      }
+    }
+
+    loadRanking()
+    // 30초마다 랭킹 갱신
+    const interval = setInterval(loadRanking, 30000)
+    return () => clearInterval(interval)
+  }, [db])
+
   // 3. 로그인 함수
   const handleLogin = async () => {
     if (!auth || !googleProvider) {
@@ -419,229 +463,257 @@ export default function Home() {
     return timeB.getTime() - timeA.getTime()
   })
 
-  const filteredItems = allItems.filter((item: any) => {
-    // 투표글은 베스트 페이지에서 표시하지 않음
-    if (item.type === 'poll') {
-      return false
-    }
-    
-    // 일반 게시글: 베스트만 표시
-    const postCategory = item.category || '잡담'
-    return postCategory === '베스트' || (item.likes && item.likes >= 10)
-  })
+  // 카테고리별 게시글 필터링 함수
+  const getPostsByCategory = (category: string, limitCount: number = 10) => {
+    return allItems
+      .filter((item: any) => {
+        if (item.type === 'poll') {
+          // 결정장애 카테고리에서만 투표글 표시
+          return category === '결정장애'
+        }
+        
+        const postCategory = item.category || '잡담'
+        if (category === '베스트') {
+          return postCategory === '베스트' || (item.likes && item.likes >= 10)
+        }
+        return postCategory === category
+      })
+      .slice(0, limitCount)
+  }
 
   return (
     <MainLayout>
       <div className="min-h-screen pb-24 bg-gray-50">
-        {/* 헤더 섹션 */}
-        <div className="bg-white border-b border-gray-200">
-          <div className="max-w-4xl mx-auto px-4 lg:px-6 py-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-1">베스트</h1>
-                <p className="text-sm text-gray-500">인기 게시글을 확인하세요</p>
-              </div>
+        {/* 헤더 섹션 - eToLand 스타일 */}
+        <div className="bg-white border-b border-gray-300">
+          <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3">
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl font-bold text-gray-900">베스트</h1>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => router.push('/checkin')}
-                  className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors"
+                  className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded text-sm font-medium transition-colors"
                 >
                   출석체크
                 </button>
                 <button
                   onClick={() => router.push('/shop')}
-                  className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
+                  className="px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded text-sm font-medium transition-colors flex items-center gap-1.5"
                 >
-                  <ShoppingBag size={16} />
+                  <ShoppingBag size={14} />
                   포인트상점
                 </button>
               </div>
             </div>
-
-            {/* 빠른 접근 카드 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              <button
-                onClick={() => router.push('/games/box')}
-                className="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 rounded-lg p-4 text-white shadow-sm transition-all"
-              >
-                <div className="text-sm font-semibold mb-1">랜덤 박스</div>
-                <div className="text-xs opacity-90">매일 무료 박스 열기</div>
-              </button>
-
-              <button
-                onClick={() => router.push('/diagnose')}
-                className="bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 rounded-lg p-4 text-white shadow-sm transition-all"
-              >
-                <div className="text-sm font-semibold mb-1">시급 진단</div>
-                <div className="text-xs opacity-90">AI가 내 시급 판독</div>
-              </button>
-
-              <Link
-                href="/games"
-                className="bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 rounded-lg p-4 text-white shadow-sm transition-all block"
-              >
-                <div className="text-sm font-semibold mb-1">게임</div>
-                <div className="text-xs opacity-90">스트레스 해소 게임</div>
-              </Link>
-
-              <Link
-                href="/tools"
-                className="bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-lg p-4 text-white shadow-sm transition-all block"
-              >
-                <div className="text-sm font-semibold mb-1">도구</div>
-                <div className="text-xs opacity-90">실용 도구 모음</div>
-              </Link>
-            </div>
           </div>
         </div>
 
-        {/* 게시글 리스트 - 침하하 스타일 */}
+        {/* 여러 게시판 섹션 - eToLand 스타일 */}
         <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* 메인 컨텐츠 영역 */}
-            <div className="lg:col-span-2">
-              {/* 탭 메뉴 */}
-              <div className="bg-white border-b border-gray-200 mb-4">
-                <div className="flex gap-4">
-                  <button className="px-4 py-3 font-semibold text-gray-900 border-b-2 border-gray-900">
-                    베스트
-                  </button>
-                  <button className="px-4 py-3 font-medium text-gray-600 hover:text-gray-900">
-                    인기글
-                  </button>
-                </div>
-              </div>
-
-              {/* 게시글 목록 */}
-              {filteredItems.length === 0 ? (
-                <div className="bg-white rounded-lg p-8 text-center text-gray-500 shadow-sm">
-                  <p className="text-sm">아직 등록된 글이 없습니다.</p>
-                  <p className="text-xs mt-2 text-gray-400">첫 번째 글을 작성해보세요!</p>
-                </div>
-              ) : (
-                <div className="space-y-0">
-                  {filteredItems.map((item: any) => {
-                    // 투표글은 베스트 페이지에서 표시하지 않음 (사이드바에만 표시)
-                    if (item.type === 'poll') {
-                      return null
-                    }
-
-                    // 일반 게시글 렌더링 - 침하하 스타일
-                    const isBest = item.category === '베스트' || (item.likes || 0) >= 10
-                    
-                    return (
+            <div className="lg:col-span-3 space-y-6">
+              {/* 각 게시판 섹션 */}
+              {boardCategories.map((category) => {
+                const categoryPosts = getPostsByCategory(category.value, 10)
+                
+                return (
+                  <div key={category.value} className="bg-white border border-gray-200">
+                    {/* 게시판 헤더 */}
+                    <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+                      <div className="flex items-center gap-2">
+                        <h2 className="font-bold text-sm text-gray-900">
+                          {category.label}
+                        </h2>
+                        <span className="text-xs text-gray-500">
+                          ({categoryPosts.length})
+                        </span>
+                      </div>
                       <Link
-                        key={item.id}
-                        href={`/post/${item.id}`}
-                        className="block bg-white border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                        href={category.value === '베스트' ? '/' : `/polls?category=${encodeURIComponent(category.value)}`}
+                        className="text-xs text-gray-600 hover:text-gray-900 font-medium"
                       >
-                        <div className="px-4 py-3">
-                          <div className="flex items-start justify-between gap-4">
-                            {/* 메인 컨텐츠 */}
-                            <div className="flex-1 min-w-0">
-                              {/* 카테고리 + 제목 */}
-                              <div className="flex items-center gap-2 mb-1">
-                                {item.category && (
-                                  <span className="text-xs text-gray-500">
-                                    {blindCategories.find(cat => cat.value === item.category)?.label || item.category}
-                                  </span>
-                                )}
-                              </div>
-                              
-                              <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1 text-sm">
-                                {item.title}
-                              </h3>
-                              
-                              {/* 작성자 정보 */}
-                              <div className="flex items-center gap-2 text-xs text-gray-500">
-                                <span className="font-medium">{item.author || '익명의 사장님'}</span>
-                                <span>·</span>
-                                <span>{formatRelativeTime(item.timestamp)}</span>
-                              </div>
-                            </div>
-                            
-                            {/* 좋아요/댓글 수 */}
-                            <div className="flex items-center gap-3 text-xs text-gray-500 flex-shrink-0">
-                              <span className="flex items-center gap-1">
-                                <Heart size={14} className={item.likes > 0 ? 'fill-red-500 text-red-500' : ''} />
-                                {item.likes || 0}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <MessageCircle size={14} />
-                                {item.comments || 0}
-                              </span>
-                              {user && user.uid === item.uid && (
-                                <button
-                                  onClick={(e) => handleDelete(item.id, item.uid, e)}
-                                  className="text-red-500 hover:text-red-700 transition p-1 rounded"
-                                  title="삭제"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              )}
-                              {user && user.uid !== item.uid && (
-                                <button
-                                  onClick={(e) => {
-                                    e.preventDefault()
-                                    e.stopPropagation()
-                                    setReportTarget({
-                                      type: 'post',
-                                      id: item.id,
-                                      authorId: item.uid,
-                                      content: item.content,
-                                    })
-                                    setIsReportModalOpen(true)
-                                  }}
-                                  className="text-gray-400 hover:text-gray-600 transition p-1 rounded"
-                                  title="신고"
-                                >
-                                  <Flag size={14} />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
+                        더보기 →
                       </Link>
-                    )
-                  })}
-                </div>
-              )}
+                    </div>
+
+                    {/* 게시글 리스트 */}
+                    {categoryPosts.length === 0 ? (
+                      <div className="p-6 text-center text-gray-400 text-sm">
+                        아직 게시글이 없습니다
+                      </div>
+                    ) : (
+                      <>
+                        {/* 테이블 헤더 (데스크톱) */}
+                        <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-600">
+                          <div className="col-span-1 text-center">번호</div>
+                          <div className="col-span-6">제목</div>
+                          <div className="col-span-2 text-center">작성자</div>
+                          <div className="col-span-2 text-center">시간</div>
+                          <div className="col-span-1 text-center">조회</div>
+                        </div>
+                        
+                        {/* 게시글 리스트 */}
+                        {categoryPosts.map((item: any, index: number) => {
+                          return (
+                            <Link
+                              key={item.id}
+                              href={item.type === 'poll' ? `/polls/${item.id}` : `/post/${item.id}`}
+                              className="block border-b border-gray-200 hover:bg-gray-50 transition-colors last:border-b-0"
+                            >
+                              <div className="grid grid-cols-12 gap-2 px-4 py-2.5 items-center text-sm">
+                                {/* 번호 */}
+                                <div className="col-span-1 text-center text-gray-500 text-xs">
+                                  {categoryPosts.length - index}
+                                </div>
+                                
+                                {/* 제목 */}
+                                <div className="col-span-6 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    {item.type === 'poll' && (
+                                      <span className="flex-shrink-0 text-[10px] text-blue-600 font-bold">🗳️</span>
+                                    )}
+                                    <span className="font-medium text-gray-900 truncate">
+                                      {item.title}
+                                    </span>
+                                    {(item.likes || 0) >= 10 && (
+                                      <span className="flex-shrink-0 px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded">
+                                        HIT
+                                      </span>
+                                    )}
+                                    {item.comments > 0 && (
+                                      <span className="flex-shrink-0 text-xs text-blue-600 font-semibold">
+                                        [{item.comments}]
+                                      </span>
+                                    )}
+                                    {user && item.uid && user.uid === item.uid && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.preventDefault()
+                                          e.stopPropagation()
+                                          handleDelete(item.id, item.uid, e)
+                                        }}
+                                        className="flex-shrink-0 text-red-500 hover:text-red-700 transition p-0.5"
+                                        title="삭제"
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    )}
+                                    {user && item.uid && user.uid !== item.uid && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.preventDefault()
+                                          e.stopPropagation()
+                                          setReportTarget({
+                                            type: 'post',
+                                            id: item.id,
+                                            authorId: item.uid,
+                                            content: item.content || item.title,
+                                          })
+                                          setIsReportModalOpen(true)
+                                        }}
+                                        className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition p-0.5"
+                                        title="신고"
+                                      >
+                                        <Flag size={12} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                {/* 작성자 */}
+                                <div className="col-span-2 text-center text-xs text-gray-600 truncate">
+                                  {item.author || item.authorName || '익명'}
+                                </div>
+                                
+                                {/* 시간 */}
+                                <div className="col-span-2 text-center text-xs text-gray-500">
+                                  {formatRelativeTime(item.timestamp || item.createdAt)}
+                                </div>
+                                
+                                {/* 조회수 */}
+                                <div className="col-span-1 text-center text-xs text-gray-500">
+                                  {item.type === 'poll' 
+                                    ? ((item.optionA?.votes || 0) + (item.optionB?.votes || 0))
+                                    : (item.likes || 0)
+                                  }
+                                </div>
+                              </div>
+                            </Link>
+                          )
+                        })}
+                      </>
+                    )}
+                  </div>
+                )
+              })}
             </div>
             
-            {/* 오른쪽 사이드바 */}
-            <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg shadow-sm sticky top-20">
-                <div className="p-4 border-b border-gray-200">
-                  <h3 className="font-bold text-gray-900">투표 | 이벤트</h3>
+            {/* 오른쪽 사이드바 - eToLand 스타일 */}
+            <div className="lg:col-span-1 space-y-4">
+              {/* 투표 섹션 */}
+              <div className="bg-white border border-gray-200">
+                <div className="px-3 py-2 bg-gray-100 border-b border-gray-200">
+                  <h3 className="font-bold text-sm text-gray-900">투표 | 이벤트</h3>
                 </div>
-                <div className="p-4">
+                <div className="p-3">
                   {polls.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {polls.slice(0, 5).map((poll: any) => {
                         const totalVotes = (poll.optionA?.votes || 0) + (poll.optionB?.votes || 0)
                         return (
                           <Link
                             key={poll.id}
                             href={`/polls/${poll.id}`}
-                            className="block p-3 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+                            className="block p-2 border border-gray-200 hover:bg-gray-50 transition-colors"
                           >
-                            <h4 className="font-medium text-sm text-gray-900 mb-2 line-clamp-2">
+                            <h4 className="font-medium text-xs text-gray-900 mb-1 line-clamp-2">
                               {poll.title}
                             </h4>
-                            <div className="flex items-center justify-between text-xs text-gray-500">
+                            <div className="flex items-center justify-between text-[10px] text-gray-500">
                               <span>{poll.authorName || '익명'}</span>
-                              <span className="flex items-center gap-1">
-                                <Vote size={12} />
-                                {totalVotes}
-                              </span>
+                              <span>{totalVotes}명</span>
                             </div>
                           </Link>
                         )
                       })}
                     </div>
                   ) : (
-                    <p className="text-sm text-gray-500 text-center py-4">
+                    <p className="text-xs text-gray-500 text-center py-4">
                       진행 중인 투표가 없습니다
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* 포인트 랭킹 */}
+              <div className="bg-white border border-gray-200">
+                <div className="px-3 py-2 bg-gray-100 border-b border-gray-200">
+                  <h3 className="font-bold text-sm text-gray-900">포인트 랭킹</h3>
+                </div>
+                <div className="p-3">
+                  {ranking.length > 0 ? (
+                    <div className="space-y-1">
+                      {ranking.map((user, index) => (
+                        <div
+                          key={user.uid}
+                          className="flex items-center justify-between py-1.5 px-2 hover:bg-gray-50 rounded text-xs"
+                        >
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="font-bold text-gray-700 w-4 flex-shrink-0">
+                              {index + 1}
+                            </span>
+                            <span className="text-gray-700 truncate">{user.anonymousName}</span>
+                          </div>
+                          <span className="text-gray-600 font-semibold flex-shrink-0">
+                            {user.points.toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500 text-center py-4">
+                      랭킹 데이터가 없습니다
                     </p>
                   )}
                 </div>

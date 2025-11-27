@@ -5,7 +5,7 @@ import { auth, db, storage } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { Upload, FileText, Zap, X, ArrowLeft, ArrowRight, Eye, Check } from 'lucide-react'
+import { Upload, FileText, X, ArrowLeft, ArrowRight, Eye, Check, Video, Image as ImageIcon } from 'lucide-react'
 import { useVerification } from '@/hooks/useVerification'
 import { useRouter } from 'next/navigation'
 
@@ -44,7 +44,6 @@ interface WriteModalProps {
   defaultRegion?: string
 }
 
-type WriteMode = 'quick' | 'detailed'
 type DetailedStep = 1 | 2 | 3
 
 export default function WriteModal({
@@ -61,20 +60,17 @@ export default function WriteModal({
   const [userRegion, setUserRegion] = useState<string>('')
   const [userBusinessType, setUserBusinessType] = useState<string>('치킨')
   
-  // 모드 선택
-  const [writeMode, setWriteMode] = useState<WriteMode>('quick')
+  // 작성 모드
   const [detailedStep, setDetailedStep] = useState<DetailedStep>(1)
   
-  // 빠른 작성 모드
-  const [quickContent, setQuickContent] = useState('')
-  const [quickCategory, setQuickCategory] = useState('대나무숲')
-  
-  // 상세 작성 모드
+  // 작성 폼 데이터
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [postCategory, setPostCategory] = useState('대나무숲')
   const [uploadedImages, setUploadedImages] = useState<string[]>([])
+  const [uploadedVideos, setUploadedVideos] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   
   const [showSuccessModal, setShowSuccessModal] = useState(false)
 
@@ -111,15 +107,14 @@ export default function WriteModal({
 
   // 모달 열 때 초기화 (최적화: 중복 제거)
   const resetForm = useCallback(() => {
-    setWriteMode('quick')
     setDetailedStep(1)
-    setQuickContent('')
-    setQuickCategory('대나무숲')
     setTitle('')
     setContent('')
     setPostCategory('대나무숲')
     setUploadedImages([])
+    setUploadedVideos([])
     setUploading(false)
+    setUploadProgress(0)
   }, [])
 
   useEffect(() => {
@@ -134,30 +129,88 @@ export default function WriteModal({
     []
   )
 
-  // 이미지 업로드 (useCallback으로 메모이제이션)
-  const handleImageUpload = useCallback(async (file: File) => {
+  // 파일 업로드 공통 함수
+  const handleFileUpload = useCallback(async (file: File, type: 'image' | 'video') => {
     if (!user || !storage) {
       alert('로그인이 필요합니다.')
       return
     }
 
+    // 파일 타입 검증
+    if (type === 'image') {
+      if (!file.type.startsWith('image/')) {
+        alert('이미지 파일만 업로드 가능합니다.')
+        return
+      }
+      // 이미지 크기 제한 (10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('이미지 파일 크기는 10MB 이하여야 합니다.')
+        return
+      }
+    } else if (type === 'video') {
+      if (!file.type.startsWith('video/')) {
+        alert('비디오 파일만 업로드 가능합니다.')
+        return
+      }
+      // 비디오 크기 제한 (100MB)
+      if (file.size > 100 * 1024 * 1024) {
+        alert('비디오 파일 크기는 100MB 이하여야 합니다.')
+        return
+      }
+    }
+
     setUploading(true)
+    setUploadProgress(0)
+    
     try {
-      const imageRef = ref(storage, `posts/${user.uid}/${Date.now()}_${file.name}`)
-      await uploadBytes(imageRef, file)
-      const downloadURL = await getDownloadURL(imageRef)
-      setUploadedImages(prev => [...prev, downloadURL])
+      const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
+      const fileRef = ref(storage, `posts/${user.uid}/${type}s/${fileName}`)
+      
+      // 업로드 진행률 모니터링 (선택사항)
+      await uploadBytes(fileRef, file)
+      const downloadURL = await getDownloadURL(fileRef)
+      
+      if (type === 'image') {
+        setUploadedImages(prev => [...prev, downloadURL])
+      } else {
+        setUploadedVideos(prev => [...prev, downloadURL])
+      }
+      
+      setUploadProgress(0)
     } catch (error) {
-      console.error('이미지 업로드 실패:', error)
-      alert('이미지 업로드에 실패했습니다.')
+      console.error(`${type === 'image' ? '이미지' : '비디오'} 업로드 실패:`, error)
+      alert(`${type === 'image' ? '이미지' : '비디오'} 업로드에 실패했습니다.`)
     } finally {
       setUploading(false)
     }
-  }, [user])
+  }, [user, storage])
 
-  // 이미지 삭제 (useCallback으로 메모이제이션)
+  // 이미지 업로드
+  const handleImageUpload = useCallback(async (file: File) => {
+    if (uploadedImages.length >= 5) {
+      alert('이미지는 최대 5개까지 업로드할 수 있습니다.')
+      return
+    }
+    await handleFileUpload(file, 'image')
+  }, [uploadedImages.length, handleFileUpload])
+
+  // 비디오 업로드
+  const handleVideoUpload = useCallback(async (file: File) => {
+    if (uploadedVideos.length >= 3) {
+      alert('비디오는 최대 3개까지 업로드할 수 있습니다.')
+      return
+    }
+    await handleFileUpload(file, 'video')
+  }, [uploadedVideos.length, handleFileUpload])
+
+  // 이미지 삭제
   const handleImageRemove = useCallback((index: number) => {
     setUploadedImages(prev => prev.filter((_, i) => i !== index))
+  }, [])
+
+  // 비디오 삭제
+  const handleVideoRemove = useCallback((index: number) => {
+    setUploadedVideos(prev => prev.filter((_, i) => i !== index))
   }, [])
 
   // 공통 저장 로직 (중복 제거)
@@ -167,6 +220,7 @@ export default function WriteModal({
       content: string
       category: string
       images: string[]
+      videos?: string[]
       isSimpleMode: boolean
     }
   ) => {
@@ -199,6 +253,7 @@ export default function WriteModal({
         likes: 0,
         comments: 0,
         images: postData.images,
+        videos: postData.videos || [],
         isSimpleMode: postData.isSimpleMode,
       })
 
@@ -210,35 +265,7 @@ export default function WriteModal({
     }
   }, [user, userAnonymousName, generateAnonymousName, defaultBusinessType, userBusinessType, defaultRegion, userRegion, db, isVerified, router, onClose])
 
-  // 빠른 작성 모드 - 글 저장
-  const handleQuickWrite = useCallback(async () => {
-    if (!quickContent.trim()) {
-      alert('본문을 입력해주세요')
-      return
-    }
-
-    const finalTitle = quickContent.split('\n')[0].substring(0, 50) || '제목 없음'
-    
-    const success = await savePost({
-      title: finalTitle,
-      content: quickContent,
-      category: quickCategory,
-      images: [],
-      isSimpleMode: true,
-    })
-
-    if (success) {
-      resetForm()
-      setShowSuccessModal(true)
-      setTimeout(() => {
-        setShowSuccessModal(false)
-        onSuccess?.()
-        onClose()
-      }, 2000)
-    }
-  }, [quickContent, quickCategory, savePost, resetForm, onSuccess, onClose])
-
-  // 상세 작성 모드 - 글 저장
+  // 글 저장
   const handleDetailedWrite = useCallback(async () => {
     if (!content.trim()) {
       alert('본문을 입력해주세요')
@@ -252,6 +279,7 @@ export default function WriteModal({
       content: content,
       category: postCategory,
       images: uploadedImages,
+      videos: uploadedVideos,
       isSimpleMode: false,
     })
 
@@ -264,7 +292,7 @@ export default function WriteModal({
         onClose()
       }, 2000)
     }
-  }, [title, content, postCategory, uploadedImages, savePost, resetForm, onSuccess, onClose])
+  }, [title, content, postCategory, uploadedImages, uploadedVideos, savePost, resetForm, onSuccess, onClose])
 
   // 모달 닫기
   const handleClose = useCallback(() => {
@@ -292,10 +320,6 @@ export default function WriteModal({
     }
   }, [detailedStep])
 
-  // 모드 전환
-  const toggleWriteMode = useCallback(() => {
-    setWriteMode(prev => prev === 'quick' ? 'detailed' : 'quick')
-  }, [])
 
   // 미리보기 데이터 (useMemo로 메모이제이션)
   const previewData = useMemo(() => {
@@ -374,21 +398,7 @@ export default function WriteModal({
         <div className="bg-white w-full rounded-t-3xl p-6 h-[85vh] overflow-y-auto">
           {/* 헤더 */}
           <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl font-bold text-gray-900">글쓰기</h2>
-              <button
-                onClick={toggleWriteMode}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                  writeMode === 'quick'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'bg-purple-100 text-purple-700'
-                }`}
-                title={writeMode === 'quick' ? '상세 작성 모드로 전환' : '빠른 작성 모드로 전환'}
-              >
-                <Zap size={14} />
-                <span>{writeMode === 'quick' ? '빠른 작성' : '상세 작성'}</span>
-              </button>
-            </div>
+            <h2 className="text-xl font-bold text-gray-900">글쓰기</h2>
             <button
               onClick={handleClose}
               className="text-2xl text-gray-400 hover:text-gray-600 transition"
@@ -397,99 +407,8 @@ export default function WriteModal({
             </button>
           </div>
 
-          {/* 모드 선택 (처음 열 때만) */}
-          {writeMode === 'quick' && !quickContent && !title && !content && (
-            <div className="mb-6">
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setWriteMode('quick')}
-                  className="p-4 border-2 border-blue-500 bg-blue-50 rounded-xl text-center hover:bg-blue-100 transition"
-                >
-                  <div className="text-2xl mb-2">⚡</div>
-                  <div className="font-bold text-blue-700">빠른 작성</div>
-                  <div className="text-xs text-gray-600 mt-1">본문만 입력하고 바로 등록</div>
-                </button>
-                <button
-                  onClick={() => setWriteMode('detailed')}
-                  className="p-4 border-2 border-gray-300 bg-white rounded-xl text-center hover:bg-gray-50 transition"
-                >
-                  <div className="text-2xl mb-2">📝</div>
-                  <div className="font-bold text-gray-700">상세 작성</div>
-                  <div className="text-xs text-gray-600 mt-1">제목, 이미지 등 상세 옵션</div>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* 빠른 작성 모드 */}
-          {writeMode === 'quick' && (
-            <div className="space-y-4">
-              <div className="mb-4 flex items-center gap-2 text-xs text-gray-500">
-                <FileText size={14} />
-                <span>빠른 작성: 본문만 입력하면 자동으로 설정됩니다</span>
-              </div>
-
-              {/* 개인정보 보호 안내 */}
-              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3">
-                <div className="flex items-start gap-2">
-                  <span className="text-red-600 font-bold text-lg">⚠️</span>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-red-700 mb-1">
-                      개인정보 절대 노출금지
-                    </p>
-                    <p className="text-xs text-red-600">
-                      전화번호, 이름, 매장명 등 개인정보를 게시하면 안전에 위험할 수 있습니다.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* 카테고리 선택 */}
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-700 mb-1">
-                  카테고리
-                </label>
-                <div className="flex flex-wrap gap-1">
-                  {availableCategories.map((cat) => (
-                    <button
-                      key={cat.value}
-                      onClick={() => setQuickCategory(cat.value)}
-                      className={`flex-shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium transition whitespace-nowrap ${
-                        quickCategory === cat.value
-                          ? 'bg-[#1A2B4E] text-white shadow-md'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {cat.emoji} {cat.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <textarea
-                className="w-full h-64 outline-none resize-none text-gray-700 border-2 border-gray-200 rounded-xl p-4 focus:border-[#1A2B4E] focus:ring-2 focus:ring-[#1A2B4E]/10 text-base"
-                placeholder="사장님들의 이야기를 들려주세요...&#10;&#10;⚠️ 개인정보 절대 노출금지 (전화번호, 이름, 매장명)&#10;&#10;(제목은 자동 생성됩니다)"
-                value={quickContent}
-                onChange={(e) => setQuickContent(e.target.value)}
-                maxLength={2000}
-              />
-              <div className="text-xs text-gray-400 text-right">
-                {quickContent.length}/2000
-              </div>
-
-              <button
-                onClick={handleQuickWrite}
-                disabled={!quickContent.trim()}
-                className="w-full bg-[#1A2B4E] text-white py-4 rounded-xl font-bold hover:bg-[#1A2B4E]/90 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                등록하기
-              </button>
-            </div>
-          )}
-
-          {/* 상세 작성 모드 */}
-          {writeMode === 'detailed' && (
-            <div className="space-y-4">
+          {/* 작성 모드 */}
+          <div className="space-y-4">
               {/* 진행 단계 표시 */}
               <div className="flex items-center justify-center gap-2 mb-6">
                 <div className={`flex items-center gap-2 ${detailedStep >= 1 ? 'text-[#1A2B4E]' : 'text-gray-300'}`}>
@@ -607,53 +526,133 @@ export default function WriteModal({
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      이미지 첨부 (최대 5개)
-                    </label>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {uploadedImages.map((url, index) => (
-                        <div key={index} className="relative">
-                          <img
-                            src={url}
-                            alt={`업로드 ${index + 1}`}
-                            className="w-20 h-20 object-cover rounded-lg border border-gray-200"
-                          />
-                          <button
-                            onClick={() => handleImageRemove(index)}
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                      {uploadedImages.length < 5 && (
-                        <label className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-[#1A2B4E] transition">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0]
-                              if (file) {
-                                handleImageUpload(file)
-                              }
-                            }}
-                            disabled={uploading}
-                          />
-                          {uploading ? (
-                            <div className="animate-spin text-gray-400">
-                              <Upload size={20} />
-                            </div>
-                          ) : (
-                            <Upload size={20} className="text-gray-400" />
-                          )}
-                        </label>
+                  {/* 미디어 첨부 섹션 */}
+                  <div className="space-y-4">
+                    {/* 이미지 첨부 */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <ImageIcon size={16} className="inline mr-1" />
+                        이미지 첨부 (최대 5개, 각 10MB 이하)
+                      </label>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {uploadedImages.map((url, index) => (
+                          <div key={index} className="relative group">
+                            <img
+                              src={url}
+                              alt={`업로드 이미지 ${index + 1}`}
+                              className="w-20 h-20 object-cover rounded-lg border border-gray-200"
+                            />
+                            <button
+                              onClick={() => handleImageRemove(index)}
+                              className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition opacity-0 group-hover:opacity-100"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                        {uploadedImages.length < 5 && (
+                          <label className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-[#1A2B4E] transition bg-gray-50">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const files = e.target.files
+                                if (files) {
+                                  Array.from(files).slice(0, 5 - uploadedImages.length).forEach(file => {
+                                    handleImageUpload(file)
+                                  })
+                                }
+                                e.target.value = '' // 같은 파일 재선택 가능하도록
+                              }}
+                              disabled={uploading}
+                              multiple
+                            />
+                            {uploading ? (
+                              <div className="animate-spin text-gray-400">
+                                <Upload size={20} />
+                              </div>
+                            ) : (
+                              <ImageIcon size={20} className="text-gray-400" />
+                            )}
+                          </label>
+                        )}
+                      </div>
+                      {uploadedImages.length >= 5 && (
+                        <p className="text-xs text-gray-500">이미지는 최대 5개까지 첨부할 수 있습니다.</p>
                       )}
                     </div>
-                    {uploadedImages.length >= 5 && (
-                      <p className="text-xs text-gray-500">이미지는 최대 5개까지 첨부할 수 있습니다.</p>
-                    )}
+
+                    {/* 비디오 첨부 */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <Video size={16} className="inline mr-1" />
+                        영상 첨부 (최대 3개, 각 100MB 이하)
+                      </label>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {uploadedVideos.map((url, index) => (
+                          <div key={index} className="relative group">
+                            <video
+                              src={url}
+                              className="w-32 h-20 object-cover rounded-lg border border-gray-200"
+                              controls={false}
+                            />
+                            <button
+                              onClick={() => handleVideoRemove(index)}
+                              className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition opacity-0 group-hover:opacity-100"
+                            >
+                              ✕
+                            </button>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-8 h-8 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+                                <Video size={16} className="text-white" />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {uploadedVideos.length < 3 && (
+                          <label className="w-32 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-[#1A2B4E] transition bg-gray-50">
+                            <input
+                              type="file"
+                              accept="video/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const files = e.target.files
+                                if (files) {
+                                  Array.from(files).slice(0, 3 - uploadedVideos.length).forEach(file => {
+                                    handleVideoUpload(file)
+                                  })
+                                }
+                                e.target.value = ''
+                              }}
+                              disabled={uploading}
+                              multiple
+                            />
+                            {uploading ? (
+                              <div className="animate-spin text-gray-400">
+                                <Upload size={20} />
+                              </div>
+                            ) : (
+                              <Video size={20} className="text-gray-400" />
+                            )}
+                          </label>
+                        )}
+                      </div>
+                      {uploadedVideos.length >= 3 && (
+                        <p className="text-xs text-gray-500">영상은 최대 3개까지 첨부할 수 있습니다.</p>
+                      )}
+                      {uploadProgress > 0 && uploadProgress < 100 && (
+                        <div className="mt-2">
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-[#1A2B4E] h-2 rounded-full transition-all"
+                              style={{ width: `${uploadProgress}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">업로드 중... {uploadProgress}%</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex gap-3">
@@ -718,14 +717,27 @@ export default function WriteModal({
                       {content}
                     </p>
 
+                    {/* 미디어 미리보기 */}
                     {uploadedImages.length > 0 && (
                       <div className="grid grid-cols-2 gap-2 mb-3">
                         {uploadedImages.map((url, index) => (
                           <img
-                            key={index}
+                            key={`img-${index}`}
                             src={url}
-                            alt={`미리보기 ${index + 1}`}
+                            alt={`미리보기 이미지 ${index + 1}`}
                             className="w-full h-32 object-cover rounded-lg"
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {uploadedVideos.length > 0 && (
+                      <div className="grid grid-cols-1 gap-2 mb-3">
+                        {uploadedVideos.map((url, index) => (
+                          <video
+                            key={`vid-${index}`}
+                            src={url}
+                            controls
+                            className="w-full rounded-lg"
                           />
                         ))}
                       </div>
@@ -755,8 +767,7 @@ export default function WriteModal({
                   </div>
                 </div>
               )}
-            </div>
-          )}
+          </div>
         </div>
       </div>
 

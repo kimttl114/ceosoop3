@@ -34,7 +34,7 @@ const communityCategories = [
   { value: '대나무숲', label: '🗣️대나무숲', emoji: '🗣️' },
   { value: '빌런박제소', label: '❓빌런박제소', emoji: '❓' },
   { value: '유머 & 이슈', label: '유머 & 이슈', emoji: '' },
-  { value: '비틱방(자랑질)', label: '비틱방(자랑질)', emoji: '🥕' },
+  { value: '비틱방(자랑방)', label: '비틱방(자랑방)', emoji: '🥕' },
   { value: '결정장애', label: '💭결정장애', emoji: '💭' },
 ]
 
@@ -426,7 +426,7 @@ export default function CommunityPage() {
       },
     ]
 
-    const dummyCategories = ['대나무숲', '빌런박제소', '유머 & 이슈', '비틱방(자랑질)']
+    const dummyCategories = ['대나무숲', '빌런박제소', '유머 & 이슈', '비틱방(자랑방)']
     const dummyBusinessTypes = ['치킨', '카페', '한식', '중식', '일식', '양식', '분식', '기타']
     const dummyRegions = ['서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산']
 
@@ -560,236 +560,174 @@ export default function CommunityPage() {
           </div>
         </div>
 
-        {/* 메인 컨텐츠 */}
-        <div className="max-w-4xl mx-auto px-4 lg:px-6 py-4 space-y-3">
-        {filteredItems.length === 0 ? (
-          <div className="bg-white rounded-2xl p-8 text-center text-gray-500 shadow-sm">
-            <p className="text-sm mb-2">아직 게시글이 없습니다.</p>
-            {user && isVerified && (
-              <button
-                onClick={() => setIsWriteModalOpen(true)}
-                className="mt-4 px-6 py-2 bg-[#1A2B4E] text-white rounded-lg font-medium hover:bg-[#1A2B4E]/90 transition"
-              >
-                첫 글쓰기
-              </button>
-            )}
-            {user && !isVerified && (
-              <button
-                onClick={() => router.push('/auth/verify')}
-                className="mt-4 px-6 py-2 bg-[#FFBF00] text-[#1A2B4E] rounded-lg font-medium hover:bg-[#FFBF00]/90 transition"
-              >
-                사업자 인증하기
-              </button>
-            )}
-          </div>
-        ) : (
-          filteredItems.map((item: any) => {
-            // 투표글 렌더링
-            if (item.type === 'poll') {
-              const totalVotes = getTotalVotes(item)
-              const optionAPercent = totalVotes > 0 ? Math.round((item.optionA?.votes || 0) / totalVotes * 100) : 0
-              const optionBPercent = totalVotes > 0 ? Math.round((item.optionB?.votes || 0) / totalVotes * 100) : 0
-
-              return (
-                <div
-                  key={item.id}
-                  className="bg-white rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden border border-gray-100"
+        {/* 메인 컨텐츠 - eToLand 스타일 */}
+        <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4">
+          {filteredItems.length === 0 ? (
+            <div className="bg-white border border-gray-200 p-8 text-center text-gray-500">
+              <p className="text-sm mb-2">아직 게시글이 없습니다.</p>
+              {user && isVerified && (
+                <button
+                  onClick={() => setIsWriteModalOpen(true)}
+                  className="mt-4 px-6 py-2 bg-[#1A2B4E] text-white rounded font-medium hover:bg-[#1A2B4E]/90 transition"
                 >
-                  <Link href={`/polls/${item.id}`}>
-                    <div className="p-4">
-                      {/* 헤더 */}
-                      <div className="flex items-start justify-between gap-2 mb-3">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-gray-900 text-sm mb-1 line-clamp-2">
+                  첫 글쓰기
+                </button>
+              )}
+              {user && !isVerified && (
+                <button
+                  onClick={() => router.push('/auth/verify')}
+                  className="mt-4 px-6 py-2 bg-[#FFBF00] text-[#1A2B4E] rounded font-medium hover:bg-[#FFBF00]/90 transition"
+                >
+                  사업자 인증하기
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-200">
+              {/* 테이블 헤더 */}
+              <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-600">
+                <div className="col-span-1 text-center">번호</div>
+                <div className="col-span-6">제목</div>
+                <div className="col-span-2 text-center">작성자</div>
+                <div className="col-span-2 text-center">시간</div>
+                <div className="col-span-1 text-center">조회</div>
+              </div>
+              
+              {/* 게시글 리스트 */}
+              {filteredItems.map((item: any, index: number) => {
+                // 투표글 렌더링 - eToLand 스타일
+                if (item.type === 'poll') {
+                  const totalVotes = getTotalVotes(item)
+                  return (
+                    <Link
+                      key={item.id}
+                      href={`/polls/${item.id}`}
+                      className="block border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="grid grid-cols-12 gap-2 px-4 py-2.5 items-center text-sm">
+                        {/* 번호 */}
+                        <div className="col-span-1 text-center text-gray-500 text-xs">
+                          {filteredItems.length - index}
+                        </div>
+                        
+                        {/* 제목 */}
+                        <div className="col-span-6 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900 truncate">
+                              🗳️ {item.title}
+                            </span>
+                            {totalVotes > 0 && (
+                              <span className="flex-shrink-0 px-1.5 py-0.5 bg-blue-500 text-white text-[10px] font-bold rounded">
+                                {totalVotes}명
+                              </span>
+                            )}
+                            {item.comments > 0 && (
+                              <span className="flex-shrink-0 text-xs text-blue-600 font-semibold">
+                                [{item.comments}]
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* 작성자 */}
+                        <div className="col-span-2 text-center text-xs text-gray-600 truncate">
+                          {item.authorName || '익명'}
+                        </div>
+                        
+                        {/* 시간 */}
+                        <div className="col-span-2 text-center text-xs text-gray-500">
+                          {formatRelativeTime(item.createdAt)}
+                        </div>
+                        
+                        {/* 참여수 */}
+                        <div className="col-span-1 text-center text-xs text-gray-500">
+                          {totalVotes}
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                }
+
+                // 일반 게시글 렌더링 - eToLand 스타일
+                return (
+                  <Link
+                    key={item.id}
+                    href={`/post/${item.id}`}
+                    className="block border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="grid grid-cols-12 gap-2 px-4 py-2.5 items-center text-sm">
+                      {/* 번호 */}
+                      <div className="col-span-1 text-center text-gray-500 text-xs">
+                        {filteredItems.length - index}
+                      </div>
+                      
+                      {/* 제목 */}
+                      <div className="col-span-6 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900 truncate">
                             {item.title}
-                          </h3>
-                          <div className="flex items-center gap-2 text-xs text-gray-500">
-                            <AvatarMini size={20} avatarUrl={userAvatars[item.authorId]} userId={item.authorId} />
-                            <span>{item.authorName || '익명의 사장님'}</span>
-                            <span>·</span>
-                            <span>{formatRelativeTime(item.createdAt)}</span>
-                          </div>
-                        </div>
-                        {isPopular(item) && (
-                          <span className="px-2 py-1 bg-gradient-to-r from-[#FFBF00] to-[#F59E0B] text-[#1A2B4E] text-[10px] font-bold rounded-full flex items-center gap-1 flex-shrink-0">
-                            <TrendingUp size={12} />
-                            <span>인기</span>
                           </span>
-                        )}
-                      </div>
-
-                      {/* 선택지 미리보기 */}
-                      <div className="space-y-2 mb-3">
-                        <div className="bg-gray-50 rounded-lg p-2">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-medium text-gray-700">A. {item.optionA?.text || ''}</span>
-                            <span className="text-xs font-bold text-gray-900">{optionAPercent}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-1.5">
-                            <div
-                              className="bg-[#1A2B4E] h-1.5 rounded-full transition-all"
-                              style={{ width: `${optionAPercent}%` }}
-                            />
-                          </div>
-                        </div>
-                        <div className="bg-gray-50 rounded-lg p-2">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-medium text-gray-700">B. {item.optionB?.text || ''}</span>
-                            <span className="text-xs font-bold text-gray-900">{optionBPercent}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-1.5">
-                            <div
-                              className="bg-[#1A2B4E] h-1.5 rounded-full transition-all"
-                              style={{ width: `${optionBPercent}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 메타 정보 및 투표하기 버튼 */}
-                      <div className="flex items-center justify-between pt-2 border-t border-gray-100 gap-3">
-                        <div className="flex items-center gap-3 text-xs text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <span>🗳️</span>
-                            <span>{totalVotes}명 참여</span>
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <span>💬</span>
-                            <span>{item.comments || 0}</span>
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock size={12} />
-                            <span>{getTimeRemaining(item.deadline)}</span>
-                          </span>
-                        </div>
-                        <div className="px-4 py-1.5 bg-[#1A2B4E] text-white text-xs font-bold rounded-lg whitespace-nowrap flex-shrink-0">
-                          투표하기
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                </div>
-              )
-            }
-
-            // 일반 게시글 렌더링
-            const hasImages = item.images && item.images.length > 0
-
-            return (
-              <Link
-                key={item.id}
-                href={`/post/${item.id}`}
-                className="block rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden bg-white border border-gray-100"
-              >
-                <div className="relative">
-                  <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-[#1A2B4E] via-[#2C3E50] to-[#1A2B4E] opacity-30"></div>
-
-                  <div className="pl-2.5 pr-2.5 py-2">
-                    {/* 상단: 카테고리 */}
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      {item.category && (
-                        <span className="text-[12px] font-semibold bg-[#1A2B4E] text-white px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                          {communityCategories.find(cat => cat.value === item.category)?.emoji || ''}
-                          <span>{communityCategories.find(cat => cat.value === item.category)?.label || item.category}</span>
-                        </span>
-                      )}
-                      {user && user.uid === item.uid && (
-                        <button
-                          onClick={(e) => handleDelete(item.id, item.uid, e)}
-                          className="text-red-500 hover:text-red-700 transition p-0.5 rounded-full hover:bg-red-50 flex-shrink-0 ml-auto"
-                          title="삭제"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      )}
-                      {user && user.uid !== item.uid && (
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            setReportTarget({
-                              type: 'post',
-                              id: item.id,
-                              authorId: item.uid,
-                              content: item.title,
-                            })
-                            setIsReportModalOpen(true)
-                          }}
-                          className="text-gray-400 hover:text-gray-600 transition p-0.5 rounded-full hover:bg-gray-100 flex-shrink-0 ml-auto"
-                          title="신고"
-                        >
-                          <Flag size={12} />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* 제목 */}
-                    <div className="flex items-start justify-between gap-1.5 mb-1">
-                      <h3 className="font-bold line-clamp-1 flex-1 text-sm text-gray-900">
-                        {item.title}
-                      </h3>
-                    </div>
-
-                    {/* 내용 미리보기 */}
-                    {item.content && (
-                      <p className="text-xs text-gray-600 line-clamp-2 mb-1.5">
-                        {item.content}
-                      </p>
-                    )}
-
-                    {/* 이미지 미리보기 */}
-                    {hasImages && (
-                      <div className="mb-1.5">
-                        <div className="flex gap-1 overflow-x-auto">
-                          {item.images.slice(0, 3).map((img: string, idx: number) => (
-                            <div
-                              key={idx}
-                              className="flex-shrink-0 w-20 h-20 bg-gray-100 rounded-lg overflow-hidden"
+                          {(item.likes || 0) >= 10 && (
+                            <span className="flex-shrink-0 px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded">
+                              HIT
+                            </span>
+                          )}
+                          {item.comments > 0 && (
+                            <span className="flex-shrink-0 text-xs text-blue-600 font-semibold">
+                              [{item.comments}]
+                            </span>
+                          )}
+                          {user && user.uid === item.uid && (
+                            <button
+                              onClick={(e) => handleDelete(item.id, item.uid, e)}
+                              className="flex-shrink-0 text-red-500 hover:text-red-700 transition p-0.5"
+                              title="삭제"
                             >
-                              <img
-                                src={img}
-                                alt={`첨부 이미지 ${idx + 1}`}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          ))}
-                          {item.images.length > 3 && (
-                            <div className="flex-shrink-0 w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center text-[10px] text-gray-500 font-bold">
-                              +{item.images.length - 3}
-                            </div>
+                              <Trash2 size={12} />
+                            </button>
+                          )}
+                          {user && user.uid !== item.uid && (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                setReportTarget({
+                                  type: 'post',
+                                  id: item.id,
+                                  authorId: item.uid,
+                                  content: item.title,
+                                })
+                                setIsReportModalOpen(true)
+                              }}
+                              className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition p-0.5"
+                              title="신고"
+                            >
+                              <Flag size={12} />
+                            </button>
                           )}
                         </div>
                       </div>
-                    )}
-
-                    {/* 하단: 작성자 정보 및 메타 */}
-                    <div className="flex items-center justify-between pt-1 border-t border-gray-100">
-                      <div className="flex items-center gap-1">
-                        <AvatarMini size={20} avatarUrl={userAvatars[item.uid]} userId={item.uid} />
-                        <PostAuthorBadge authorId={item.uid} />
-                        <div className="flex items-center gap-0.5 text-[11px] text-gray-500">
-                          <span className="font-medium text-gray-700">{item.anonymousName || '익명의 사장님'}</span>
-                          <span>·</span>
-                          <span>{formatRelativeTime(item.timestamp)}</span>
-                        </div>
+                      
+                      {/* 작성자 */}
+                      <div className="col-span-2 text-center text-xs text-gray-600 truncate">
+                        {item.anonymousName || item.author || '익명'}
                       </div>
-                      <div className="flex items-center gap-2 text-[11px] text-gray-400">
-                        <span className="flex items-center gap-0.5">
-                          <span>👍</span>
-                          <span>{item.likes || 0}</span>
-                        </span>
-                        <span className="flex items-center gap-0.5">
-                          <span>💬</span>
-                          <span>{item.comments || 0}</span>
-                        </span>
+                      
+                      {/* 시간 */}
+                      <div className="col-span-2 text-center text-xs text-gray-500">
+                        {formatRelativeTime(item.timestamp)}
+                      </div>
+                      
+                      {/* 조회수 (좋아요) */}
+                      <div className="col-span-1 text-center text-xs text-gray-500">
+                        {item.likes || 0}
                       </div>
                     </div>
-                  </div>
-                </div>
-              </Link>
-            )
-          })
-        )}
+                  </Link>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
 
