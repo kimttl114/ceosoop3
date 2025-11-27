@@ -63,7 +63,7 @@ export default function BottomNav({ onWriteClick }: BottomNavProps) {
                 <button
                   key={item.path}
                   onClick={() => handleNavClick(item.path, item.isExternal || false)}
-                  className={`flex flex-col items-center justify-center gap-1 py-2 px-4 min-w-[60px] transition-colors relative ${
+                  className={`flex flex-col items-center justify-center gap-1 py-2 px-4 min-w-[60px] relative ${
                     isActive
                       ? 'text-[#1A2B4E]'
                       : 'text-gray-500 hover:text-gray-700'
@@ -93,7 +93,7 @@ export default function BottomNav({ onWriteClick }: BottomNavProps) {
         <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-[60] max-w-md w-full flex justify-center pointer-events-none">
           <button
             onClick={handleWriteClick}
-            className="w-16 h-16 bg-[#1A2B4E] text-white rounded-full shadow-xl flex items-center justify-center hover:bg-[#1A2B4E]/90 transition transform hover:scale-110 active:scale-95 pointer-events-auto"
+            className="w-16 h-16 bg-[#1A2B4E] text-white rounded-full shadow-xl flex items-center justify-center hover:bg-[#1A2B4E]/90 pointer-events-auto"
             type="button"
             title="글쓰기"
           >
