@@ -15,7 +15,7 @@ const blindCategories = [
   { value: '베스트', label: '🔥베스트', emoji: '🔥' },
   { value: '대나무숲', label: '🗣️대나무숲', emoji: '🗣️' },
   { value: '빌런박제소', label: '❓빌런박제소', emoji: '❓' },
-  { value: '꿀팁공유', label: '🍯꿀팁공유', emoji: '🍯' },
+  { value: '유머 & 이슈', label: '유머 & 이슈', emoji: '' },
   { value: '비틱방(자랑방)', label: '비틱방(자랑방)', emoji: '🥕' },
   { value: '결정장애', label: '💭결정장애', emoji: '💭' },
 ]

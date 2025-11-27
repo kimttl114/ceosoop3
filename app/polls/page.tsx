@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { auth, db } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import {
@@ -18,6 +18,7 @@ import {
 import { ArrowLeft, Clock, TrendingUp, Loader2, Plus, Trash2, Flag, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
+import MainLayout from '@/components/MainLayout'
 import DecisionPollModal from '@/components/DecisionPollModal'
 import WriteModal from '@/components/WriteModal'
 import MessageModal from '@/components/MessageModal'
@@ -32,18 +33,27 @@ const communityCategories = [
   { value: '전체', label: '전체', emoji: '' },
   { value: '대나무숲', label: '🗣️대나무숲', emoji: '🗣️' },
   { value: '빌런박제소', label: '❓빌런박제소', emoji: '❓' },
-  { value: '꿀팁공유', label: '🍯꿀팁공유', emoji: '🍯' },
+  { value: '유머 & 이슈', label: '유머 & 이슈', emoji: '' },
   { value: '비틱방(자랑질)', label: '비틱방(자랑질)', emoji: '🥕' },
   { value: '결정장애', label: '💭결정장애', emoji: '💭' },
 ]
 
 export default function CommunityPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [user, setUser] = useState<any>(null)
   const [posts, setPosts] = useState<any[]>([])
   const [polls, setPolls] = useState<any[]>([])
   const [selectedCategory, setSelectedCategory] = useState('전체')
   const [loading, setLoading] = useState(true)
+  
+  // URL 쿼리 파라미터에서 카테고리 읽기
+  useEffect(() => {
+    const categoryParam = searchParams?.get('category')
+    if (categoryParam) {
+      setSelectedCategory(categoryParam)
+    }
+  }, [searchParams])
   const [isPollModalOpen, setIsPollModalOpen] = useState(false)
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false)
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
@@ -416,7 +426,7 @@ export default function CommunityPage() {
       },
     ]
 
-    const dummyCategories = ['대나무숲', '빌런박제소', '꿀팁공유', '비틱방(자랑질)']
+    const dummyCategories = ['대나무숲', '빌런박제소', '유머 & 이슈', '비틱방(자랑질)']
     const dummyBusinessTypes = ['치킨', '카페', '한식', '중식', '일식', '양식', '분식', '기타']
     const dummyRegions = ['서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산']
 
@@ -509,29 +519,21 @@ export default function CommunityPage() {
   }
 
   return (
-    <div className="min-h-screen pb-24 relative z-10">
-      {/* 블러 모핑 배경 */}
-      <MorphingBackground />
-      
-      {/* 헤더 */}
-      <header className="bg-gradient-to-br from-[#1A2B4E] to-[#2C3E50] sticky top-0 z-30 shadow-lg">
-        <div className="max-w-md mx-auto">
-          <div className="px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => router.back()}
-                className="p-2 hover:bg-white/20 rounded-full transition text-white"
-              >
-                <ArrowLeft size={20} />
-              </button>
-              <h1 className="text-xl font-bold text-white flex items-center gap-2">
-                <span>💬</span>
-                <span>커뮤니티</span>
-              </h1>
-            </div>
+    <MainLayout>
+      <div className="min-h-screen pb-24 relative z-10">
+        {/* 블러 모핑 배경 */}
+        <MorphingBackground />
+        
+        {/* 커뮤니티 헤더 */}
+        <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
+          <div className="px-4 lg:px-6 py-3 flex items-center justify-between">
+            <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <span>💬</span>
+              <span>커뮤니티</span>
+            </h1>
             <button
               onClick={generateDummyPost}
-              className="p-2 hover:bg-white/20 rounded-full transition text-white"
+              className="p-2 hover:bg-gray-100 rounded-lg transition"
               title="더미 글 생성"
             >
               <Sparkles size={20} />
@@ -539,7 +541,7 @@ export default function CommunityPage() {
           </div>
 
           {/* 카테고리 탭 */}
-          <div className="px-3 py-2">
+          <div className="px-4 lg:px-6 py-2 border-t border-gray-100">
             <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
               {communityCategories.map((cat) => (
                 <button
@@ -548,7 +550,7 @@ export default function CommunityPage() {
                   className={`flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition whitespace-nowrap ${
                     selectedCategory === cat.value
                       ? 'bg-[#FFBF00] text-[#1A2B4E] shadow-md font-bold'
-                      : 'bg-white/20 text-white hover:bg-white/30'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
                   {cat.label}
@@ -557,10 +559,9 @@ export default function CommunityPage() {
             </div>
           </div>
         </div>
-      </header>
 
-      {/* 메인 컨텐츠 */}
-      <main className="max-w-md mx-auto px-4 py-4 space-y-3">
+        {/* 메인 컨텐츠 */}
+        <div className="max-w-4xl mx-auto px-4 lg:px-6 py-4 space-y-3">
         {filteredItems.length === 0 ? (
           <div className="bg-white rounded-2xl p-8 text-center text-gray-500 shadow-sm">
             <p className="text-sm mb-2">아직 게시글이 없습니다.</p>
@@ -789,7 +790,8 @@ export default function CommunityPage() {
             )
           })
         )}
-      </main>
+        </div>
+      </div>
 
       {/* 글쓰기 모달 */}
       <WriteModal
@@ -838,12 +840,14 @@ export default function CommunityPage() {
         />
       )}
 
-      {/* 하단 네비게이션 */}
-      <BottomNav />
+      {/* 하단 네비게이션 (모바일용) */}
+      <div className="lg:hidden">
+        <BottomNav />
+      </div>
 
-      {/* 글쓰기 버튼 (네비게이션 바 바로 위) */}
+      {/* 글쓰기 버튼 (네비게이션 바 바로 위, 모바일용) */}
       {user && isVerified && (
-        <div className="fixed bottom-[68px] left-1/2 -translate-x-1/2 z-[60] max-w-md w-full flex justify-center gap-3 pointer-events-none">
+        <div className="lg:hidden fixed bottom-[68px] left-1/2 -translate-x-1/2 z-[60] max-w-md w-full flex justify-center gap-3 pointer-events-none">
           <button
             onClick={() => setIsWriteModalOpen(true)}
             className="w-10 h-10 bg-[#FFBF00] text-[#1A2B4E] rounded-full shadow-lg flex items-center justify-center hover:bg-[#FFBF00]/90 transition transform hover:scale-110 active:scale-95 pointer-events-auto"
@@ -862,6 +866,6 @@ export default function CommunityPage() {
           </button>
         </div>
       )}
-    </div>
+    </MainLayout>
   )
 }

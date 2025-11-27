@@ -15,7 +15,7 @@ import {
   serverTimestamp,
   where,
 } from 'firebase/firestore'
-import { User, Trash2, Image, Search, Bell, Mail, Flag, ShoppingBag } from 'lucide-react'
+import { User, Trash2, Image, Search, Bell, Mail, Flag, ShoppingBag, Heart, MessageCircle, Clock, Vote } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import AvatarMini from '@/components/AvatarMini'
@@ -24,12 +24,12 @@ import WriteModal from '@/components/WriteModal'
 import MessageModal from '@/components/MessageModal'
 import ReportModal from '@/components/ReportModal'
 import PostAuthorBadge from '@/components/PostAuthorBadge'
-import MorphingBackground from '@/components/MorphingBackground'
+import MainLayout from '@/components/MainLayout'
 import { useVerification } from '@/hooks/useVerification'
 
 // 블라인드 스타일 카테고리 (메인 페이지는 베스트만)
 const blindCategories = [
-  { value: '베스트', label: '🔥베스트', emoji: '🔥' },
+  { value: '베스트', label: '베스트', emoji: '' },
 ]
 
 // 업종 목록 (글쓰기 모달용)
@@ -431,574 +431,225 @@ export default function Home() {
   })
 
   return (
-    <div className="min-h-screen pb-24 relative z-10">
-      {/* 블러 모핑 배경 */}
-      <MorphingBackground />
-      
-      {/* 통합 헤더 */}
-      <header className="bg-gradient-to-br from-[#1A2B4E] to-[#2C3E50] sticky top-0 z-30 shadow-lg">
-        <div className="max-w-md mx-auto">
-          {/* 상단: 로고 + 검색 + 알림 + 프로필 */}
-          <div className="px-4 py-3 flex justify-between items-center">
-            <h1 className="text-xl font-bold text-white flex items-center gap-2 animate-title-fade-in">
-              <span className="text-2xl filter drop-shadow-lg">🎠</span>
-              <span className="relative inline-block">
-                <span className="relative z-10 animate-title-glow font-extrabold drop-shadow-[0_2px_8px_rgba(255,191,0,0.5)]">
-                  자영업자 <span className="text-yellow-400 inline-block">놀이동산</span>
-                </span>
-                <span className="absolute inset-0 animate-title-glow opacity-50 blur-[2px] font-extrabold">
-                  자영업자 <span className="text-yellow-400">놀이동산</span>
-                </span>
-              </span>
-            </h1>
-            <div className="flex items-center gap-2">
-              {user ? (
-                <>
-                  <button
-                    className="p-2 hover:bg-white/20 rounded-full transition text-white"
-                    title="검색"
-                    type="button"
-                  >
-                    <Search size={20} />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      router.push('/messages')
-                    }}
-                    className="p-2 hover:bg-white/20 rounded-full transition text-white relative"
-                    title="쪽지함"
-                    type="button"
-                  >
-                    <Mail size={20} />
-                    {unreadMessageCount > 0 && (
-                      <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                        {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
-                      </span>
-                    )}
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      router.push('/mypage')
-                    }}
-                    className="p-1 hover:bg-white/20 rounded-full transition cursor-pointer"
-                    title="마이페이지"
-                    type="button"
-                  >
-                    <div className="w-9 h-9 rounded-full bg-white/20 border-2 border-white/30 flex items-center justify-center">
-                      <User size={18} className="text-white" />
-                    </div>
-                  </button>
-                </>
-              ) : (
+    <MainLayout>
+      <div className="min-h-screen pb-24 bg-gray-50">
+        {/* 헤더 섹션 */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-4xl mx-auto px-4 lg:px-6 py-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-1">베스트</h1>
+                <p className="text-sm text-gray-500">인기 게시글을 확인하세요</p>
+              </div>
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={handleLogin}
-                  className="text-sm text-white hover:text-white/80 transition font-medium"
-                  type="button"
+                  onClick={() => router.push('/checkin')}
+                  className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors"
                 >
-                  로그인
+                  출석체크
                 </button>
+                <button
+                  onClick={() => router.push('/shop')}
+                  className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
+                >
+                  <ShoppingBag size={16} />
+                  포인트상점
+                </button>
+              </div>
+            </div>
+
+            {/* 빠른 접근 카드 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <button
+                onClick={() => router.push('/games/box')}
+                className="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 rounded-lg p-4 text-white shadow-sm transition-all"
+              >
+                <div className="text-sm font-semibold mb-1">랜덤 박스</div>
+                <div className="text-xs opacity-90">매일 무료 박스 열기</div>
+              </button>
+
+              <button
+                onClick={() => router.push('/diagnose')}
+                className="bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 rounded-lg p-4 text-white shadow-sm transition-all"
+              >
+                <div className="text-sm font-semibold mb-1">시급 진단</div>
+                <div className="text-xs opacity-90">AI가 내 시급 판독</div>
+              </button>
+
+              <Link
+                href="/games"
+                className="bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 rounded-lg p-4 text-white shadow-sm transition-all block"
+              >
+                <div className="text-sm font-semibold mb-1">게임</div>
+                <div className="text-xs opacity-90">스트레스 해소 게임</div>
+              </Link>
+
+              <Link
+                href="/tools"
+                className="bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-lg p-4 text-white shadow-sm transition-all block"
+              >
+                <div className="text-sm font-semibold mb-1">도구</div>
+                <div className="text-xs opacity-90">실용 도구 모음</div>
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* 게시글 리스트 - 침하하 스타일 */}
+        <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* 메인 컨텐츠 영역 */}
+            <div className="lg:col-span-2">
+              {/* 탭 메뉴 */}
+              <div className="bg-white border-b border-gray-200 mb-4">
+                <div className="flex gap-4">
+                  <button className="px-4 py-3 font-semibold text-gray-900 border-b-2 border-gray-900">
+                    베스트
+                  </button>
+                  <button className="px-4 py-3 font-medium text-gray-600 hover:text-gray-900">
+                    인기글
+                  </button>
+                </div>
+              </div>
+
+              {/* 게시글 목록 */}
+              {filteredItems.length === 0 ? (
+                <div className="bg-white rounded-lg p-8 text-center text-gray-500 shadow-sm">
+                  <p className="text-sm">아직 등록된 글이 없습니다.</p>
+                  <p className="text-xs mt-2 text-gray-400">첫 번째 글을 작성해보세요!</p>
+                </div>
+              ) : (
+                <div className="space-y-0">
+                  {filteredItems.map((item: any) => {
+                    // 투표글은 베스트 페이지에서 표시하지 않음 (사이드바에만 표시)
+                    if (item.type === 'poll') {
+                      return null
+                    }
+
+                    // 일반 게시글 렌더링 - 침하하 스타일
+                    const isBest = item.category === '베스트' || (item.likes || 0) >= 10
+                    
+                    return (
+                      <Link
+                        key={item.id}
+                        href={`/post/${item.id}`}
+                        className="block bg-white border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="px-4 py-3">
+                          <div className="flex items-start justify-between gap-4">
+                            {/* 메인 컨텐츠 */}
+                            <div className="flex-1 min-w-0">
+                              {/* 카테고리 + 제목 */}
+                              <div className="flex items-center gap-2 mb-1">
+                                {item.category && (
+                                  <span className="text-xs text-gray-500">
+                                    {blindCategories.find(cat => cat.value === item.category)?.label || item.category}
+                                  </span>
+                                )}
+                              </div>
+                              
+                              <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1 text-sm">
+                                {item.title}
+                              </h3>
+                              
+                              {/* 작성자 정보 */}
+                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <span className="font-medium">{item.author || '익명의 사장님'}</span>
+                                <span>·</span>
+                                <span>{formatRelativeTime(item.timestamp)}</span>
+                              </div>
+                            </div>
+                            
+                            {/* 좋아요/댓글 수 */}
+                            <div className="flex items-center gap-3 text-xs text-gray-500 flex-shrink-0">
+                              <span className="flex items-center gap-1">
+                                <Heart size={14} className={item.likes > 0 ? 'fill-red-500 text-red-500' : ''} />
+                                {item.likes || 0}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <MessageCircle size={14} />
+                                {item.comments || 0}
+                              </span>
+                              {user && user.uid === item.uid && (
+                                <button
+                                  onClick={(e) => handleDelete(item.id, item.uid, e)}
+                                  className="text-red-500 hover:text-red-700 transition p-1 rounded"
+                                  title="삭제"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
+                              {user && user.uid !== item.uid && (
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    setReportTarget({
+                                      type: 'post',
+                                      id: item.id,
+                                      authorId: item.uid,
+                                      content: item.content,
+                                    })
+                                    setIsReportModalOpen(true)
+                                  }}
+                                  className="text-gray-400 hover:text-gray-600 transition p-1 rounded"
+                                  title="신고"
+                                >
+                                  <Flag size={14} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
               )}
             </div>
-          </div>
-
-          {/* 구분선 */}
-          <div className="h-1 bg-gradient-to-r from-transparent via-[#FFBF00]/40 to-transparent"></div>
-
-          {/* 출석체크, 포인트 상점, 베스트 배지 */}
-          <div className="px-4 py-2 flex items-center justify-between gap-2">
-            <button
-              onClick={() => router.push('/checkin')}
-              className="px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full text-sm font-bold shadow-md flex items-center gap-1.5 flex-shrink-0"
-            >
-              <span>✅</span>
-              <span className="hidden sm:inline">출석체크</span>
-            </button>
-            <button
-              onClick={() => router.push('/shop')}
-              className="px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full text-sm font-bold shadow-md flex items-center gap-1.5 flex-shrink-0"
-            >
-              <ShoppingBag size={16} />
-              <span className="hidden sm:inline">포인트상점</span>
-            </button>
-            <div className="flex items-center justify-center flex-1">
-              <span className="px-3 py-1 bg-[#FFBF00] text-[#1A2B4E] rounded-full text-xs font-bold shadow-md">
-                🔥 베스트
-              </span>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* 환영 문구 - 가게 간판 스타일 */}
-      <div className="max-w-md mx-auto px-4 pt-5 pb-4">
-        <div className="relative animate-welcome-fade-in animate-welcome-float scale-[0.85] origin-top">
-          {/* 좌우 장식 이모티콘 */}
-          <div className="absolute -left-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-3">
-            <div className="text-3xl">✨</div>
-            <div className="text-2xl">🌟</div>
-            <div className="text-3xl">💫</div>
-          </div>
-          <div className="absolute -right-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-3">
-            <div className="text-3xl">⭐</div>
-            <div className="text-2xl">✨</div>
-            <div className="text-3xl">🌟</div>
-          </div>
-          
-          {/* 상단 장식 이모티콘 */}
-          <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 flex gap-4">
-            <div className="text-2xl">🎉</div>
-            <div className="text-2xl">🎊</div>
-            <div className="text-2xl">🎈</div>
-          </div>
-          
-          {/* 간판 본체 */}
-          <div className="bg-gradient-to-br from-[#1a1a1a] via-[#2a2a2a] to-[#1a1a1a] rounded-lg p-6 border-2 border-white/20 relative overflow-hidden shadow-2xl" style={{
-            boxShadow: '0 0 30px rgba(96, 165, 250, 0.3), inset 0 0 30px rgba(0, 0, 0, 0.5)',
-          }}>
-            {/* LED 배경 효과 (더 화려하게) */}
-            <div className="absolute inset-0 opacity-[0.05]">
-              <div className="absolute inset-0 led-background"></div>
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#FFBF00]/10 to-transparent"></div>
-            </div>
             
-            {/* 간판 상하단 라인 (약하게) */}
-            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#FFBF00]/30 to-transparent"></div>
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#FFBF00]/30 to-transparent"></div>
-            
-            {/* 모서리 장식 (작고 약하게) */}
-            <div className="absolute top-1 left-1 w-2 h-2 border-l border-t border-[#FFBF00]/40"></div>
-            <div className="absolute top-1 right-1 w-2 h-2 border-r border-t border-[#FFBF00]/40"></div>
-            <div className="absolute bottom-1 left-1 w-2 h-2 border-l border-b border-[#FFBF00]/40"></div>
-            <div className="absolute bottom-1 right-1 w-2 h-2 border-r border-b border-[#FFBF00]/40"></div>
-            
-            <div className="relative z-10 text-center">
-              {/* 메인 제목 - 놀이동산 간판 스타일 */}
-              <div className="flex items-center justify-center gap-3 mb-3">
-                <span className="text-2xl">🎠</span>
-                <h2 className="text-3xl font-black animate-welcome-pulse animate-welcome-neon-color-shift" style={{
-                  letterSpacing: '2px',
-                }}>
-                  놀이동산에 오신 것을 환영합니다! 🎉
-                </h2>
-                <span className="text-2xl">🎡</span>
-              </div>
-              
-              {/* 부제목 */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg">🎮</span>
-                  <p className="text-base font-bold leading-relaxed animate-welcome-pulse animate-welcome-neon-color-shift" style={{
-                    letterSpacing: '1px',
-                  }}>
-                    스트레스 풀고, 재미있게, 유용하게!
-                  </p>
-                  <span className="text-lg">🎮</span>
+            {/* 오른쪽 사이드바 */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-lg shadow-sm sticky top-20">
+                <div className="p-4 border-b border-gray-200">
+                  <h3 className="font-bold text-gray-900">투표 | 이벤트</h3>
                 </div>
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-xl">🎁</span>
-                  <p className="text-lg font-black animate-welcome-pulse animate-welcome-neon-color-shift" style={{
-                    letterSpacing: '1.5px',
-                  }}>
-                    게임부터 실용 도구까지 한 곳에!
-                  </p>
-                  <span className="text-xl">🎁</span>
-                </div>
-              </div>
-            </div>
-            
-            {/* 간판 하단 LED 점등 효과 (더 화려하게) */}
-            <div className="absolute bottom-0.5 left-1/2 transform -translate-x-1/2 flex gap-1">
-              {Array.from({ length: 7 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="w-1.5 h-1.5 rounded-full bg-[#FFBF00]"
-                  style={{
-                    boxShadow: '0 0 5px rgba(255, 191, 0, 0.8), 0 0 10px rgba(255, 191, 0, 0.5)',
-                  }}
-                ></div>
-              ))}
-            </div>
-          </div>
-          
-          {/* 간판 지지대 */}
-          <div className="mx-auto mt-2 flex justify-center gap-3.5">
-            <div className="w-8 h-3 bg-gradient-to-b from-gray-500 to-gray-700 rounded-b-lg opacity-60"></div>
-            <div className="w-8 h-3 bg-gradient-to-b from-gray-500 to-gray-700 rounded-b-lg opacity-60"></div>
-          </div>
-          
-          {/* 하단 장식 이모티콘 */}
-          <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-3">
-            <div className="text-xl">🎀</div>
-            <div className="text-xl">🌸</div>
-            <div className="text-xl">🎀</div>
-          </div>
-        </div>
-      </div>
-
-      {/* 놀이동산 Zone 카드 섹션 */}
-      <div className="max-w-md mx-auto px-4 py-4">
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          {/* 랜덤 박스 */}
-          <button
-            onClick={() => router.push('/games/box')}
-            className="bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl p-4 text-white shadow-lg"
-          >
-            <div className="text-3xl mb-2">📦</div>
-            <div className="text-sm font-bold">랜덤 박스</div>
-            <div className="text-xs opacity-90">매일 무료 박스 열기</div>
-          </button>
-
-          {/* 내 시급은? */}
-          <button
-            onClick={() => router.push('/diagnose')}
-            className="bg-gradient-to-br from-[#FFBF00] to-[#F59E0B] rounded-2xl p-4 text-[#1A2B4E] shadow-lg"
-          >
-            <div className="text-3xl mb-2">💸</div>
-            <div className="text-sm font-bold">내 시급은?</div>
-            <div className="text-xs opacity-90">AI가 내 시급 판독</div>
-          </button>
-        </div>
-
-        {/* 게임존 & 도구존 */}
-        <div className="space-y-3 mb-4">
-          <Link
-            href="/games"
-            className="block bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-5 border-2 border-purple-200 hover:border-purple-300 transition shadow-md hover:shadow-lg"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl mb-1">🎮</div>
-                <div className="font-bold text-gray-800">게임존</div>
-                <div className="text-sm text-gray-600">스트레스 해소 게임</div>
-              </div>
-              <div className="text-purple-600 font-bold">→</div>
-            </div>
-          </Link>
-
-          <Link
-            href="/tools"
-            className="block bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-5 border-2 border-blue-200 hover:border-blue-300 transition shadow-md hover:shadow-lg"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl mb-1">🛠️</div>
-                <div className="font-bold text-gray-800">도구존</div>
-                <div className="text-sm text-gray-600">실용 도구 모음</div>
-              </div>
-              <div className="text-blue-600 font-bold">→</div>
-            </div>
-          </Link>
-
-          <a
-            href="https://all-fo.vercel.app/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-5 border-2 border-purple-200 hover:border-purple-300 transition shadow-md hover:shadow-lg relative overflow-hidden"
-          >
-            {/* 반짝이는 효과 */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
-            
-            <div className="flex items-center justify-between relative z-10">
-              <div>
-                <div className="text-2xl mb-1">✨</div>
-                <div className="font-bold text-gray-800">운세존</div>
-                <div className="text-sm text-gray-600">AI 올인원 운세</div>
-              </div>
-              <div className="text-purple-600 font-bold">→</div>
-            </div>
-          </a>
-        </div>
-      </div>
-
-      {/* 게시글 리스트 */}
-      <main className="max-w-md mx-auto px-4 py-2 space-y-1.5">
-        {filteredItems.length === 0 ? (
-          <div className="bg-white rounded-2xl p-8 text-center text-gray-500 shadow-sm">
-            <p className="text-sm">아직 등록된 글이 없습니다.</p>
-            <p className="text-xs mt-2 text-gray-400">첫 번째 글을 작성해보세요!</p>
-          </div>
-        ) : (
-          filteredItems.map((item: any) => {
-            // 투표글 렌더링
-            if (item.type === 'poll') {
-              const totalVotes = (item.optionA?.votes || 0) + (item.optionB?.votes || 0)
-              const optionAPercent = totalVotes > 0 ? Math.round((item.optionA?.votes || 0) / totalVotes * 100) : 0
-              const optionBPercent = totalVotes > 0 ? Math.round((item.optionB?.votes || 0) / totalVotes * 100) : 0
-              const isPopular = totalVotes >= 10
-
-              return (
-                <Link
-                  key={item.id}
-                  href={`/polls/${item.id}`}
-                  className="block rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200"
-                >
-                  <div className="relative">
-                    <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-purple-500 via-blue-500 to-purple-500 opacity-50"></div>
-                    <div className="pl-2.5 pr-2.5 py-2">
-                      {/* 투표 배지 */}
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <span className="text-[12px] font-semibold bg-purple-600 text-white px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                          <span>💭</span>
-                          <span>투표</span>
-                        </span>
-                        {isPopular && (
-                          <span className="px-1.5 py-0.5 bg-gradient-to-r from-[#FFBF00] to-[#F59E0B] text-[#1A2B4E] text-[12px] font-bold rounded-full shadow-sm flex items-center gap-0.5">
-                            <span>🔥</span>
-                            <span>인기</span>
-                          </span>
-                        )}
-                      </div>
-
-                      {/* 제목 */}
-                      <h3 className="font-bold line-clamp-1 text-sm text-gray-900 mb-1.5">
-                        {item.title}
-                      </h3>
-
-                      {/* 선택지 미리보기 */}
-                      <div className="space-y-1.5 mb-1.5">
-                        <div className="bg-white/70 rounded-lg p-1.5">
-                          <div className="flex items-center justify-between mb-0.5">
-                            <span className="text-[12px] font-medium text-gray-700">A. {item.optionA?.text || ''}</span>
-                            <span className="text-[12px] font-bold text-purple-700">{optionAPercent}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-1">
-                            <div
-                              className="bg-purple-600 h-1 rounded-full transition-all"
-                              style={{ width: `${optionAPercent}%` }}
-                            />
-                          </div>
-                        </div>
-                        <div className="bg-white/70 rounded-lg p-1.5">
-                          <div className="flex items-center justify-between mb-0.5">
-                            <span className="text-[12px] font-medium text-gray-700">B. {item.optionB?.text || ''}</span>
-                            <span className="text-[12px] font-bold text-blue-700">{optionBPercent}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-1">
-                            <div
-                              className="bg-blue-600 h-1 rounded-full transition-all"
-                              style={{ width: `${optionBPercent}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 메타 정보 */}
-                      <div className="flex items-center justify-between pt-1 border-t border-purple-200">
-                        <div className="flex items-center gap-1">
-                          <AvatarMini size={20} avatarUrl={userAvatars[item.authorId]} userId={item.authorId} />
-                          <div className="flex items-center gap-0.5 text-[11px] text-gray-500">
-                            <span className="font-medium text-gray-700">{item.authorName || '익명의 사장님'}</span>
-                            <span>·</span>
-                            <span>{formatRelativeTime(item.createdAt)}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                          <span className="flex items-center gap-0.5">
-                            <span className="text-[12px]">🗳️</span>
-                            <span>{totalVotes}</span>
-                          </span>
-                          <span className="flex items-center gap-0.5">
-                            <span className="text-[12px]">💬</span>
-                            <span>{item.comments || 0}</span>
-                          </span>
-                          <span className="flex items-center gap-0.5 text-[10px]">
-                            <span className="text-[11px]">⏰</span>
-                            <span>{getPollTimeRemaining(item.deadline)}</span>
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              )
-            }
-
-            // 일반 게시글 렌더링
-            const isBest = item.category === '베스트' || (item.likes || 0) >= 10
-            const hasImages = item.images && item.images.length > 0
-            
-            return (
-              <Link
-                key={item.id}
-                href={`/post/${item.id}`}
-                className={`block rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden ${
-                  isBest
-                    ? 'bg-gradient-to-br from-[#FFBF00]/10 to-[#F59E0B]/10 border border-[#FFBF00]/30'
-                    : 'bg-white border border-gray-100'
-                }`}
-              >
-                {/* 대나무 줄기 패턴 (좌측) */}
-                <div className="relative">
-                  <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-[#1A2B4E] via-[#2C3E50] to-[#1A2B4E] opacity-30"></div>
-                  
-                  <div className="pl-2.5 pr-2.5 py-2">
-                    {/* 상단: 인기글 배지 + 카테고리 */}
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      {/* 카테고리 배지 */}
-                      {item.category && (
-                        <span className="text-[12px] font-semibold bg-[#1A2B4E] text-white px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                          {blindCategories.find(cat => cat.value === item.category)?.emoji || ''}
-                          <span>{blindCategories.find(cat => cat.value === item.category)?.label || item.category}</span>
-                        </span>
-                      )}
-                      {/* 인기글 배지 */}
-                      {isBest && (
-                        <span className="px-1.5 py-0.5 bg-gradient-to-r from-[#FFBF00] to-[#F59E0B] text-[#1A2B4E] text-[12px] font-bold rounded-full shadow-sm flex items-center gap-0.5">
-                          <span>🔥</span>
-                          <span>인기글</span>
-                        </span>
-                      )}
-                    </div>
-
-                    {/* 제목 */}
-                    <div className="flex items-start justify-between gap-1.5 mb-1">
-                      <h3 className={`font-bold line-clamp-1 flex-1 text-sm text-gray-900`}>
-                        {item.title}
-                      </h3>
-                      {user && user.uid === item.uid && (
-                        <button
-                          onClick={(e) => handleDelete(item.id, item.uid, e)}
-                          className="text-red-500 hover:text-red-700 transition p-0.5 rounded-full hover:bg-red-50 flex-shrink-0"
-                          title="삭제"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      )}
-                      {user && user.uid !== item.uid && (
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            setReportTarget({
-                              type: 'post',
-                              id: item.id,
-                              authorId: item.uid,
-                              content: item.content,
-                            })
-                            setIsReportModalOpen(true)
-                          }}
-                          className="flex-shrink-0 p-0.5 hover:bg-orange-50 rounded-full transition text-orange-600"
-                          title="게시글 신고"
-                        >
-                          <Flag size={12} />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* 이미지 썸네일 (있는 경우) - 더 작게 */}
-                    {hasImages && (
-                      <div className="mb-1 rounded-lg overflow-hidden">
-                        <img
-                          src={item.images[0]}
-                          alt="썸네일"
-                          className="w-full h-16 object-cover"
-                        />
-                      </div>
-                    )}
-
-                    {/* 본문 */}
-                    <p className="text-[13px] text-gray-600 line-clamp-1 mb-1 leading-relaxed whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-                      {user && isVerified ? item.content : !user ? '🔒 로그인이 필요합니다' : !isVerified ? '🔒 사업자 인증이 필요합니다' : item.content}
-                    </p>
-
-                    {/* 뱃지 - 매우 작게 */}
-                    <div className="flex flex-wrap gap-0.5 mb-1">
-                      {item.region && (
-                        <span className="flex-shrink-0 text-[10px] font-medium bg-blue-100 text-blue-700 px-1 py-0.5 rounded-full leading-tight">
-                          {item.region}
-                        </span>
-                      )}
-                      <span className="flex-shrink-0 text-[10px] font-medium bg-amber-100 text-amber-700 px-1 py-0.5 rounded-full leading-tight">
-                        {item.businessType ? `${getBusinessEmoji(item.businessType)} ${item.businessType}` : '🏪 기타'}
-                      </span>
-                    </div>
-
-                    {/* 아바타 + 메타 정보 */}
-                    <div className="flex items-center justify-between pt-1 border-t border-gray-100">
-                      <div className="flex items-center gap-1">
-                        <AvatarMini size={20} avatarUrl={userAvatars[item.uid]} userId={item.uid} />
-                        <div className="flex items-center gap-0.5 text-[11px] text-gray-500">
-                          <span className="font-medium text-gray-700">{item.author || '익명의 사장님'}</span>
-                          <PostAuthorBadge authorId={item.uid} />
-                          <span>·</span>
-                          <span>{formatRelativeTime(item.timestamp)}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        {user && user.uid !== item.uid && (
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              setMessageReceiver({
-                                id: item.uid,
-                                name: item.author || '익명의 사장님',
-                                postTitle: item.title,
-                              })
-                              setIsMessageModalOpen(true)
-                            }}
-                            className="p-0.5 hover:bg-blue-50 rounded-full transition text-blue-600"
-                            title="쪽지 보내기"
+                <div className="p-4">
+                  {polls.length > 0 ? (
+                    <div className="space-y-3">
+                      {polls.slice(0, 5).map((poll: any) => {
+                        const totalVotes = (poll.optionA?.votes || 0) + (poll.optionB?.votes || 0)
+                        return (
+                          <Link
+                            key={poll.id}
+                            href={`/polls/${poll.id}`}
+                            className="block p-3 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
                           >
-                            <Mail size={11} />
-                          </button>
-                        )}
-                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                          <span className="flex items-center gap-0.5">
-                            <span className="text-[12px]">❤️</span>
-                            <span>{item.likes || 0}</span>
-                          </span>
-                          <span className="flex items-center gap-0.5">
-                            <span className="text-[12px]">💬</span>
-                            <span>{item.comments || 0}</span>
-                          </span>
-                        </div>
-                      </div>
+                            <h4 className="font-medium text-sm text-gray-900 mb-2 line-clamp-2">
+                              {poll.title}
+                            </h4>
+                            <div className="flex items-center justify-between text-xs text-gray-500">
+                              <span>{poll.authorName || '익명'}</span>
+                              <span className="flex items-center gap-1">
+                                <Vote size={12} />
+                                {totalVotes}
+                              </span>
+                            </div>
+                          </Link>
+                        )
+                      })}
                     </div>
-                  </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      진행 중인 투표가 없습니다
+                    </p>
+                  )}
                 </div>
-              </Link>
-            )
-          })
-        )}
-
-        {/* 비로그인/미인증 시 안내 */}
-        {((!user || (user && !isVerified && !verificationLoading)) && filteredItems.length > 0) && (
-          <div className="bg-white rounded-2xl p-4 text-center shadow-sm border border-amber-200">
-            {!user ? (
-              <>
-                <p className="text-sm text-gray-700 font-medium mb-2">
-                  로그인하면 전체 내용을 볼 수 있습니다.
-                </p>
-                <button
-                  onClick={handleLogin}
-                  className="bg-[#1A2B4E] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#1A2B4E]/90 transition"
-                >
-                  구글 로그인
-                </button>
-              </>
-            ) : !isVerified ? (
-              <>
-                <p className="text-sm text-gray-700 font-medium mb-2">
-                  🔒 사업자 인증이 필요합니다.
-                </p>
-                <p className="text-xs text-gray-500 mb-3">
-                  인증된 찐사장들만 게시글을 볼 수 있습니다.
-                </p>
-                <button
-                  onClick={() => router.push('/auth/verify')}
-                  className="bg-[#FFBF00] text-[#1A2B4E] px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#FFBF00]/90 transition"
-                >
-                  사업자 인증하기
-                </button>
-              </>
-            ) : null}
+              </div>
+            </div>
           </div>
-        )}
-      </main>
-
+        </div>
+      </div>
 
       {/* 글쓰기 모달 */}
       <WriteModal
@@ -1041,16 +692,18 @@ export default function Home() {
         />
       )}
 
-      {/* 하단 네비게이션 */}
-      <BottomNav onWriteClick={() => {
-        if (!user) {
-          handleLogin()
-        } else if (!isVerified) {
-          router.push('/auth/verify')
-        } else {
-          setIsWriteMode(true)
-        }
-      }} />
-    </div>
+      {/* 하단 네비게이션 (모바일용) */}
+      <div className="lg:hidden">
+        <BottomNav onWriteClick={() => {
+          if (!user) {
+            handleLogin()
+          } else if (!isVerified) {
+            router.push('/auth/verify')
+          } else {
+            setIsWriteMode(true)
+          }
+        }} />
+      </div>
+    </MainLayout>
   )
 }
