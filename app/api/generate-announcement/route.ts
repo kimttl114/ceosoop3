@@ -323,12 +323,17 @@ export async function POST(request: NextRequest) {
     // Python 확인 (Windows에서는 'py' 사용 가능)
     const pythonCmd = process.platform === 'win32' ? 'py' : 'python'
     try {
-      await execAsync(`${pythonCmd} --version`)
-    } catch {
+      await execAsync(`${pythonCmd} --version`, { timeout: 5000 } as any)
+    } catch (error: any) {
+      const errorMsg = String(error?.message || error || '').toLowerCase()
+      console.error('Python 확인 실패:', errorMsg)
       return NextResponse.json(
         {
-          error: 'Python이 설치되지 않았습니다.',
-          message: 'Python 설치가 필요합니다.',
+          error: 'Python 오류',
+          message: '서버에 Python이 설치되지 않았거나 실행할 수 없습니다.\n모바일에서는 서버 설정이 필요합니다.\n서버 관리자에게 문의하세요.',
+          details: errorMsg.includes('python') || errorMsg.includes('py') 
+            ? 'Python이 설치되지 않았거나 PATH에 등록되지 않았습니다.'
+            : 'Python 실행 중 오류가 발생했습니다.'
         },
         { status: 500 }
       )
@@ -336,12 +341,15 @@ export async function POST(request: NextRequest) {
 
     // Python 라이브러리 확인 (gTTS는 필수)
     try {
-      await execAsync(`${pythonCmd} -c "import gtts"`)
+      await execAsync(`${pythonCmd} -c "import gtts"`, { timeout: 5000 } as any)
     } catch (error: any) {
+      const errorMsg = String(error?.message || error || '').toLowerCase()
+      console.error('gTTS 라이브러리 확인 실패:', errorMsg)
       return NextResponse.json(
         {
-          error: 'gTTS 라이브러리가 설치되지 않았습니다.',
-          message: `다음 명령어로 설치해주세요: ${pythonCmd} -m pip install gtts`,
+          error: 'gTTS 라이브러리 오류',
+          message: '서버에 gTTS 라이브러리가 설치되지 않았습니다.\n모바일에서는 서버 설정이 필요합니다.\n서버 관리자에게 문의하세요.',
+          details: `다음 명령어로 설치해주세요: ${pythonCmd} -m pip install gtts`,
         },
         { status: 500 }
       )
