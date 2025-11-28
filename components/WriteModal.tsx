@@ -251,7 +251,6 @@ export default function WriteModal({
         fileSize: file.size,
         fileType: file.type,
         storageInitialized: !!storageInstance,
-        storageBucket: storageInstance?.bucket,
         userUid: user.uid
       })
       
