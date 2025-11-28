@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { auth, db, storage } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { ref, uploadBytes, getDownloadURL, FirebaseStorage } from 'firebase/storage'
 import { Upload, FileText, X, ArrowLeft, ArrowRight, Eye, Check, Video, Image as ImageIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
