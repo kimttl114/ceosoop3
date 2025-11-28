@@ -227,11 +227,31 @@ export default function AnnouncementPage() {
           return speechSynthesis.getVoices()
         }
 
-        // startRecording 함수 선언 (selectVoice보다 먼저 선언)
-        const startRecording = () => {
+        // startRecording 함수 선언 (getUserMedia를 사용하여 실제 재생을 녹음)
+        const startRecording = async () => {
           try {
-            // MediaStreamDestination 생성
-            const destination = audioContext!.createMediaStreamDestination()
+            console.log('마이크 권한 요청 및 녹음 준비...')
+            
+            // getUserMedia로 마이크 입력 받기 (실제로는 스피커 출력을 녹음하기 위함)
+            let stream: MediaStream
+            try {
+              stream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                  echoCancellation: false,
+                  noiseSuppression: false,
+                  autoGainControl: false,
+                  // 시스템 오디오 캡처 시도 (브라우저마다 지원 안 할 수 있음)
+                  suppressLocalAudioPlayback: false
+                } as any
+              })
+              console.log('마이크 스트림 획득 성공')
+            } catch (micError: any) {
+              console.error('마이크 권한 오류:', micError)
+              // 마이크 권한이 없어도 SpeechSynthesis를 재생만 하도록 폴백
+              reject(new Error('마이크 권한이 필요합니다. 브라우저에서 마이크 사용을 허용해주세요.'))
+              cleanup()
+              return
+            }
             
             // MediaRecorder 설정
             const mimeTypes = [
@@ -244,7 +264,7 @@ export default function AnnouncementPage() {
             
             console.log('MediaRecorder MIME 타입:', selectedMimeType)
             
-            mediaRecorder = new MediaRecorder(destination.stream, {
+            mediaRecorder = new MediaRecorder(stream, {
               mimeType: selectedMimeType
             })
 
@@ -252,16 +272,24 @@ export default function AnnouncementPage() {
 
             mediaRecorder.ondataavailable = (event) => {
               if (event.data && event.data.size > 0) {
+                console.log('오디오 데이터 수신:', event.data.size, 'bytes')
                 chunks.push(event.data)
               }
             }
 
             mediaRecorder.onstop = () => {
+              // 스트림 정리
+              stream.getTracks().forEach(track => track.stop())
+              
               const blob = new Blob(chunks, { type: selectedMimeType })
-              console.log('TTS 녹음 완료:', { size: blob.size, type: blob.type })
+              console.log('TTS 녹음 완료:', { 
+                size: blob.size, 
+                type: blob.type,
+                chunksCount: chunks.length 
+              })
               
               if (blob.size === 0) {
-                reject(new Error('녹음된 오디오가 비어있습니다.'))
+                reject(new Error('녹음된 오디오가 비어있습니다. 마이크가 제대로 작동하는지 확인해주세요.'))
                 cleanup()
                 return
               }
@@ -272,24 +300,26 @@ export default function AnnouncementPage() {
 
             mediaRecorder.onerror = (event: any) => {
               console.error('MediaRecorder 오류:', event)
+              stream.getTracks().forEach(track => track.stop())
               reject(new Error('녹음 중 오류가 발생했습니다: ' + (event.error?.message || '알 수 없는 오류')))
               cleanup()
             }
 
             // SpeechSynthesis 이벤트 핸들러
             utterance.onstart = () => {
-              console.log('TTS 재생 시작')
+              console.log('TTS 재생 시작, 녹음 시작')
               try {
                 mediaRecorder!.start(100) // 100ms마다 데이터 수신
               } catch (e: any) {
                 console.error('녹음 시작 실패:', e)
+                stream.getTracks().forEach(track => track.stop())
                 reject(new Error('녹음 시작에 실패했습니다: ' + (e.message || '알 수 없는 오류')))
                 cleanup()
               }
             }
 
             utterance.onend = () => {
-              console.log('TTS 재생 완료')
+              console.log('TTS 재생 완료, 녹음 중지 예약')
               setTimeout(() => {
                 if (mediaRecorder && mediaRecorder.state === 'recording') {
                   mediaRecorder.stop()
@@ -299,6 +329,7 @@ export default function AnnouncementPage() {
 
             utterance.onerror = (event: any) => {
               console.error('Speech Synthesis 오류:', event)
+              stream.getTracks().forEach(track => track.stop())
               if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop()
               }
@@ -311,20 +342,17 @@ export default function AnnouncementPage() {
             
             // AudioContext가 suspended 상태이면 resume
             if (audioContext!.state === 'suspended') {
-              audioContext!.resume().then(() => {
-                speechSynthesis.speak(utterance)
-              }).catch((e) => {
-                console.error('AudioContext resume 실패:', e)
-                speechSynthesis.speak(utterance) // resume 실패해도 진행
-              })
-            } else {
-              speechSynthesis.speak(utterance)
+              await audioContext!.resume().catch(() => {})
             }
+            
+            console.log('SpeechSynthesis 재생 시작...')
+            speechSynthesis.speak(utterance)
 
             // 타임아웃 안전장치 (30초)
             setTimeout(() => {
               if (mediaRecorder && mediaRecorder.state === 'recording') {
                 console.warn('타임아웃으로 녹음 중지')
+                stream.getTracks().forEach(track => track.stop())
                 mediaRecorder.stop()
               }
             }, 30000)
@@ -375,7 +403,12 @@ export default function AnnouncementPage() {
             console.log('선택된 음성:', selectedVoice.name, selectedVoice.lang)
           }
 
-          startRecording()
+          // 비동기 함수 호출
+          startRecording().catch((error) => {
+            console.error('녹음 시작 실패:', error)
+            reject(error)
+            cleanup()
+          })
         }
         
         // 음성 목록이 로드될 때까지 대기
