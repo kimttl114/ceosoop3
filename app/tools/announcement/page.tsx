@@ -406,12 +406,14 @@ export default function AnnouncementPage() {
             console.log('선택된 음성:', selectedVoice.name, selectedVoice.lang)
           }
 
-          // 비동기 함수 호출
-          startRecording().catch((error) => {
-            console.error('녹음 시작 실패:', error)
-            reject(error)
+          // 재생 시작 (startRecording은 Promise를 반환하지 않으므로 직접 호출)
+          try {
+            startRecording()
+          } catch (error: any) {
+            console.error('재생 시작 실패:', error)
+            reject(new Error('재생 시작에 실패했습니다: ' + (error.message || '알 수 없는 오류')))
             cleanup()
-          })
+          }
         }
         
         // 음성 목록이 로드될 때까지 대기
