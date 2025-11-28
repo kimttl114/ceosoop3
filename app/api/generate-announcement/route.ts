@@ -495,12 +495,47 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('안내방송 생성 API 오류:', error)
     
+    const errorMessage = error.message || '알 수 없는 오류'
+    
+    // Python 관련 오류 체크
+    if (errorMessage.includes('Python') || errorMessage.includes('python') || errorMessage.includes('py :')) {
+      return NextResponse.json(
+        {
+          error: 'Python 오류',
+          message: '서버에 Python이 설치되지 않았거나 실행할 수 없습니다. 서버 관리자에게 문의하세요.',
+        },
+        { status: 500 }
+      )
+    }
+    
+    // gTTS 관련 오류 체크
+    if (errorMessage.includes('gtts') || errorMessage.includes('gTTS') || errorMessage.includes('No module named')) {
+      return NextResponse.json(
+        {
+          error: 'gTTS 라이브러리 오류',
+          message: '서버에 gTTS 라이브러리가 설치되지 않았습니다. 서버 관리자에게 문의하세요.',
+        },
+        { status: 500 }
+      )
+    }
+    
     // FFmpeg 관련 오류 체크
-    if (error.message?.includes('FFmpeg') || error.message?.includes('ffmpeg')) {
+    if (errorMessage.includes('FFmpeg') || errorMessage.includes('ffmpeg')) {
       return NextResponse.json(
         {
           error: 'FFmpeg 오류',
-          message: 'FFmpeg가 설치되지 않았거나 경로가 설정되지 않았습니다.',
+          message: '서버에 FFmpeg가 설치되지 않았거나 경로가 설정되지 않았습니다. BGM 없이 생성하려면 서버 관리자에게 문의하세요.',
+        },
+        { status: 500 }
+      )
+    }
+
+    // 네트워크 관련 오류
+    if (errorMessage.includes('network') || errorMessage.includes('ECONNREFUSED') || errorMessage.includes('ETIMEDOUT')) {
+      return NextResponse.json(
+        {
+          error: '네트워크 오류',
+          message: '서버 연결에 실패했습니다. 네트워크 연결을 확인하고 잠시 후 다시 시도해주세요.',
         },
         { status: 500 }
       )
@@ -508,8 +543,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        error: error.message || '안내방송 생성 실패',
-        message: '서버에서 오디오 처리를 할 수 없습니다.',
+        error: errorMessage,
+        message: '서버에서 오디오 처리를 할 수 없습니다. 문제가 계속되면 서버 관리자에게 문의하세요.',
       },
       { status: 500 }
     )

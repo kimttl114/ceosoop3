@@ -93,24 +93,23 @@ export default function BottomNav({ onWriteClick }: BottomNavProps) {
         </div>
       </nav>
 
-      {/* 중앙 글쓰기 버튼 (네비게이션 바 위에 별도 배치) - 커뮤니티 페이지에서는 숨김 */}
-      {!pathname?.startsWith('/polls') && (
-        <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-[60] max-w-md w-full flex justify-center pointer-events-none">
-          <button
-            onClick={handleWriteClick}
-            className="w-16 h-16 bg-[#1A2B4E] text-white rounded-full shadow-xl flex items-center justify-center hover:bg-[#1A2B4E]/90 pointer-events-auto"
-            style={{
-              outline: 'none',
-              WebkitTapHighlightColor: 'transparent',
-              touchAction: 'manipulation',
-            }}
-            type="button"
-            title="글쓰기"
-          >
-            <Plus size={28} strokeWidth={3} />
-          </button>
-        </div>
-      )}
+      {/* 중앙 글쓰기 버튼 (네비게이션 바 위에 별도 배치) - 모든 페이지에서 표시 */}
+      <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-[60] w-full flex justify-center pointer-events-none px-4">
+        <button
+          onClick={handleWriteClick}
+          className="w-14 h-14 md:w-16 md:h-16 bg-[#1A2B4E] text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-[#1A2B4E]/90 active:bg-[#1A2B4E]/80 pointer-events-auto transition-all"
+          style={{
+            outline: 'none',
+            WebkitTapHighlightColor: 'transparent',
+            touchAction: 'manipulation',
+          }}
+          type="button"
+          title="글쓰기"
+          aria-label="글쓰기"
+        >
+          <Plus size={24} strokeWidth={3} className="md:w-7 md:h-7" />
+        </button>
+      </div>
     </>
   )
 }

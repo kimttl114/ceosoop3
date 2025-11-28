@@ -550,21 +550,18 @@ export default function Home() {
                       <ShoppingBag size={14} />
                       <span className="hidden sm:inline">포인트상점</span>
                     </button>
+                    {/* 모바일에서는 BottomNav의 글쓰기 버튼 사용, 데스크톱에서만 헤더 버튼 표시 */}
                     <button
                       onClick={() => setIsWriteMode(true)}
-                      className="px-3 sm:px-4 py-1.5 bg-[#1A2B4E] hover:bg-[#1A2B4E]/90 text-white rounded text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                      className="hidden md:flex items-center gap-1.5 px-3 sm:px-4 py-1.5 bg-[#1A2B4E] hover:bg-[#1A2B4E]/90 text-white rounded text-xs sm:text-sm font-medium transition-colors whitespace-nowrap"
                     >
                       <span className="text-base sm:text-lg">✏️</span>
                       <span className="hidden sm:inline">글쓰기</span>
                     </button>
                   </>
                 ) : (
-                  <button
-                    onClick={handleLogin}
-                    className="px-3 sm:px-4 py-1.5 bg-[#1A2B4E] hover:bg-[#1A2B4E]/90 text-white rounded text-xs sm:text-sm font-medium transition-colors whitespace-nowrap"
-                  >
-                    로그인
-                  </button>
+                  // 로그인 버튼은 MainLayout 헤더에서만 표시 (중복 방지)
+                  null
                 )}
               </div>
             </div>

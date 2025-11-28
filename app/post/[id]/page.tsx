@@ -356,10 +356,10 @@ export default function PostDetailPage() {
   }
 
   return (
-    <div className="min-h-screen pb-24 relative z-10">
+    <div className="min-h-screen pb-20 relative z-10 bg-gray-50">
       {/* 헤더 */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
           <button
             onClick={() => router.back()}
             className="p-2 hover:bg-gray-100 rounded-full transition"
@@ -399,41 +399,48 @@ export default function PostDetailPage() {
       </header>
 
       {/* 게시글 내용 */}
-      <main className="max-w-4xl mx-auto bg-white min-h-screen">
-        <article className="p-4 sm:p-6 lg:p-8">
+      <main className="max-w-md mx-auto bg-white min-h-screen">
+        <article className="bg-white">
           {/* 작성자 정보 */}
-          <div className="flex items-center gap-3 mb-4">
-            <AvatarMini avatarUrl={authorAvatarUrl} userId={post.uid} size={40} />
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-gray-900">{post.author || '익명의 사장님'}</span>
-                <PostAuthorBadge authorId={post.uid} />
+          <div className="px-4 pt-4 pb-3 border-b border-gray-200">
+            <div className="flex items-center gap-3">
+              <AvatarMini avatarUrl={authorAvatarUrl} userId={post.uid} size={36} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm text-gray-900 truncate">{post.author || '익명의 사장님'}</span>
+                  <PostAuthorBadge authorId={post.uid} />
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span>{formatRelativeTime(post.timestamp)}</span>
+                  {post.likes > 0 && (
+                    <>
+                      <span>·</span>
+                      <span>좋아요 {post.likes || 0}</span>
+                    </>
+                  )}
+                </div>
               </div>
-              <div className="text-sm text-gray-400">{formatRelativeTime(post.timestamp)}</div>
+              {post.businessType && (
+                <span className="text-xs font-semibold bg-amber-50 text-amber-700 px-2 py-1 rounded-full whitespace-nowrap">
+                  {post.businessType}
+                </span>
+              )}
             </div>
-            {post.businessType && (
-              <span className="text-sm font-semibold bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full">
-                {post.businessType}
-              </span>
-            )}
           </div>
 
-          {/* 제목 */}
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">{post.title}</h1>
-
-          {/* 본문 */}
-          <div className="text-base text-gray-700 leading-relaxed mb-6 whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+          {/* 본문 내용 (이미지와 자연스럽게 섞임) */}
+          <div className="px-4 py-4 space-y-4">
             {!user ? (
-              <div className="text-center py-8 bg-gray-50 rounded-xl">
+              <div className="text-center py-12 bg-gray-50 rounded-xl">
                 <p className="text-base text-gray-600 mb-4">🔒 로그인이 필요합니다</p>
                 <Link href="/" className="text-[#1A2B4E] font-semibold hover:underline">
                   로그인하러 가기
                 </Link>
               </div>
             ) : !isVerified && !verificationLoading ? (
-              <div className="text-center py-8 bg-amber-50 rounded-xl border-2 border-amber-200">
+              <div className="text-center py-12 bg-amber-50 rounded-xl border-2 border-amber-200">
                 <p className="text-base text-gray-900 font-semibold mb-2">🔒 사업자 인증이 필요합니다</p>
-                <p className="text-base text-gray-600 mb-4">
+                <p className="text-sm text-gray-600 mb-4">
                   인증된 찐사장들만 게시글을 볼 수 있습니다.
                 </p>
                 <button
@@ -444,116 +451,112 @@ export default function PostDetailPage() {
                 </button>
               </div>
             ) : (
-              post.content
+              <>
+                {/* 제목 */}
+                {post.title && (
+                  <h1 className="text-xl font-bold text-gray-900 leading-snug">{post.title}</h1>
+                )}
+
+                {/* 본문 텍스트 */}
+                {post.content && (
+                  <div className="text-base text-gray-800 leading-relaxed whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                    {post.content}
+                  </div>
+                )}
+
+                {/* 이미지 표시 - 본문과 자연스럽게 섞임 */}
+                {post.images && Array.isArray(post.images) && post.images.length > 0 && (
+                  <div className="space-y-4">
+                    {post.images.map((imageUrl: string, index: number) => (
+                      <div key={index} className="w-full">
+                        <div className="relative w-full bg-gray-100 rounded-lg overflow-hidden">
+                          <img
+                            src={imageUrl}
+                            alt={`첨부 이미지 ${index + 1}`}
+                            className="w-full h-auto max-h-[600px] object-contain cursor-pointer"
+                            onClick={() => window.open(imageUrl, '_blank')}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement
+                              target.src = '/placeholder-image.png'
+                            }}
+                            loading="lazy"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 영상 표시 */}
+                {post.videos && Array.isArray(post.videos) && post.videos.length > 0 && (
+                  <div className="space-y-4">
+                    {post.videos.map((videoUrl: string, index: number) => (
+                      <div key={index} className="w-full bg-black rounded-lg overflow-hidden">
+                        <video
+                          src={videoUrl}
+                          controls
+                          className="w-full h-auto max-h-[600px]"
+                          preload="metadata"
+                          onError={(e) => {
+                            console.error('비디오 로드 오류:', videoUrl)
+                          }}
+                        >
+                          브라우저가 비디오 태그를 지원하지 않습니다.
+                        </video>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
-          {/* 이미지 표시 */}
-          {post.images && Array.isArray(post.images) && post.images.length > 0 && (
-            <div className="mb-6">
-              <div className={`grid gap-3 ${
-                post.images.length === 1 
-                  ? 'grid-cols-1' 
-                  : post.images.length === 2 
-                    ? 'grid-cols-1 sm:grid-cols-2' 
-                    : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-              }`}>
-                {post.images.map((imageUrl: string, index: number) => (
-                  <div key={index} className="relative w-full aspect-video bg-gray-100 rounded-lg overflow-hidden group">
-                    <img
-                      src={imageUrl}
-                      alt={`첨부 이미지 ${index + 1}`}
-                      className="w-full h-full object-contain cursor-pointer hover:opacity-90 transition"
-                      onClick={() => window.open(imageUrl, '_blank')}
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement
-                        target.src = '/placeholder-image.png'
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition pointer-events-none" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 영상 표시 */}
-          {post.videos && Array.isArray(post.videos) && post.videos.length > 0 && (
-            <div className="mb-6 space-y-4">
-              {post.videos.map((videoUrl: string, index: number) => (
-                <div key={index} className="w-full aspect-video bg-black rounded-lg overflow-hidden">
-                  <video
-                    src={videoUrl}
-                    controls
-                    className="w-full h-full"
-                    preload="metadata"
-                    onError={(e) => {
-                      console.error('비디오 로드 오류:', videoUrl)
-                    }}
-                  >
-                    브라우저가 비디오 태그를 지원하지 않습니다.
-                  </video>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* 좋아요 및 신고 버튼 */}
-          <div className="flex items-center justify-between mb-6 pb-6 border-b border-gray-200">
+          {/* 좋아요/싫어요 버튼 */}
+          <div className="px-4 py-4 border-t border-b border-gray-200 flex items-center justify-center gap-4">
             <button
               onClick={handleLike}
               disabled={!user || liked || (user && likedBy.includes(user.uid))}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full transition ${
+              className={`flex items-center gap-2 px-6 py-2 rounded-full transition ${
                 liked || (user && likedBy.includes(user.uid))
                   ? 'bg-red-50 text-red-500 cursor-not-allowed'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
               } ${!user ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <Heart size={20} className={liked || (user && likedBy.includes(user.uid)) ? 'fill-current' : ''} />
-              <span className="font-medium">{post.likes || 0}</span>
+              <span className="text-lg">👍</span>
+              <span className="font-medium text-sm">{post.likes || 0}</span>
             </button>
-            {user && user.uid !== post.uid && (
-              <button
-                onClick={() => {
-                  setReportTarget({
-                    type: 'post',
-                    id: postId,
-                    authorId: post.uid,
-                    content: post.content,
-                  })
-                  setIsReportModalOpen(true)
-                }}
-                className="flex items-center gap-2 px-4 py-2 rounded-full bg-orange-50 text-orange-600 hover:bg-orange-100 transition"
-                title="게시글 신고"
-              >
-                <Flag size={18} />
-                <span className="text-sm font-medium">신고</span>
-              </button>
-            )}
+            <button
+              className="flex items-center gap-2 px-6 py-2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300 transition cursor-not-allowed opacity-50"
+              disabled
+              title="준비 중"
+            >
+              <span className="text-lg">👎</span>
+              <span className="font-medium text-sm">0</span>
+            </button>
           </div>
 
           {/* 댓글 목록 */}
-          <div className="mb-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">
+          <div className="px-4 py-4">
+            <h2 className="text-base font-bold text-gray-900 mb-4">
               댓글 {comments.length}
             </h2>
             {comments.length === 0 ? (
-              <div className="text-center text-gray-400 py-8">
-                <p className="text-base">아직 댓글이 없습니다.</p>
-                <p className="text-base mt-2">첫 번째 댓글을 남겨보세요!</p>
+              <div className="text-center text-gray-400 py-12">
+                <p className="text-sm">아직 댓글이 없습니다.</p>
+                <p className="text-sm mt-2">첫 번째 댓글을 남겨보세요!</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {comments.map((comment: any) => (
-                  <div key={comment.id} className="flex gap-3 p-3 rounded-lg hover:bg-gray-50 transition">
+                  <div key={comment.id} className="flex gap-3 py-3 border-b border-gray-100 last:border-0">
                     <AvatarMini size={32} avatarUrl={commentAvatars[comment.uid]} userId={comment.uid} />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-base text-gray-900">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-semibold text-sm text-gray-900 truncate">
                             {comment.author || '익명'}
                           </span>
-                          <span className="text-sm text-gray-400">
+                          <span className="text-xs text-gray-400 flex-shrink-0">
                             {formatRelativeTime(comment.timestamp)}
                           </span>
                         </div>
@@ -568,15 +571,14 @@ export default function PostDetailPage() {
                               })
                               setIsReportModalOpen(true)
                             }}
-                            className="flex items-center gap-1 px-2 py-1 rounded-md bg-orange-50 text-orange-600 hover:bg-orange-100 transition text-sm font-medium"
+                            className="flex-shrink-0 p-1.5 rounded-full bg-orange-50 text-orange-600 hover:bg-orange-100 transition"
                             title="댓글 신고"
                           >
-                            <Flag size={12} />
-                            <span>신고</span>
+                            <Flag size={14} />
                           </button>
                         )}
                       </div>
-                      <p className="text-gray-700 text-base leading-relaxed whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                      <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                         {comment.content}
                       </p>
                     </div>
@@ -590,21 +592,21 @@ export default function PostDetailPage() {
 
       {/* 댓글 입력창 (Sticky) */}
       {user && isVerified && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
-          <div className="max-w-4xl mx-auto px-4 py-3">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 shadow-lg">
+          <div className="max-w-md mx-auto px-4 py-3">
             <form onSubmit={handleCommentSubmit} className="flex gap-2">
               <input
                 type="text"
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                 placeholder="댓글을 입력하세요..."
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-[#1A2B4E] focus:border-transparent"
+                className="flex-1 px-4 py-2.5 text-sm border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-[#1A2B4E] focus:border-transparent"
                 disabled={submitting}
               />
               <button
                 type="submit"
                 disabled={!commentText.trim() || submitting}
-                className="px-6 py-2 bg-[#1A2B4E] text-white rounded-full font-medium hover:bg-[#1A2B4E]/90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2.5 bg-[#1A2B4E] text-white text-sm rounded-full font-medium hover:bg-[#1A2B4E]/90 active:bg-[#1A2B4E]/80 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? '등록 중...' : '등록'}
               </button>
@@ -615,8 +617,8 @@ export default function PostDetailPage() {
 
       {/* 비로그인/미인증 사용자 안내 */}
       {(!user || (user && !isVerified && !verificationLoading)) && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
-          <div className="max-w-4xl mx-auto px-4 py-3 text-center">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 shadow-lg">
+          <div className="max-w-md mx-auto px-4 py-3 text-center">
             {!user ? (
               <p className="text-sm text-gray-600">
                 댓글을 남기려면{' '}

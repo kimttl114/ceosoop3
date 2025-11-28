@@ -611,20 +611,37 @@ export default function AnnouncementPage() {
       console.log('방송 생성 시작:', { text: text.substring(0, 50), hasBgm: !!bgmUrl })
 
       // 2. 서버 API 호출 (TTS + BGM 믹싱)
-      const response = await fetch('/api/generate-announcement', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          text, 
-          bgmUrl: bgmUrl || null,
-          voiceOptions: {
-            lang: voiceLang,
-            slow: voiceSpeed === 'slow',
-            tld: voiceTld,
-            gender: voiceGender
-          }
-        }),
-      })
+      // 모바일에서 네트워크 타임아웃을 고려하여 긴 타임아웃 설정
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 120000) // 2분 타임아웃
+      
+      let response: Response
+      try {
+        response = await fetch('/api/generate-announcement', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            text, 
+            bgmUrl: bgmUrl || null,
+            voiceOptions: {
+              lang: voiceLang,
+              slow: voiceSpeed === 'slow',
+              tld: voiceTld,
+              gender: voiceGender
+            }
+          }),
+          signal: controller.signal,
+        })
+        clearTimeout(timeoutId)
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId)
+        if (fetchError.name === 'AbortError') {
+          throw new Error('요청 시간이 초과되었습니다. 네트워크 연결을 확인하고 다시 시도해주세요.')
+        } else if (fetchError.message?.includes('Failed to fetch') || fetchError.message?.includes('network')) {
+          throw new Error('네트워크 오류가 발생했습니다. 인터넷 연결을 확인하고 다시 시도해주세요.')
+        }
+        throw fetchError
+      }
 
       if (!response.ok) {
         // 에러 응답 처리
@@ -636,14 +653,14 @@ export default function AnnouncementPage() {
           console.error('서버 API 에러:', errorData)
           
           // 구체적인 에러 메시지 제공
-          if (errorData.error?.includes('Python')) {
-            errorMessage = 'Python이 설치되지 않았습니다. Python을 설치해주세요.'
+          if (errorData.error?.includes('Python') || errorData.error?.includes('python')) {
+            errorMessage = '서버에 Python이 설치되지 않았습니다.\n서버 관리자에게 문의하세요.'
           } else if (errorData.error?.includes('gtts')) {
-            errorMessage = 'gTTS 라이브러리가 설치되지 않았습니다.\n다음 명령어로 설치해주세요:\npy -m pip install gtts'
-          } else if (errorData.error?.includes('pydub')) {
-            errorMessage = 'pydub 라이브러리가 설치되지 않았습니다. BGM 없이 생성하려면 다음 명령어로 설치해주세요:\npy -m pip install pydub'
-          } else if (errorData.error?.includes('FFmpeg')) {
-            errorMessage = 'FFmpeg가 설치되지 않았습니다. BGM 믹싱을 위해서는 FFmpeg 설치가 필요합니다.'
+            errorMessage = '서버에 gTTS 라이브러리가 설치되지 않았습니다.\n서버 관리자에게 문의하세요.'
+          } else if (errorData.error?.includes('FFmpeg') || errorData.error?.includes('ffmpeg')) {
+            errorMessage = '서버에 FFmpeg가 설치되지 않았습니다.\nBGM 없이 생성하거나 서버 관리자에게 문의하세요.'
+          } else if (errorData.error?.includes('network') || errorData.error?.includes('Network')) {
+            errorMessage = '네트워크 오류가 발생했습니다.\n인터넷 연결을 확인하고 다시 시도해주세요.'
           }
         } catch {
           // JSON 파싱 실패 시 기본 메시지 사용
@@ -748,11 +765,14 @@ export default function AnnouncementPage() {
       let alertMessage = `방송 생성에 실패했습니다.\n\n${errorMessage}`
       
       // Python/gTTS 관련 에러인 경우 추가 안내
-      if (errorMessage.includes('Python') || errorMessage.includes('gtts') || errorMessage.includes('pydub')) {
-        alertMessage += '\n\n📝 설정 안내:\n1. Python 설치 확인 (https://www.python.org/)\n2. 필수 라이브러리 설치: py -m pip install gtts pydub'
+      if (errorMessage.includes('Python') || errorMessage.includes('gtts') || errorMessage.includes('서버')) {
+        alertMessage += '\n\n📱 모바일에서는 서버에서 처리되므로 별도 설치가 필요 없습니다.\n문제가 계속되면 서버 관리자에게 문의하세요.'
+      } else if (errorMessage.includes('네트워크')) {
+        alertMessage += '\n\n📱 모바일 데이터를 사용 중이면 Wi-Fi로 전환해보세요.'
       }
       
-      alert(alertMessage)
+      // 모바일에서 alert 대신 에러 상태만 표시 (alert는 사용자 경험을 방해함)
+      console.error('방송 생성 에러:', errorMessage)
     } finally {
       setIsGenerating(false)
     }
@@ -791,25 +811,27 @@ export default function AnnouncementPage() {
         <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => router.back()}
-            className="p-2 hover:bg-gray-100 rounded-full transition"
+            className="p-2 hover:bg-gray-100 rounded-full transition active:bg-gray-200"
+            aria-label="뒤로가기"
           >
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Mic size={24} />
-            <span>안내방송 생성기</span>
+          <h1 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
+            <Mic size={20} className="sm:w-6 sm:h-6" />
+            <span className="hidden sm:inline">안내방송 생성기</span>
+            <span className="sm:hidden">방송 생성</span>
           </h1>
         </div>
       </header>
 
       {/* 메인 컨텐츠 */}
-      <main className="max-w-md mx-auto px-4 py-6">
-        <div className="bg-white rounded-2xl shadow-sm p-6 space-y-6">
+      <main className="max-w-md mx-auto px-4 py-4 sm:py-6">
+        <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* 안내 */}
           <div className="text-center">
-            <div className="text-4xl mb-2">🎙️</div>
-            <h2 className="text-xl font-bold text-gray-900 mb-1">AI 매장 안내방송 제작소</h2>
-            <p className="text-sm text-gray-600">텍스트를 입력하면 안내방송이 자동으로 생성됩니다</p>
+            <div className="text-3xl sm:text-4xl mb-2">🎙️</div>
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">AI 매장 안내방송 제작소</h2>
+            <p className="text-xs sm:text-sm text-gray-600">텍스트를 입력하면 안내방송이 자동으로 생성됩니다</p>
           </div>
 
           {/* BGM 설정 */}
@@ -1085,16 +1107,17 @@ export default function AnnouncementPage() {
           <button
             onClick={handleGenerate}
             disabled={isGenerating || !text.trim()}
-            className="w-full bg-[#1A2B4E] text-white py-4 rounded-xl font-bold hover:bg-[#1A2B4E]/90 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full bg-[#1A2B4E] text-white py-3 sm:py-4 rounded-xl font-bold hover:bg-[#1A2B4E]/90 active:bg-[#1A2B4E]/80 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
+            style={{ touchAction: 'manipulation' }}
           >
             {isGenerating ? (
               <>
-                <Loader2 size={20} className="animate-spin" />
+                <Loader2 size={18} className="animate-spin sm:w-5 sm:h-5" />
                 <span>생성 중...</span>
               </>
             ) : (
               <>
-                <Mic size={20} />
+                <Mic size={18} className="sm:w-5 sm:h-5" />
                 <span>방송 만들기</span>
               </>
             )}
@@ -1102,8 +1125,31 @@ export default function AnnouncementPage() {
 
           {/* 오류 메시지 */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-sm text-red-700">⚠️ {error}</p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-red-700 whitespace-pre-wrap break-words">
+                ⚠️ {error}
+              </p>
+              {(error.includes('Python') || error.includes('서버') || error.includes('gtts') || error.includes('FFmpeg')) && (
+                <div className="mt-2 p-2 bg-white rounded border border-red-200">
+                  <p className="text-xs text-red-600 font-semibold mb-1">📝 해결 방법:</p>
+                  <p className="text-xs text-red-600 mb-2">
+                    이 도구는 서버에서 처리됩니다. 모바일에서는 별도 설치가 필요 없습니다.
+                  </p>
+                  <p className="text-xs text-red-600">
+                    문제가 계속되면 서버 관리자에게 문의하거나 잠시 후 다시 시도해주세요.
+                  </p>
+                </div>
+              )}
+              {(error.includes('네트워크') || error.includes('시간이 초과')) && (
+                <div className="mt-2 p-2 bg-white rounded border border-red-200">
+                  <p className="text-xs text-red-600 font-semibold mb-1">📝 해결 방법:</p>
+                  <ul className="text-xs text-red-600 space-y-1 list-disc ml-4">
+                    <li>인터넷 연결을 확인하세요</li>
+                    <li>Wi-Fi를 사용 중이면 데이터로 전환해보세요 (또는 그 반대)</li>
+                    <li>잠시 후 다시 시도해주세요</li>
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 
@@ -1152,9 +1198,9 @@ export default function AnnouncementPage() {
 
           {/* 안내 메시지 */}
           {!isGenerating && !audioUrl && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800 mb-2">
-                💡 <strong>사용 방법:</strong>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-blue-800 mb-2 font-semibold">
+                💡 사용 방법:
               </p>
               <ul className="text-xs text-blue-700 space-y-1 ml-4 list-disc">
                 <li>안내 문구를 입력하세요</li>
@@ -1162,7 +1208,7 @@ export default function AnnouncementPage() {
                 <li>"방송 만들기" 버튼을 클릭하세요</li>
               </ul>
               <p className="text-xs text-blue-600 mt-3">
-                ⚠️ 실제 TTS 기능은 서버 API 설정이 필요합니다.
+                ✅ 모바일에서도 사용 가능합니다 (서버에서 처리)
               </p>
             </div>
           )}
