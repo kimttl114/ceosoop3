@@ -62,6 +62,8 @@ export default function MyPage() {
   const [myRank, setMyRank] = useState<number | null>(null)
   const [loadingRanking, setLoadingRanking] = useState(false)
   const [showRankingModal, setShowRankingModal] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const postsPerPage = 10
 
   // 로그인 상태 확인 및 사용자 정보 불러오기
   useEffect(() => {
@@ -818,52 +820,100 @@ export default function MyPage() {
               <p className="text-sm text-gray-500">아직 작성한 글이 없습니다.</p>
             </div>
           ) : (
-              <div className="space-y-3">
-                {myPosts.map((post: any) => (
-                  <div
-                    key={post.id}
-                    className="border border-gray-200 rounded-xl p-4 hover:border-[#1A2B4E] transition"
-                  >
-                    <div className="flex items-start gap-3 mb-2">
-                      <div className="flex flex-wrap gap-1 flex-1">
-                        {post.region && (
-                          <span className="text-xs font-semibold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
-                            {post.region}
-                          </span>
-                        )}
-                        <span className="text-xs font-semibold bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">
-                          {post.businessType ? `${getBusinessEmoji(post.businessType)} ${post.businessType}` : '🏪 기타'}
-                        </span>
-                        <span className="text-xs font-semibold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                          {post.category || '잡담'}
-                        </span>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          handleDeletePost(post.id)
-                        }}
-                        className="p-1 hover:bg-red-50 rounded-full transition text-red-500 flex-shrink-0"
-                        title="삭제"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                    <Link href={`/post/${post.id}`} className="block">
-                      <h4 className="font-bold text-gray-900 mb-1 line-clamp-2 hover:text-[#1A2B4E] transition">{post.title}</h4>
-                      <p className="text-sm text-gray-600 line-clamp-2 mb-2">{post.content}</p>
-                      <div className="flex items-center gap-3 text-xs text-gray-400">
-                        <span>{formatRelativeTime(post.timestamp)}</span>
-                        <span>•</span>
-                        <span>❤️ {post.likes || 0}</span>
-                        <span>•</span>
-                        <span>💬 {post.comments || 0}</span>
-                      </div>
-                    </Link>
-                  </div>
-                ))}
+            <>
+              <div className="space-y-2">
+                {(() => {
+                  const totalPages = Math.ceil(myPosts.length / postsPerPage)
+                  const startIndex = (currentPage - 1) * postsPerPage
+                  const endIndex = startIndex + postsPerPage
+                  const currentPosts = myPosts.slice(startIndex, endIndex)
+
+                  return (
+                    <>
+                      {currentPosts.map((post: any) => (
+                        <div
+                          key={post.id}
+                          className="flex items-center justify-between p-3 border-b border-gray-200 hover:bg-gray-50 transition rounded-lg group"
+                        >
+                          <Link 
+                            href={`/post/${post.id}`}
+                            className="flex-1 min-w-0"
+                          >
+                            <h4 className="font-medium text-gray-900 hover:text-[#1A2B4E] transition truncate pr-2">
+                              {post.title}
+                            </h4>
+                            <div className="flex items-center gap-2 mt-1 text-xs text-gray-400">
+                              <span>{formatRelativeTime(post.timestamp)}</span>
+                            </div>
+                          </Link>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              handleDeletePost(post.id)
+                            }}
+                            className="p-2 hover:bg-red-50 rounded-full transition text-red-500 flex-shrink-0 opacity-0 group-hover:opacity-100"
+                            title="삭제"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      
+                      {/* 페이지네이션 */}
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-center gap-2 mt-6 pt-4 border-t border-gray-200">
+                          <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                          >
+                            이전
+                          </button>
+                          
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                              let pageNum: number
+                              if (totalPages <= 5) {
+                                pageNum = i + 1
+                              } else if (currentPage <= 3) {
+                                pageNum = i + 1
+                              } else if (currentPage >= totalPages - 2) {
+                                pageNum = totalPages - 4 + i
+                              } else {
+                                pageNum = currentPage - 2 + i
+                              }
+
+                              return (
+                                <button
+                                  key={pageNum}
+                                  onClick={() => setCurrentPage(pageNum)}
+                                  className={`px-3 py-2 text-sm font-medium rounded-lg transition ${
+                                    currentPage === pageNum
+                                      ? 'bg-[#1A2B4E] text-white'
+                                      : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  {pageNum}
+                                </button>
+                              )
+                            })}
+                          </div>
+
+                          <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                          >
+                            다음
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
               </div>
+            </>
           )}
         </div>
 

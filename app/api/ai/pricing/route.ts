@@ -35,44 +35,110 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 기본 가격 계산
-    const basePrice = cost / (1 - targetMargin / 100);
-    const minPrice = cost * 1.1; // 최소 10% 마진
-    const recommendedPrice = basePrice;
-    const premiumPrice = basePrice * 1.2; // 프리미엄 20% 추가
+    // 업종별 평균 마진율 (현실적인 기준)
+    const industryMargins: Record<string, { min: number; avg: number; max: number }> = {
+      '치킨집': { min: 15, avg: 25, max: 35 },
+      '카페': { min: 20, avg: 30, max: 40 },
+      '한식당': { min: 10, avg: 20, max: 30 },
+      '중식당': { min: 15, avg: 25, max: 35 },
+      '일식당': { min: 20, avg: 30, max: 40 },
+      '양식당': { min: 15, avg: 25, max: 35 },
+      '분식': { min: 20, avg: 30, max: 40 },
+      '베이커리': { min: 25, avg: 35, max: 45 },
+      '술집': { min: 30, avg: 40, max: 50 },
+      '기타': { min: 15, avg: 25, max: 35 },
+    };
 
-    // 경쟁사 가격 분석
+    const industryMargin = industryMargins[businessType] || industryMargins['기타'];
+    
+    // 목표 마진율이 업종 평균 범위를 벗어나면 조정
+    let adjustedMargin = targetMargin;
+    if (targetMargin < industryMargin.min) {
+      adjustedMargin = industryMargin.min;
+    } else if (targetMargin > industryMargin.max) {
+      adjustedMargin = industryMargin.max;
+    }
+
+    // 지역별 가격 조정 계수
+    const regionMultipliers: Record<string, number> = {
+      '서울': 1.15,
+      '경기': 1.10,
+      '부산': 1.05,
+      '대구': 1.05,
+      '인천': 1.05,
+      '광주': 1.00,
+      '대전': 1.00,
+      '울산': 1.00,
+      '강원': 0.95,
+      '충북': 0.95,
+      '충남': 0.95,
+      '전북': 0.90,
+      '전남': 0.90,
+      '경북': 0.90,
+      '경남': 0.90,
+      '제주': 1.10,
+    };
+    const regionMultiplier = regionMultipliers[region] || 1.0;
+
+    // 기본 가격 계산 (마진율 기반)
+    const basePrice = cost / (1 - adjustedMargin / 100);
+    const minPrice = cost * (1 + industryMargin.min / 100); // 업종 최소 마진
+    const recommendedPrice = basePrice * regionMultiplier; // 지역 조정
+    const premiumPrice = recommendedPrice * 1.15; // 프리미엄 15% 추가
+
+    // 경쟁사 가격 분석 및 가격 조정
     let competitorAnalysis = '';
+    let finalRecommendedPrice = recommendedPrice;
+    
     if (competitorPrices && competitorPrices.length > 0) {
       const avgCompetitorPrice = competitorPrices.reduce((a, b) => a + b, 0) / competitorPrices.length;
       const minCompetitorPrice = Math.min(...competitorPrices);
       const maxCompetitorPrice = Math.max(...competitorPrices);
+      const medianCompetitorPrice = [...competitorPrices].sort((a, b) => a - b)[Math.floor(competitorPrices.length / 2)];
+      
+      // 경쟁사 가격을 고려한 현실적인 가격 조정
+      // 경쟁사 평균의 90%~110% 범위 내로 조정
+      if (recommendedPrice < avgCompetitorPrice * 0.9) {
+        finalRecommendedPrice = avgCompetitorPrice * 0.9; // 너무 낮으면 올림
+      } else if (recommendedPrice > avgCompetitorPrice * 1.1) {
+        finalRecommendedPrice = avgCompetitorPrice * 1.1; // 너무 높으면 내림
+      }
       
       competitorAnalysis = `
 경쟁사 가격 분석:
 - 평균 가격: ${avgCompetitorPrice.toLocaleString()}원
+- 중간 가격: ${medianCompetitorPrice.toLocaleString()}원
 - 최저 가격: ${minCompetitorPrice.toLocaleString()}원
 - 최고 가격: ${maxCompetitorPrice.toLocaleString()}원
-- 권장 가격(${recommendedPrice.toLocaleString()}원)은 경쟁사 평균 대비 ${recommendedPrice > avgCompetitorPrice ? '높음' : '낮음'}
+- 계산된 권장 가격: ${recommendedPrice.toLocaleString()}원
+- 경쟁사 대비 조정된 권장 가격: ${finalRecommendedPrice.toLocaleString()}원
+- 시장 내 위치: ${finalRecommendedPrice < avgCompetitorPrice ? '경쟁력 있음 (저가 전략)' : finalRecommendedPrice > avgCompetitorPrice ? '프리미엄 전략' : '시장 평균'}
 `;
+    } else {
+      finalRecommendedPrice = recommendedPrice;
     }
 
-    const prompt = `당신은 자영업자를 위한 전문 가격 전략 컨설턴트입니다.
+    const prompt = `당신은 자영업자를 위한 전문 가격 전략 컨설턴트입니다. **반드시 현실적이고 실용적인 가격 조언을 제공해야 합니다.**
 
 업종: ${businessType}
 원가: ${cost.toLocaleString()}원
-목표 마진율: ${targetMargin}%
-지역: ${region}
+목표 마진율: ${targetMargin}% (업종 평균: ${industryMargin.avg}%, 범위: ${industryMargin.min}%~${industryMargin.max}%)
+지역: ${region} (지역 가격 조정 계수: ${(regionMultiplier * 100).toFixed(0)}%)
 타겟 고객: ${targetCustomer}
 ${competitorAnalysis}
 ${additionalInfo ? `추가 정보: ${additionalInfo}` : ''}
 
 계산된 가격:
-- 최저 가격 (10% 마진): ${minPrice.toLocaleString()}원
-- 권장 가격 (${targetMargin}% 마진): ${recommendedPrice.toLocaleString()}원
-- 프리미엄 가격 (${targetMargin + 20}% 마진): ${premiumPrice.toLocaleString()}원
+- 최저 가격 (${industryMargin.min}% 마진, 업종 최소 기준): ${Math.round(minPrice).toLocaleString()}원
+- 권장 가격 (${adjustedMargin}% 마진, 지역 조정 반영): ${Math.round(finalRecommendedPrice).toLocaleString()}원
+- 프리미엄 가격 (${Math.round(adjustedMargin * 1.15)}% 마진): ${Math.round(premiumPrice).toLocaleString()}원
 
-위 정보를 바탕으로 가격 전략을 분석하고 조언해주세요.
+**중요 지침:**
+1. 위 계산된 가격이 업종 평균(${industryMargin.avg}%)과 지역(${region}) 기준으로 현실적인지 검토하세요.
+2. 경쟁사 가격이 있다면, 그 범위 내에서 경쟁력 있는 가격을 제안하세요.
+3. 타겟 고객(${targetCustomer})의 가격 민감도를 고려하여 현실적인 가격을 제안하세요.
+4. 비현실적으로 높거나 낮은 가격은 조정하여 제안하세요.
+5. 실제 자영업자가 적용 가능한 실용적인 가격 전략을 제안하세요.
 
 다음 JSON 형식으로 응답해주세요:
 {
@@ -124,10 +190,18 @@ ${additionalInfo ? `추가 정보: ${additionalInfo}` : ''}
 
     const result = JSON.parse(content);
 
-    // 계산된 가격 추가
-    result.priceAnalysis.minPrice = minPrice;
-    result.priceAnalysis.recommendedPrice = recommendedPrice;
-    result.priceAnalysis.premiumPrice = premiumPrice;
+    // 계산된 가격 추가 (반올림)
+    result.priceAnalysis.minPrice = Math.round(minPrice);
+    result.priceAnalysis.recommendedPrice = Math.round(finalRecommendedPrice);
+    result.priceAnalysis.premiumPrice = Math.round(premiumPrice);
+    
+    // AI가 제안한 가격이 비현실적이면 조정
+    if (result.priceAnalysis.recommendedPrice && 
+        (result.priceAnalysis.recommendedPrice < minPrice || 
+         result.priceAnalysis.recommendedPrice > premiumPrice * 1.5)) {
+      // AI 제안이 범위를 벗어나면 계산된 가격 사용
+      result.priceAnalysis.recommendedPrice = Math.round(finalRecommendedPrice);
+    }
 
     return NextResponse.json({
       success: true,

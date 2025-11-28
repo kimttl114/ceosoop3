@@ -15,7 +15,8 @@ import {
   LogOut,
   Menu,
   X,
-  Shield
+  Shield,
+  AlertCircle
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -25,6 +26,7 @@ interface AdminLayoutProps {
 
 const menuItems = [
   { path: '/admin', label: '대시보드', icon: LayoutDashboard },
+  { path: '/admin/notices', label: '공지사항 관리', icon: AlertCircle },
   { path: '/admin/reports', label: '신고 관리', icon: Flag },
   { path: '/admin/posts', label: '게시글 관리', icon: FileText },
   { path: '/admin/comments', label: '댓글 관리', icon: MessageSquare },

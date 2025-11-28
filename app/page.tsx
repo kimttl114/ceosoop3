@@ -17,7 +17,7 @@ import {
   limit,
   getDocs,
 } from 'firebase/firestore'
-import { User, Trash2, Image, Search, Bell, Mail, Flag, ShoppingBag, Heart, MessageCircle, Clock, Vote } from 'lucide-react'
+import { User, Trash2, Image, Search, Bell, Mail, Flag, ShoppingBag, Heart, MessageCircle, Clock, Vote, Sparkles, Calculator, Megaphone, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import AvatarMini from '@/components/AvatarMini'
@@ -67,6 +67,7 @@ export default function Home() {
   const [reportTarget, setReportTarget] = useState<{ type: 'post', id: string, authorId?: string, content?: string } | null>(null)
   const [userAvatars, setUserAvatars] = useState<Record<string, string>>({})
   const [ranking, setRanking] = useState<Array<{ uid: string; anonymousName: string; points: number }>>([])
+  const [notices, setNotices] = useState<any[]>([])
 
   // 익명 닉네임 생성: [형용사] + [명사] 조합
   const generateAnonymousName = () => {
@@ -400,6 +401,43 @@ export default function Home() {
     // 30초마다 랭킹 갱신
     const interval = setInterval(loadRanking, 30000)
     return () => clearInterval(interval)
+  }, [db, user])
+
+  // 공지사항 불러오기
+  useEffect(() => {
+    if (!db) return
+
+    const noticesRef = collection(db, 'notices')
+    const q = query(noticesRef, orderBy('createdAt', 'desc'))
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const noticesList = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        
+        // 공개된 공지사항만 필터링 (삭제되지 않은 것, 공개된 것)
+        const activeNotices = noticesList.filter((notice: any) => 
+          !notice.deleted && notice.visible !== false
+        )
+        
+        // 중요 공지를 먼저 정렬
+        const sortedNotices = activeNotices.sort((a: any, b: any) => {
+          if (a.isImportant && !b.isImportant) return -1
+          if (!a.isImportant && b.isImportant) return 1
+          return 0
+        })
+        
+        setNotices(sortedNotices)
+      },
+      (error: any) => {
+        console.error('공지사항 불러오기 오류:', error)
+      }
+    )
+
+    return () => unsubscribe()
   }, [db])
 
   // 3. 로그인 함수
@@ -486,7 +524,16 @@ export default function Home() {
         <div className="bg-white border-b border-gray-300 sticky top-0 z-20">
           <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3">
             <div className="flex items-center justify-between gap-2">
-              <h1 className="text-lg sm:text-xl font-bold text-gray-900">베스트</h1>
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/notices"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap border border-red-200"
+                >
+                  <span className="text-base">📢</span>
+                  <span className="hidden sm:inline">공지사항</span>
+                </Link>
+                <h1 className="text-lg sm:text-xl font-bold text-gray-900">베스트</h1>
+              </div>
               <div className="flex items-center gap-2">
                 {user ? (
                   <>
@@ -519,6 +566,128 @@ export default function Home() {
                     로그인
                   </button>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 공지사항 섹션 - 최상단에 배치 */}
+        {notices.length > 0 && (
+          <div className="bg-gradient-to-r from-red-50 to-orange-50 border-b border-red-200">
+            <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Megaphone size={20} className="text-red-600" />
+                  <h2 className="text-base sm:text-lg font-bold text-gray-900">📢 공지사항</h2>
+                </div>
+                <Link
+                  href="/notices"
+                  className="text-xs sm:text-sm text-red-600 font-medium hover:underline"
+                >
+                  전체보기 →
+                </Link>
+              </div>
+              <div className="space-y-2">
+                {notices.slice(0, 3).map((notice: any) => (
+                  <Link
+                    key={notice.id}
+                    href={`/notices?id=${notice.id}`}
+                    className="block p-3 bg-white rounded-lg border border-red-200 hover:border-red-400 hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      {notice.isImportant && (
+                        <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                          중요
+                        </span>
+                      )}
+                      <span className="text-xs text-blue-600 font-bold">공지</span>
+                      <h3 className="font-semibold text-gray-900 text-sm sm:text-base line-clamp-1 flex-1">
+                        {notice.title}
+                      </h3>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 도구존 섹션 - 최상단에 배치, 모든 도구 한 화면에 표시 */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <ShoppingBag size={20} className="text-[#1A2B4E]" />
+                <span>🛠️ 실용 도구</span>
+              </h2>
+              <Link
+                href="/tools"
+                className="text-sm text-[#1A2B4E] font-medium hover:underline"
+              >
+                전체보기 →
+              </Link>
+            </div>
+
+            {/* AI 도구 */}
+            <div className="mb-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles size={16} className="text-purple-600" />
+                <h3 className="text-sm font-semibold text-gray-700">🤖 AI 도구</h3>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {[
+                  { id: 'diagnose', title: '내 시급은?', description: '사장님 시급 자동 계산', route: '/diagnose', icon: '🎯' },
+                  { id: 'ai-marketing', title: 'AI 마케팅 문구', description: 'SNS/전단지 문구 생성', route: '/tools/ai-marketing', icon: '✨' },
+                  { id: 'ai-customer-service', title: 'AI 고객 대응', description: '고객 불만 대응 가이드', route: '/tools/ai-customer-service', icon: '💬' },
+                  { id: 'ai-pricing', title: 'AI 가격 조언', description: '최적 가격 전략 제안', route: '/tools/ai-pricing', icon: '🧠' },
+                  { id: 'announcement', title: '안내방송 생성', description: '매장 방송 자동 제작', route: '/tools/announcement', icon: '🎙️' },
+                ].map((tool) => (
+                  <Link
+                    key={tool.id}
+                    href={tool.route}
+                    className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 shadow-sm hover:shadow-md transition-all border border-purple-100 hover:border-purple-300 relative group flex-shrink-0"
+                    style={{ minWidth: '160px', width: '160px' }}
+                  >
+                    <div className="absolute top-2 right-2">
+                      <span className="px-2 py-0.5 text-xs font-bold text-purple-600 bg-purple-100 rounded-full">
+                        AI
+                      </span>
+                    </div>
+                    <div className="text-3xl mb-2 text-center group-hover:scale-110 transition-transform">{tool.icon}</div>
+                    <div className="text-sm font-semibold text-gray-900 mb-1 text-center leading-tight">{tool.title}</div>
+                    <div className="text-xs text-gray-600 text-center leading-tight">{tool.description}</div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* 일반 도구 */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Calculator size={16} className="text-blue-600" />
+                <h3 className="text-sm font-semibold text-gray-700">📊 계산기 & 도구</h3>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {[
+                  { id: 'salary', title: '월급 계산기', description: '시급/일급/월급 계산', route: '/tools/salary', icon: '💰' },
+                  { id: 'margin', title: '마진율 계산기', description: '손익분기점 계산', route: '/tools/margin', icon: '📊' },
+                  { id: 'vat', title: '부가세 계산기', description: '부가세 빠르게 계산', route: '/tools/vat', icon: '🧮' },
+                  { id: 'labor', title: '인건비 계산기', description: '4대보험 포함 계산', route: '/tools/labor', icon: '👥' },
+                  { id: 'pricing', title: '가격 책정 도우미', description: '원가 기반 가격 제안', route: '/tools/pricing', icon: '💵' },
+                  { id: 'discount', title: '할인율 계산기', description: '할인 후 가격 분석', route: '/tools/discount', icon: '🎯' },
+                  { id: 'document', title: '문서 생성기', description: '계약서 자동 생성', route: '/ai-document', icon: '📄' },
+                ].map((tool) => (
+                  <Link
+                    key={tool.id}
+                    href={tool.route}
+                    className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all border border-gray-100 hover:border-[#1A2B4E] group flex-shrink-0"
+                    style={{ minWidth: '160px', width: '160px' }}
+                  >
+                    <div className="text-3xl mb-2 text-center group-hover:scale-110 transition-transform">{tool.icon}</div>
+                    <div className="text-sm font-semibold text-gray-900 mb-1 text-center leading-tight">{tool.title}</div>
+                    <div className="text-xs text-gray-600 text-center leading-tight">{tool.description}</div>
+                  </Link>
+                ))}
               </div>
             </div>
           </div>
@@ -853,6 +1022,7 @@ export default function Home() {
           targetContent={reportTarget.content}
         />
       )}
+
 
       {/* 하단 네비게이션 (모바일용) - 항상 표시 */}
       <BottomNav onWriteClick={() => {
