@@ -210,11 +210,24 @@ export default function AnnouncementPage() {
     }
   }
 
-  // 오디오 믹싱 (Web Audio API) - 모바일 최적화
+  /**
+   * 오디오 믹싱 함수 (Web Audio API)
+   * 
+   * 사장님 폰(브라우저)에서 즉석으로 음악과 목소리를 섞어주는 클라이언트 사이드 믹싱
+   * 
+   * [믹싱 명세]
+   * 1. Voice 볼륨: 1.0 (100%) - 메인 오디오
+   * 2. BGM 볼륨: 0.2 (20%) - 목소리에 묻히지 않게 은은하게
+   * 3. 길이 맞춤: 목소리가 끝나면 BGM도 페이드아웃(Fade out) 되며 2초 뒤 끝나게 처리
+   * 
+   * @param voiceBlob - TTS로 생성된 목소리 오디오 Blob
+   * @param bgmUrl - 배경음악 파일 URL
+   * @returns 믹싱된 최종 오디오 Blob
+   */
   const mixAudio = async (voiceBlob: Blob, bgmUrl: string): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       try {
-        // AudioContext 생성 (모바일 호환성 고려)
+        // Step 1: AudioContext 생성 (모바일 호환성 고려)
         let audioContext: AudioContext
         try {
           audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
@@ -230,14 +243,14 @@ export default function AnnouncementPage() {
           })
         }
         
-        // Voice 오디오 로드
+        // Step 2: Voice 오디오 로드
         const voiceUrl = URL.createObjectURL(voiceBlob)
         const voiceAudio = new Audio(voiceUrl)
         voiceAudio.crossOrigin = 'anonymous'
         
         voiceAudio.addEventListener('loadeddata', async () => {
           try {
-            // Voice 길이 확인
+            // Voice 길이 확인 (BGM 길이 맞춤을 위해 필요)
             let voiceDuration = voiceAudio.duration
             if (!voiceDuration || isNaN(voiceDuration) || voiceDuration <= 0) {
               // Voice 길이를 가져올 수 없으면 기본값 사용
@@ -245,13 +258,13 @@ export default function AnnouncementPage() {
               console.warn('Voice 길이를 확인할 수 없어 기본값 사용:', voiceDuration, '초')
             }
 
-            // BGM 오디오 로드
+            // Step 3: BGM 오디오 로드
             const bgmAudio = new Audio(bgmUrl)
             bgmAudio.crossOrigin = 'anonymous'
             
             bgmAudio.addEventListener('loadeddata', async () => {
               try {
-                // BGM 반복 설정 (Voice 길이만큼)
+                // BGM 반복 설정 (Voice 길이만큼 반복 재생)
                 bgmAudio.loop = true
                 
                 // Web Audio API로 믹싱
@@ -268,18 +281,21 @@ export default function AnnouncementPage() {
                   return
                 }
                 
-                // Gain 노드로 볼륨 조절 (Voice: 1.0, BGM: -15dB ≈ 0.178)
+                // Gain 노드로 볼륨 조절
+                // Voice 볼륨: 1.0 (100%) - 메인 오디오
+                // BGM 볼륨: 0.2 (20%) - 목소리에 묻히지 않게 은은하게
                 const voiceGain = audioContext.createGain()
                 voiceGain.gain.value = 1.0
                 
                 const bgmGain = audioContext.createGain()
-                bgmGain.gain.value = 0.178 // -15dB
+                bgmGain.gain.value = 0.2 // 20% 볼륨
                 
-                // BGM 페이드 아웃 (Voice 끝나는 시점부터 2초 동안)
+                // BGM 페이드 아웃 처리
+                // 목소리가 끝나는 시점(voiceDuration)부터 2초 동안 서서히 줄어듦
                 const fadeOutStart = voiceDuration
                 const fadeOutEnd = voiceDuration + 2
-                bgmGain.gain.setValueAtTime(0.178, fadeOutStart)
-                bgmGain.gain.linearRampToValueAtTime(0, fadeOutEnd)
+                bgmGain.gain.setValueAtTime(0.2, fadeOutStart) // 시작 볼륨 20%
+                bgmGain.gain.linearRampToValueAtTime(0, fadeOutEnd) // 2초 후 0%로 페이드아웃
                 
                 // Destination으로 연결 (믹싱)
                 const destination = audioContext.createMediaStreamDestination()
@@ -474,7 +490,19 @@ export default function AnnouncementPage() {
     })
   }
 
-  // 방송 생성
+  /**
+   * 방송 생성 함수
+   * 
+   * [구현 명세 - 제미나이 프롬프트 기반]
+   * 1. 서버 API(/api/generate-announcement)를 호출해서 AI 목소리(Voice)를 받아온다
+   * 2. 선택한 BGM 파일을 fetch로 가져온다
+   * 3. Web Audio API (AudioContext)를 사용하여 두 오디오를 합성한다
+   *    - Voice 볼륨: 1.0 (100%)
+   *    - BGM 볼륨: 0.2 (20% - 목소리에 묻히지 않게 은은하게)
+   *    - 길이 맞춤: 목소리가 끝나면 BGM도 페이드아웃(Fade out) 되며 2초 뒤 끝나게 처리
+   * 
+   * 모든 처리는 사장님 폰(브라우저)에서 클라이언트 사이드로 즉석 처리됩니다.
+   */
   const handleGenerate = async () => {
     if (!text.trim()) {
       alert('안내 문구를 입력해주세요.')
@@ -487,7 +515,7 @@ export default function AnnouncementPage() {
     setAudioBlob(null)
 
     try {
-      // 1. BGM 선택 여부 확인
+      // Step 1: BGM 선택 여부 확인
       const bgmUrl = selectedBgm !== 'none' 
         ? bgmFiles.find(f => {
             if (selectedBgm.startsWith('public_')) {
@@ -501,8 +529,9 @@ export default function AnnouncementPage() {
 
       console.log('방송 생성 시작:', { text: text.substring(0, 50), hasBgm: !!bgmUrl })
 
-      // 2. 서버 API 호출 (TTS만 생성, BGM은 클라이언트에서 처리)
-      // 모바일에서도 확실히 작동하도록 서버에서는 Voice만 생성하고, 클라이언트에서 BGM 믹싱
+      // Step 2: 서버 API 호출 - AI 목소리(Voice) 생성
+      // 서버에서는 TTS만 생성하고, BGM은 클라이언트에서 처리
+      // 모바일에서도 확실히 작동하도록 클라이언트 사이드에서 BGM 믹싱
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 60000) // 1분 타임아웃 (Voice만 생성하므로 더 짧게)
       
@@ -558,7 +587,7 @@ export default function AnnouncementPage() {
         throw new Error(errorMessage)
       }
 
-      // 3. Voice 오디오 Blob 받기
+      // Step 3: Voice 오디오 Blob 받기
       const voiceBlob = await response.blob()
       console.log('Voice 생성 완료:', {
         size: voiceBlob.size,
@@ -576,7 +605,8 @@ export default function AnnouncementPage() {
         console.warn('생성된 오디오 파일이 너무 작습니다:', voiceBlob.size, 'bytes')
       }
 
-      // 4. BGM이 선택되었으면 클라이언트에서 항상 믹싱
+      // Step 4: BGM 믹싱 (클라이언트 사이드 - 사장님 폰에서 즉석 처리)
+      // 사용자가 BGM을 선택했으면 Web Audio API로 음악과 목소리를 합성
       let finalBlob = voiceBlob
       
       if (bgmUrl) {
@@ -585,6 +615,9 @@ export default function AnnouncementPage() {
         try {
           console.log('클라이언트 사이드 BGM 믹싱 시작:', { bgmUrl })
           
+          // Web Audio API를 사용하여 Voice + BGM 합성
+          // Voice: 100%, BGM: 20% 볼륨
+          // 목소리 끝나면 BGM 페이드아웃 후 2초 뒤 종료
           finalBlob = await mixAudio(voiceBlob, bgmUrl)
           
           console.log('✅ 클라이언트 사이드 BGM 믹싱 성공:', {
