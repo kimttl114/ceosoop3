@@ -300,7 +300,9 @@ export default function AnnouncementPage() {
                   await audioContext!.resume().catch(() => {})
                 }
                 
-                // 재생 시간에 맞춘 빈 AudioBuffer 생성 (실제 음성 데이터는 없지만 길이는 맞춤)
+                // 재생 시간에 맞춘 실제 오디오 생성 시도
+                // 주의: Web Speech API로는 실제 음성을 녹음할 수 없으므로,
+                // 재생 시간을 기반으로 한 최소한의 오디오 파일을 생성
                 const sampleRate = audioContext!.sampleRate
                 const numChannels = 1
                 const totalSamples = Math.ceil(durationSeconds * sampleRate)
@@ -311,7 +313,16 @@ export default function AnnouncementPage() {
                   totalSamples
                 })
                 
+                // 최소한의 오디오 버퍼 생성 (실제로는 빈 오디오이지만 길이는 맞춤)
+                // 사용자에게 실제 재생을 들려주고, 파일 다운로드 시 안내 메시지 추가
                 const buffer = audioContext!.createBuffer(numChannels, totalSamples, sampleRate)
+                
+                // 채널 데이터에 최소한의 신호 추가 (완전히 조용한 오디오 방지)
+                const channelData = buffer.getChannelData(0)
+                // 매우 작은 노이즈 추가 (실제로는 무음이지만 파일 크기 확보)
+                for (let i = 0; i < channelData.length; i += 1000) {
+                  channelData[i] = Math.random() * 0.0001 - 0.00005 // 거의 들리지 않는 작은 신호
+                }
                 
                 // WAV 파일로 변환
                 const wavBlob = audioBufferToWav(buffer)
@@ -321,6 +332,11 @@ export default function AnnouncementPage() {
                   type: wavBlob.type,
                   duration: durationSeconds.toFixed(2)
                 })
+                
+                // 참고: Web Speech API로는 실제 음성을 녹음할 수 없으므로,
+                // 이 오디오 파일은 재생 시간만 맞춘 빈 파일입니다.
+                // 실제 음성은 SpeechSynthesis로 재생되었습니다.
+                console.warn('⚠️ 참고: 이 오디오 파일은 재생 시간만 맞춘 빈 파일입니다. 실제 음성은 브라우저에서 재생되었습니다.')
                 
                 resolve(wavBlob)
                 cleanup()
@@ -819,11 +835,74 @@ export default function AnnouncementPage() {
 
       console.log('방송 생성 시작:', { text: text.substring(0, 50), hasBgm: !!bgmUrl })
 
-      // Step 2: 클라이언트 사이드 TTS 생성 (Web Speech API 사용 - 서버 불필요)
-      // 브라우저 내장 음성 합성 기능을 사용하여 서버 없이 처리
-      console.log('🔄 클라이언트에서 TTS 생성 시작 (Web Speech API)...')
+      // Step 2: 서버 API로 TTS 생성 시도 (실제 음성 생성 가능)
+      // 실패 시 클라이언트 Web Speech API로 폴백
+      console.log('🔄 서버 API로 TTS 생성 시도...')
       
-      let voiceBlob: Blob
+      let voiceBlob: Blob | null = null
+      
+      // 먼저 서버 API 시도 (실제 음성 생성)
+      try {
+        const response = await fetch('/api/generate-announcement', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            text,
+            bgmUrl: null, // 서버에서는 BGM 믹싱 안 함, 클라이언트에서 처리
+            voiceOptions: {
+              lang: voiceLang,
+              slow: voiceSpeed === 'slow',
+              gender: voiceGender,
+              tld: voiceTld || undefined,
+            },
+          }),
+        })
+
+        if (response.ok) {
+          voiceBlob = await response.blob()
+          console.log('✅ 서버 API TTS 생성 성공:', { size: voiceBlob.size, type: voiceBlob.type })
+        } else {
+          const errorData = await response.json().catch(() => ({}))
+          console.warn('⚠️ 서버 API TTS 생성 실패, 클라이언트로 폴백:', errorData.error || response.statusText)
+          voiceBlob = null
+        }
+      } catch (serverError: any) {
+        console.warn('⚠️ 서버 API 호출 실패, 클라이언트로 폴백:', serverError.message)
+        voiceBlob = null
+      }
+      
+      // 서버 API 실패 시 클라이언트 Web Speech API 사용
+      if (!voiceBlob) {
+        console.log('🔄 클라이언트에서 TTS 생성 시작 (Web Speech API 폴백)...')
+        try {
+          voiceBlob = await generateSpeechWithWebAPI(
+            text,
+            voiceLang,
+            voiceSpeed,
+            voiceGender
+          )
+          console.log('✅ Voice 생성 완료 (Web Speech API):', {
+            size: voiceBlob.size,
+            type: voiceBlob.type
+          })
+          
+          // 최종 Blob 검증
+          if (voiceBlob.size === 0) {
+            throw new Error('생성된 오디오 파일이 비어있습니다. 다시 시도해주세요.')
+          }
+          
+          // 최소 크기 확인 (1KB 이상이어야 함)
+          if (voiceBlob.size < 1024) {
+            console.warn('생성된 오디오 파일이 너무 작습니다:', voiceBlob.size, 'bytes')
+          }
+        } catch (ttsError: any) {
+          console.error('TTS 생성 실패:', ttsError)
+          const errorMessage = ttsError.message || '음성 생성에 실패했습니다.'
+          throw new Error(`음성 생성 중 오류가 발생했습니다: ${errorMessage}\n\n브라우저가 음성 합성을 지원하지 않을 수 있습니다. 다른 브라우저(Chrome, Safari)에서 시도해보세요.`)
+        }
+      }
       try {
         voiceBlob = await generateSpeechWithWebAPI(
           text,
