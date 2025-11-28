@@ -211,9 +211,10 @@ export default function AnnouncementPage() {
   }
 
   /**
-   * 오디오 믹싱 함수 (Web Audio API)
+   * 오디오 믹싱 함수 (OfflineAudioContext 사용 - 모바일 최적화)
    * 
    * 사장님 폰(브라우저)에서 즉석으로 음악과 목소리를 섞어주는 클라이언트 사이드 믹싱
+   * OfflineAudioContext를 사용하여 실제 재생 없이 오프라인에서 처리하므로 모바일에서도 안정적
    * 
    * [믹싱 명세]
    * 1. Voice 볼륨: 1.0 (100%) - 메인 오디오
@@ -225,269 +226,174 @@ export default function AnnouncementPage() {
    * @returns 믹싱된 최종 오디오 Blob
    */
   const mixAudio = async (voiceBlob: Blob, bgmUrl: string): Promise<Blob> => {
-    return new Promise((resolve, reject) => {
-      try {
-        // Step 1: AudioContext 생성 (모바일 호환성 고려)
-        let audioContext: AudioContext
-        try {
-          audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-        } catch (e: any) {
-          reject(new Error('오디오 컨텍스트를 생성할 수 없습니다: ' + e.message))
-          return
-        }
-        
-        // 모바일에서 AudioContext가 suspended 상태일 수 있으므로 resume 시도
-        if (audioContext.state === 'suspended') {
-          audioContext.resume().catch((e) => {
-            console.warn('AudioContext resume 실패:', e)
-          })
-        }
-        
-        // Step 2: Voice 오디오 로드
-        const voiceUrl = URL.createObjectURL(voiceBlob)
-        const voiceAudio = new Audio(voiceUrl)
-        voiceAudio.crossOrigin = 'anonymous'
-        
-        voiceAudio.addEventListener('loadeddata', async () => {
-          try {
-            // Voice 길이 확인 (BGM 길이 맞춤을 위해 필요)
-            let voiceDuration = voiceAudio.duration
-            if (!voiceDuration || isNaN(voiceDuration) || voiceDuration <= 0) {
-              // Voice 길이를 가져올 수 없으면 기본값 사용
-              voiceDuration = 10
-              console.warn('Voice 길이를 확인할 수 없어 기본값 사용:', voiceDuration, '초')
-            }
-
-            // Step 3: BGM 오디오 로드
-            const bgmAudio = new Audio(bgmUrl)
-            bgmAudio.crossOrigin = 'anonymous'
-            
-            bgmAudio.addEventListener('loadeddata', async () => {
-              try {
-                // BGM 반복 설정 (Voice 길이만큼 반복 재생)
-                bgmAudio.loop = true
-                
-                // Web Audio API로 믹싱
-                let voiceSource: MediaElementAudioSourceNode
-                let bgmSource: MediaElementAudioSourceNode
-                
-                try {
-                  voiceSource = audioContext.createMediaElementSource(voiceAudio)
-                  bgmSource = audioContext.createMediaElementSource(bgmAudio)
-                } catch (e: any) {
-                  reject(new Error('오디오 소스를 생성할 수 없습니다: ' + e.message))
-                  URL.revokeObjectURL(voiceUrl)
-                  audioContext.close()
-                  return
-                }
-                
-                // Gain 노드로 볼륨 조절
-                // Voice 볼륨: 1.0 (100%) - 메인 오디오
-                // BGM 볼륨: 0.2 (20%) - 목소리에 묻히지 않게 은은하게
-                const voiceGain = audioContext.createGain()
-                voiceGain.gain.value = 1.0
-                
-                const bgmGain = audioContext.createGain()
-                bgmGain.gain.value = 0.2 // 20% 볼륨
-                
-                // BGM 페이드 아웃 처리
-                // 목소리가 끝나는 시점(voiceDuration)부터 2초 동안 서서히 줄어듦
-                const fadeOutStart = voiceDuration
-                const fadeOutEnd = voiceDuration + 2
-                bgmGain.gain.setValueAtTime(0.2, fadeOutStart) // 시작 볼륨 20%
-                bgmGain.gain.linearRampToValueAtTime(0, fadeOutEnd) // 2초 후 0%로 페이드아웃
-                
-                // Destination으로 연결 (믹싱)
-                const destination = audioContext.createMediaStreamDestination()
-                voiceGain.connect(destination)
-                bgmGain.connect(destination)
-                
-                // MediaRecorder로 최종 오디오 녹음
-                let mediaRecorder: MediaRecorder | null = null
-                
-                // MediaRecorder 지원 형식 확인
-                const supportedMimeTypes = [
-                  'audio/webm;codecs=opus',
-                  'audio/webm',
-                  'audio/ogg;codecs=opus',
-                  'audio/mp4',
-                ]
-                
-                let selectedMimeType = 'audio/webm'
-                for (const mimeType of supportedMimeTypes) {
-                  if (MediaRecorder.isTypeSupported(mimeType)) {
-                    selectedMimeType = mimeType
-                    console.log('MediaRecorder MIME 타입 선택:', selectedMimeType)
-                    break
-                  }
-                }
-                
-                try {
-                  mediaRecorder = new MediaRecorder(destination.stream, {
-                    mimeType: selectedMimeType
-                  })
-                } catch (e: any) {
-                  console.error('MediaRecorder 생성 실패:', e)
-                  // 기본 형식으로 재시도
-                  try {
-                    mediaRecorder = new MediaRecorder(destination.stream)
-                  } catch (e2: any) {
-                    reject(new Error('MediaRecorder를 생성할 수 없습니다: ' + e2.message))
-                    return
-                  }
-                }
-                
-                const chunks: Blob[] = []
-                let recordingStopped = false
-                
-                mediaRecorder.ondataavailable = (e) => {
-                  if (e.data && e.data.size > 0) {
-                    console.log('오디오 데이터 수신:', e.data.size, 'bytes')
-                    chunks.push(e.data)
-                  }
-                }
-                
-                mediaRecorder.onstop = () => {
-                  console.log('녹음 중지, 총 청크 수:', chunks.length)
-                  
-                  if (chunks.length === 0) {
-                    reject(new Error('녹음된 오디오 데이터가 없습니다.'))
-                    URL.revokeObjectURL(voiceUrl)
-                    audioContext.close()
-                    return
-                  }
-                  
-                  const finalBlob = new Blob(chunks, { type: selectedMimeType })
-                  console.log('최종 오디오 Blob 생성:', {
-                    size: finalBlob.size,
-                    type: finalBlob.type
-                  })
-                  
-                  if (finalBlob.size === 0) {
-                    reject(new Error('생성된 오디오 파일이 비어있습니다.'))
-                    URL.revokeObjectURL(voiceUrl)
-                    audioContext.close()
-                    return
-                  }
-                  
-                  resolve(finalBlob)
-                  
-                  // 정리
-                  setTimeout(() => {
-                    URL.revokeObjectURL(voiceUrl)
-                    audioContext.close()
-                  }, 1000)
-                }
-                
-                mediaRecorder.onerror = (e: any) => {
-                  console.error('MediaRecorder 오류:', e)
-                  reject(new Error('녹음 중 오류가 발생했습니다: ' + (e.error?.message || '알 수 없는 오류')))
-                  URL.revokeObjectURL(voiceUrl)
-                  audioContext.close()
-                }
-                
-                // 녹음 시작 (timeslice를 지정하여 주기적으로 데이터 수신)
-                try {
-                  mediaRecorder.start(100) // 100ms마다 데이터 수신
-                  console.log('녹음 시작:', { duration: voiceDuration, mimeType: selectedMimeType })
-                } catch (e: any) {
-                  reject(new Error('녹음 시작 실패: ' + e.message))
-                  URL.revokeObjectURL(voiceUrl)
-                  audioContext.close()
-                  return
-                }
-                
-                // 오디오 재생 (모바일 호환성 고려)
-                // AudioContext가 suspended 상태이면 resume
-                if (audioContext.state === 'suspended') {
-                  audioContext.resume().catch((e) => {
-                    console.warn('AudioContext resume 실패:', e)
-                  })
-                }
-                
-                // 약간의 지연 후 재생 시작 (모바일에서 안정성을 위해)
-                setTimeout(() => {
-                  const playPromise1 = voiceAudio.play().catch((e) => {
-                    console.error('Voice 재생 실패:', e)
-                    // 재생 실패해도 녹음은 계속 진행 (녹음 자체는 문제없을 수 있음)
-                  })
-                  const playPromise2 = bgmAudio.play().catch((e) => {
-                    console.error('BGM 재생 실패:', e)
-                    // 재생 실패해도 녹음은 계속 진행
-                  })
-                  
-                  Promise.all([playPromise1, playPromise2]).catch((e) => {
-                    console.warn('오디오 재생 경고:', e)
-                    // 재생 실패해도 녹음은 계속 진행
-                  })
-                }, 100)
-                
-                // Voice 길이 + 2초 후 정지
-                const stopTimeout = setTimeout(() => {
-                  if (!recordingStopped && mediaRecorder && mediaRecorder.state !== 'inactive') {
-                    recordingStopped = true
-                    console.log('녹음 중지 예약')
-                    
-                    // MediaRecorder 상태 확인
-                    if (mediaRecorder.state === 'recording') {
-                      mediaRecorder.stop()
-                    } else {
-                      console.warn('MediaRecorder가 이미 중지됨:', mediaRecorder.state)
-                    }
-                    
-                    voiceAudio.pause()
-                    bgmAudio.pause()
-                    voiceAudio.currentTime = 0
-                    bgmAudio.currentTime = 0
-                  }
-                }, (voiceDuration + 2) * 1000)
-                
-                // 오디오가 끝나면 자동으로 정지
-                voiceAudio.addEventListener('ended', () => {
-                  console.log('Voice 재생 완료')
-                  setTimeout(() => {
-                    if (!recordingStopped && mediaRecorder && mediaRecorder.state !== 'inactive') {
-                      recordingStopped = true
-                      clearTimeout(stopTimeout)
-                      if (mediaRecorder.state === 'recording') {
-                        mediaRecorder.stop()
-                      }
-                      voiceAudio.pause()
-                      bgmAudio.pause()
-                    }
-                  }, 2000) // 2초 후 정지 (페이드 아웃)
-                })
-                
-              } catch (error) {
-                reject(error)
-                URL.revokeObjectURL(voiceUrl)
-              }
-            })
-            
-            bgmAudio.addEventListener('error', () => {
-              reject(new Error('BGM 로드 실패'))
-              URL.revokeObjectURL(voiceUrl)
-            })
-            
-            bgmAudio.load()
-            
-          } catch (error) {
-            reject(error)
-            URL.revokeObjectURL(voiceUrl)
-          }
-        })
-        
-        voiceAudio.addEventListener('error', () => {
-          reject(new Error('Voice 로드 실패'))
-          URL.revokeObjectURL(voiceUrl)
-        })
-        
-        voiceAudio.load()
-        
-      } catch (error: any) {
-        reject(new Error('오디오 믹싱 실패: ' + (error.message || '알 수 없는 오류')))
+    try {
+      console.log('🎵 오프라인 오디오 믹싱 시작 (OfflineAudioContext)')
+      
+      // Step 1: AudioContext 생성 (디코딩용)
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      
+      // Step 2: Voice 오디오 디코딩
+      const voiceArrayBuffer = await voiceBlob.arrayBuffer()
+      const voiceAudioBuffer = await audioContext.decodeAudioData(voiceArrayBuffer.slice(0))
+      const voiceDuration = voiceAudioBuffer.duration
+      const sampleRate = voiceAudioBuffer.sampleRate
+      
+      console.log('Voice 디코딩 완료:', { 
+        duration: voiceDuration.toFixed(2), 
+        sampleRate,
+        channels: voiceAudioBuffer.numberOfChannels 
+      })
+      
+      // Step 3: BGM 오디오 다운로드 및 디코딩
+      const bgmResponse = await fetch(bgmUrl)
+      if (!bgmResponse.ok) {
+        throw new Error('BGM 파일을 불러올 수 없습니다.')
       }
-    })
+      const bgmArrayBuffer = await bgmResponse.arrayBuffer()
+      const bgmAudioBuffer = await audioContext.decodeAudioData(bgmArrayBuffer.slice(0))
+      
+      console.log('BGM 디코딩 완료:', { 
+        duration: bgmAudioBuffer.duration.toFixed(2),
+        sampleRate: bgmAudioBuffer.sampleRate,
+        channels: bgmAudioBuffer.numberOfChannels
+      })
+      
+      // Step 4: 샘플 레이트 및 채널 수 통일
+      const targetSampleRate = sampleRate
+      const targetChannels = 2 // 스테레오
+      
+      // BGM 샘플 레이트가 다르면 리샘플링 필요 (간단히 처리)
+      let processedBgmBuffer = bgmAudioBuffer
+      if (bgmAudioBuffer.sampleRate !== targetSampleRate) {
+        console.warn('BGM 샘플 레이트가 다릅니다:', bgmAudioBuffer.sampleRate, '->', targetSampleRate)
+        // 샘플 레이트가 다르면 재생성 (간단한 방법)
+        const tempContext = new OfflineAudioContext(
+          bgmAudioBuffer.sampleRate,
+          bgmAudioBuffer.length,
+          bgmAudioBuffer.numberOfChannels
+        )
+        const tempSource = tempContext.createBufferSource()
+        tempSource.buffer = bgmAudioBuffer
+        tempSource.connect(tempContext.destination)
+        tempSource.start(0)
+        processedBgmBuffer = await tempContext.startRendering()
+      }
+      
+      // Step 5: OfflineAudioContext로 오프라인 믹싱
+      const targetDuration = voiceDuration + 2 // Voice + 2초 페이드아웃
+      const offlineContext = new OfflineAudioContext(
+        targetSampleRate,
+        Math.ceil(targetDuration * targetSampleRate),
+        targetChannels
+      )
+      
+      // Voice 소스 생성 (100% 볼륨)
+      const voiceSource = offlineContext.createBufferSource()
+      voiceSource.buffer = voiceAudioBuffer
+      const voiceGain = offlineContext.createGain()
+      voiceGain.gain.value = 1.0
+      voiceSource.connect(voiceGain)
+      voiceGain.connect(offlineContext.destination)
+      
+      // BGM 소스 생성 (20% 볼륨, 반복 재생)
+      const bgmSource = offlineContext.createBufferSource()
+      bgmSource.buffer = processedBgmBuffer
+      bgmSource.loop = true
+      const bgmGain = offlineContext.createGain()
+      bgmGain.gain.value = 0.2 // 20% 볼륨
+      
+      // BGM 페이드아웃 설정
+      const fadeOutStart = voiceDuration
+      const fadeOutEnd = targetDuration
+      bgmGain.gain.setValueAtTime(0.2, fadeOutStart)
+      bgmGain.gain.linearRampToValueAtTime(0, fadeOutEnd)
+      
+      bgmSource.connect(bgmGain)
+      bgmGain.connect(offlineContext.destination)
+      
+      // 오프라인 렌더링 시작
+      console.log('오프라인 렌더링 시작...')
+      voiceSource.start(0)
+      bgmSource.start(0)
+      
+      const renderedBuffer = await offlineContext.startRendering()
+      console.log('오프라인 렌더링 완료:', {
+        duration: renderedBuffer.duration.toFixed(2),
+        sampleRate: renderedBuffer.sampleRate,
+        channels: renderedBuffer.numberOfChannels
+      })
+      
+      // Step 5: AudioBuffer를 WAV Blob로 변환
+      const wavBlob = audioBufferToWav(renderedBuffer)
+      
+      // 정리
+      audioContext.close()
+      
+      console.log('✅ 오디오 믹싱 완료:', {
+        size: wavBlob.size,
+        type: wavBlob.type
+      })
+      
+      return wavBlob
+      
+    } catch (error: any) {
+      console.error('오디오 믹싱 오류:', error)
+      throw new Error('오디오 믹싱에 실패했습니다: ' + (error.message || '알 수 없는 오류'))
+    }
+  }
+  
+  // AudioBuffer를 WAV Blob로 변환하는 헬퍼 함수
+  const audioBufferToWav = (buffer: AudioBuffer): Blob => {
+    const numChannels = buffer.numberOfChannels
+    const sampleRate = buffer.sampleRate
+    const length = buffer.length
+    const bytesPerSample = 2
+    const blockAlign = numChannels * bytesPerSample
+    const byteRate = sampleRate * blockAlign
+    const dataSize = length * blockAlign
+    const bufferSize = 44 + dataSize
+    
+    const arrayBuffer = new ArrayBuffer(bufferSize)
+    const view = new DataView(arrayBuffer)
+    const samples: Float32Array[] = []
+    
+    // 채널 데이터 추출
+    for (let channel = 0; channel < numChannels; channel++) {
+      samples.push(buffer.getChannelData(channel))
+    }
+    
+    // WAV 헤더 작성
+    const writeString = (offset: number, string: string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i))
+      }
+    }
+    
+    writeString(0, 'RIFF')
+    view.setUint32(4, bufferSize - 8, true)
+    writeString(8, 'WAVE')
+    writeString(12, 'fmt ')
+    view.setUint32(16, 16, true) // fmt chunk size
+    view.setUint16(20, 1, true) // audio format (PCM)
+    view.setUint16(22, numChannels, true)
+    view.setUint32(24, sampleRate, true)
+    view.setUint32(28, byteRate, true)
+    view.setUint16(32, blockAlign, true)
+    view.setUint16(34, 16, true) // bits per sample
+    writeString(36, 'data')
+    view.setUint32(40, dataSize, true)
+    
+    // PCM 데이터 작성
+    let offset = 44
+    for (let i = 0; i < length; i++) {
+      for (let channel = 0; channel < numChannels; channel++) {
+        const sample = Math.max(-1, Math.min(1, samples[channel][i]))
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true)
+        offset += 2
+      }
+    }
+    
+    return new Blob([arrayBuffer], { type: 'audio/wav' })
   }
 
   /**
