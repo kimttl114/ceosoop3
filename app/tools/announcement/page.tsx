@@ -161,16 +161,10 @@ export default function AnnouncementPage() {
     return new Promise((resolve, reject) => {
       let audioContext: AudioContext | null = null
       let mediaRecorder: MediaRecorder | null = null
-      let audioElement: HTMLAudioElement | null = null
-      let audioSource: MediaElementAudioSourceNode | null = null
       
       const cleanup = () => {
         if (mediaRecorder && mediaRecorder.state !== 'inactive') {
           try { mediaRecorder.stop() } catch {}
-        }
-        if (audioElement) {
-          audioElement.pause()
-          audioElement.src = ''
         }
         if (audioContext && audioContext.state !== 'closed') {
           audioContext.close().catch(() => {})
