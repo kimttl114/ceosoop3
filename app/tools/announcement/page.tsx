@@ -249,7 +249,7 @@ export default function AnnouncementPage() {
           selectVoice(voices)
         }
 
-        function selectVoice(voices: SpeechSynthesisVoice[]) {
+        const selectVoice = (voices: SpeechSynthesisVoice[]) => {
           let selectedVoice: SpeechSynthesisVoice | null = null
 
           if (lang === 'ko') {
@@ -290,7 +290,7 @@ export default function AnnouncementPage() {
           startRecording()
         }
 
-        function startRecording() {
+        const startRecording = () => {
           try {
             // MediaStreamDestination 생성
             const destination = audioContext!.createMediaStreamDestination()
