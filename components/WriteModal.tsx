@@ -139,7 +139,7 @@ export default function WriteModal({
     }
 
     // Firebase Storage 초기화 확인 및 강제 초기화 (재시도 포함)
-    let storageInstance = storage
+    let storageInstance: FirebaseStorage | null = storage
     let retryCount = 0
     const maxRetries = 3
 
@@ -150,7 +150,7 @@ export default function WriteModal({
         
         if (ensureFirebaseInitialized()) {
           // Storage 인스턴스 가져오기
-          storageInstance = getStorageRuntime()
+          storageInstance = getStorageRuntime() || null
           
           if (!storageInstance && retryCount < maxRetries - 1) {
             // 잠시 대기 후 재시도
@@ -237,6 +237,10 @@ export default function WriteModal({
     setUploadProgress(0)
     
     try {
+      if (!storageInstance) {
+        throw new Error('Storage 인스턴스가 초기화되지 않았습니다.')
+      }
+      
       const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
       const storagePath = `posts/${user.uid}/${type}s/${fileName}`
       const fileRef = ref(storageInstance, storagePath)
