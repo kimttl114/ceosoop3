@@ -192,7 +192,8 @@ async function mixAudio(
         await fs.unlink(tempOutput).catch(() => {})
         
         // Duration 파싱 (예: "Duration: 00:00:05.23")
-        const durationMatch = durationStderr.match(/Duration: (\d+):(\d+):(\d+)\.(\d+)/)
+        const durationStderrStr = typeof durationStderr === 'string' ? durationStderr : durationStderr.toString()
+        const durationMatch = durationStderrStr.match(/Duration: (\d+):(\d+):(\d+)\.(\d+)/)
         if (durationMatch) {
           const hours = parseInt(durationMatch[1])
           const minutes = parseInt(durationMatch[2])
