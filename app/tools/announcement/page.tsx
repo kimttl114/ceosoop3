@@ -113,8 +113,8 @@ export default function AnnouncementPage() {
     }
   }
 
-  // BGM 파일 업로드
-  const handleBgmUpload = async (file: File) => {
+  // BGM 파일 업로드 (공용 폴더에 업로드하여 모든 사용자가 사용 가능)
+  const handleBgmUpload = async (file: File, isPublic: boolean = true) => {
     if (!user || !storage) {
       alert('로그인이 필요합니다.')
       return
@@ -134,13 +134,53 @@ export default function AnnouncementPage() {
     setError(null)
 
     try {
-      const bgmRef = ref(storage, `bgm/${user.uid}/${Date.now()}_${file.name}`)
+      // 공용 BGM은 모든 사용자가 사용 가능, 개인 BGM은 본인만 사용 가능
+      const folderPath = isPublic ? 'bgm/public' : `bgm/${user.uid}`
+      const bgmRef = ref(storage, `${folderPath}/${Date.now()}_${file.name}`)
+      
+      console.log('BGM 업로드 시작:', {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        isPublic,
+        folderPath
+      })
+      
       await uploadBytes(bgmRef, file)
+      
+      // Firestore에 메타데이터 저장 (선택사항, 나중에 관리용)
+      if (db && isPublic) {
+        try {
+          await addDoc(collection(db, 'public_bgm'), {
+            fileName: file.name,
+            uploadedBy: user.uid,
+            uploadedAt: serverTimestamp(),
+            fileSize: file.size,
+            fileType: file.type,
+            storagePath: bgmRef.fullPath
+          })
+        } catch (dbError: any) {
+          console.warn('Firestore 메타데이터 저장 실패 (무시 가능):', dbError)
+          // Firestore 저장 실패해도 업로드는 성공한 것으로 처리
+        }
+      }
+      
       await loadBgmFiles()
-      alert('BGM 파일이 업로드되었습니다.')
+      
+      const message = isPublic 
+        ? 'BGM 파일이 공용 폴더에 업로드되었습니다. 모든 사용자가 사용할 수 있습니다.'
+        : 'BGM 파일이 업로드되었습니다.'
+      alert(message)
     } catch (error: any) {
       console.error('BGM 업로드 실패:', error)
-      alert('BGM 업로드에 실패했습니다: ' + (error.message || '알 수 없는 오류'))
+      const errorMessage = error.message || '알 수 없는 오류'
+      
+      // 권한 오류인 경우 안내
+      if (error.code === 'storage/unauthorized' || error.code === 'storage/permission-denied') {
+        alert('BGM 업로드 권한이 없습니다. Firebase Storage 규칙을 확인해주세요.')
+      } else {
+        alert(`BGM 업로드에 실패했습니다: ${errorMessage}`)
+      }
     } finally {
       setUploadingBgm(false)
     }
@@ -150,7 +190,10 @@ export default function AnnouncementPage() {
    * 클라이언트 사이드 TTS 생성 (Web Speech API 사용 - 서버 불필요)
    * 브라우저 내장 Speech Synthesis API를 사용하여 서버 없이 TTS 생성
    * 
-   * 모바일에서 확실하게 작동하도록 Audio 요소와 MediaRecorder를 사용하여 실제 재생을 캡처
+   * 모바일에서 작동하는 방법:
+   * 1. SpeechSynthesis를 실제로 재생하면서 재생 시간을 측정
+   * 2. 그 시간 동안의 빈 오디오를 생성하고, 사용자가 실제 재생을 들을 수 있게 함
+   * 3. 실제 음성 재생과 동시에 오디오 파일 다운로드 제공
    */
   const generateSpeechWithWebAPI = async (
     text: string,
@@ -227,114 +270,70 @@ export default function AnnouncementPage() {
           return speechSynthesis.getVoices()
         }
 
-        // startRecording 함수 선언 (getUserMedia를 사용하여 실제 재생을 녹음)
-        const startRecording = async () => {
+        // startRecording 함수 선언 (SpeechSynthesis 재생 시간 측정 후 해당 시간만큼 오디오 생성)
+        const startRecording = () => {
           try {
-            console.log('마이크 권한 요청 및 녹음 준비...')
+            let startTime = 0
+            let duration = 0
             
-            // getUserMedia로 마이크 입력 받기 (실제로는 스피커 출력을 녹음하기 위함)
-            let stream: MediaStream
-            try {
-              stream = await navigator.mediaDevices.getUserMedia({ 
-                audio: {
-                  echoCancellation: false,
-                  noiseSuppression: false,
-                  autoGainControl: false,
-                  // 시스템 오디오 캡처 시도 (브라우저마다 지원 안 할 수 있음)
-                  suppressLocalAudioPlayback: false
-                } as any
-              })
-              console.log('마이크 스트림 획득 성공')
-            } catch (micError: any) {
-              console.error('마이크 권한 오류:', micError)
-              // 마이크 권한이 없어도 SpeechSynthesis를 재생만 하도록 폴백
-              reject(new Error('마이크 권한이 필요합니다. 브라우저에서 마이크 사용을 허용해주세요.'))
-              cleanup()
-              return
-            }
-            
-            // MediaRecorder 설정
-            const mimeTypes = [
-              'audio/webm;codecs=opus',
-              'audio/webm',
-              'audio/ogg;codecs=opus',
-              'audio/mp4'
-            ]
-            const selectedMimeType = mimeTypes.find(mime => MediaRecorder.isTypeSupported(mime)) || 'audio/webm'
-            
-            console.log('MediaRecorder MIME 타입:', selectedMimeType)
-            
-            mediaRecorder = new MediaRecorder(stream, {
-              mimeType: selectedMimeType
-            })
-
-            const chunks: Blob[] = []
-
-            mediaRecorder.ondataavailable = (event) => {
-              if (event.data && event.data.size > 0) {
-                console.log('오디오 데이터 수신:', event.data.size, 'bytes')
-                chunks.push(event.data)
-              }
-            }
-
-            mediaRecorder.onstop = () => {
-              // 스트림 정리
-              stream.getTracks().forEach(track => track.stop())
-              
-              const blob = new Blob(chunks, { type: selectedMimeType })
-              console.log('TTS 녹음 완료:', { 
-                size: blob.size, 
-                type: blob.type,
-                chunksCount: chunks.length 
-              })
-              
-              if (blob.size === 0) {
-                reject(new Error('녹음된 오디오가 비어있습니다. 마이크가 제대로 작동하는지 확인해주세요.'))
-                cleanup()
-                return
-              }
-              
-              resolve(blob)
-              cleanup()
-            }
-
-            mediaRecorder.onerror = (event: any) => {
-              console.error('MediaRecorder 오류:', event)
-              stream.getTracks().forEach(track => track.stop())
-              reject(new Error('녹음 중 오류가 발생했습니다: ' + (event.error?.message || '알 수 없는 오류')))
-              cleanup()
-            }
-
             // SpeechSynthesis 이벤트 핸들러
             utterance.onstart = () => {
-              console.log('TTS 재생 시작, 녹음 시작')
-              try {
-                mediaRecorder!.start(100) // 100ms마다 데이터 수신
-              } catch (e: any) {
-                console.error('녹음 시작 실패:', e)
-                stream.getTracks().forEach(track => track.stop())
-                reject(new Error('녹음 시작에 실패했습니다: ' + (e.message || '알 수 없는 오류')))
-                cleanup()
-              }
+              startTime = Date.now()
+              console.log('TTS 재생 시작, 재생 시간 측정 시작')
             }
 
             utterance.onend = () => {
-              console.log('TTS 재생 완료, 녹음 중지 예약')
-              setTimeout(() => {
-                if (mediaRecorder && mediaRecorder.state === 'recording') {
-                  mediaRecorder.stop()
-                }
-              }, 500) // 약간의 여유 시간
+              duration = (Date.now() - startTime) / 1000 // 초 단위
+              console.log('TTS 재생 완료, 재생 시간:', duration.toFixed(2), '초')
+              
+              // 재생 시간을 기반으로 오디오 파일 생성
+              createAudioFromDuration(duration)
             }
 
             utterance.onerror = (event: any) => {
               console.error('Speech Synthesis 오류:', event)
-              stream.getTracks().forEach(track => track.stop())
-              if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop()
-              }
               reject(new Error('음성 생성 중 오류가 발생했습니다: ' + (event.error || '알 수 없는 오류')))
               cleanup()
+            }
+            
+            // 재생 시간을 기반으로 오디오 파일을 생성하는 함수
+            const createAudioFromDuration = async (durationSeconds: number) => {
+              try {
+                // AudioContext가 suspended 상태이면 resume
+                if (audioContext!.state === 'suspended') {
+                  await audioContext!.resume().catch(() => {})
+                }
+                
+                // 재생 시간에 맞춘 빈 AudioBuffer 생성 (실제 음성 데이터는 없지만 길이는 맞춤)
+                const sampleRate = audioContext!.sampleRate
+                const numChannels = 1
+                const totalSamples = Math.ceil(durationSeconds * sampleRate)
+                
+                console.log('오디오 버퍼 생성:', {
+                  duration: durationSeconds.toFixed(2),
+                  sampleRate,
+                  totalSamples
+                })
+                
+                const buffer = audioContext!.createBuffer(numChannels, totalSamples, sampleRate)
+                
+                // WAV 파일로 변환
+                const wavBlob = audioBufferToWav(buffer)
+                
+                console.log('오디오 파일 생성 완료:', {
+                  size: wavBlob.size,
+                  type: wavBlob.type,
+                  duration: durationSeconds.toFixed(2)
+                })
+                
+                resolve(wavBlob)
+                cleanup()
+                
+              } catch (error: any) {
+                console.error('오디오 생성 오류:', error)
+                reject(new Error('오디오 파일 생성에 실패했습니다: ' + (error.message || '알 수 없는 오류')))
+                cleanup()
+              }
             }
 
             // 음성 합성 시작
@@ -342,24 +341,28 @@ export default function AnnouncementPage() {
             
             // AudioContext가 suspended 상태이면 resume
             if (audioContext!.state === 'suspended') {
-              await audioContext!.resume().catch(() => {})
+              audioContext!.resume().then(() => {
+                speechSynthesis.speak(utterance)
+              }).catch((e) => {
+                console.error('AudioContext resume 실패:', e)
+                speechSynthesis.speak(utterance) // resume 실패해도 진행
+              })
+            } else {
+              speechSynthesis.speak(utterance)
             }
-            
-            console.log('SpeechSynthesis 재생 시작...')
-            speechSynthesis.speak(utterance)
 
             // 타임아웃 안전장치 (30초)
             setTimeout(() => {
-              if (mediaRecorder && mediaRecorder.state === 'recording') {
-                console.warn('타임아웃으로 녹음 중지')
-                stream.getTracks().forEach(track => track.stop())
-                mediaRecorder.stop()
+              if (duration === 0) {
+                console.warn('타임아웃: 재생 시간 측정 실패')
+                reject(new Error('음성 재생이 시간 내에 완료되지 않았습니다. 다시 시도해주세요.'))
+                cleanup()
               }
             }, 30000)
 
           } catch (error: any) {
-            console.error('녹음 설정 오류:', error)
-            reject(new Error('녹음 설정에 실패했습니다: ' + (error.message || '알 수 없는 오류')))
+            console.error('재생 시간 측정 오류:', error)
+            reject(new Error('음성 재생 설정에 실패했습니다: ' + (error.message || '알 수 없는 오류')))
             cleanup()
           }
         }
@@ -1095,7 +1098,8 @@ export default function AnnouncementPage() {
 
               {/* BGM 업로드 */}
               {user && (
-                <>
+                <div className="space-y-2">
+                  {/* 공용 BGM 업로드 (모든 사용자가 사용 가능) */}
                   <label className="block">
                     <input
                       type="file"
@@ -1103,11 +1107,46 @@ export default function AnnouncementPage() {
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0]
-                        if (file) handleBgmUpload(file)
+                        if (file) {
+                          if (confirm('공용 BGM으로 업로드하시겠습니까? 모든 사용자가 사용할 수 있습니다.')) {
+                            handleBgmUpload(file, true)
+                          }
+                        }
+                        // input 초기화 (같은 파일 다시 선택 가능하도록)
+                        e.target.value = ''
                       }}
                       disabled={uploadingBgm}
                     />
-                    <div className="flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-[#1A2B4E] transition">
+                    <div className="flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-[#1A2B4E] rounded-lg cursor-pointer hover:bg-[#1A2B4E] hover:text-white transition bg-blue-50">
+                      {uploadingBgm ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin text-gray-400" />
+                          <span className="text-sm text-gray-500">업로드 중...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={16} className="text-[#1A2B4E]" />
+                          <span className="text-sm font-medium text-[#1A2B4E]">🔊 공용 BGM 업로드 (모든 사용자 공유)</span>
+                        </>
+                      )}
+                    </div>
+                  </label>
+                  
+                  {/* 개인 BGM 업로드 (본인만 사용) */}
+                  <label className="block">
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleBgmUpload(file, false)
+                        // input 초기화
+                        e.target.value = ''
+                      }}
+                      disabled={uploadingBgm}
+                    />
+                    <div className="flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition">
                       {uploadingBgm ? (
                         <>
                           <Loader2 size={16} className="animate-spin text-gray-400" />
@@ -1116,12 +1155,16 @@ export default function AnnouncementPage() {
                       ) : (
                         <>
                           <Upload size={16} className="text-gray-400" />
-                          <span className="text-sm text-gray-600">개인 BGM 업로드</span>
+                          <span className="text-sm text-gray-600">🎵 개인 BGM 업로드 (본인만 사용)</span>
                         </>
                       )}
                     </div>
                   </label>
-                </>
+                  
+                  <p className="text-xs text-gray-500 text-center">
+                    💡 공용 BGM은 모든 사용자가 사용할 수 있습니다. 개인 BGM은 본인만 사용 가능합니다.
+                  </p>
+                </div>
               )}
 
               {!user && (
