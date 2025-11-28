@@ -147,8 +147,10 @@ export default function AnnouncementPage() {
   }
 
   /**
-   * 클라이언트 사이드 TTS 생성 (Web Speech API 사용 - Python 불필요)
+   * 클라이언트 사이드 TTS 생성 (Web Speech API 사용 - 서버 불필요)
    * 브라우저 내장 Speech Synthesis API를 사용하여 서버 없이 TTS 생성
+   * 
+   * 모바일에서 확실하게 작동하도록 Audio 요소와 MediaRecorder를 사용하여 실제 재생을 캡처
    */
   const generateSpeechWithWebAPI = async (
     text: string,
@@ -157,128 +159,255 @@ export default function AnnouncementPage() {
     gender: 'male' | 'female' | 'neutral'
   ): Promise<Blob> => {
     return new Promise((resolve, reject) => {
+      let audioContext: AudioContext | null = null
+      let mediaRecorder: MediaRecorder | null = null
+      let audioElement: HTMLAudioElement | null = null
+      let audioSource: MediaElementAudioSourceNode | null = null
+      
+      const cleanup = () => {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          try { mediaRecorder.stop() } catch {}
+        }
+        if (audioElement) {
+          audioElement.pause()
+          audioElement.src = ''
+        }
+        if (audioContext && audioContext.state !== 'closed') {
+          audioContext.close().catch(() => {})
+        }
+        speechSynthesis.cancel()
+      }
+
       try {
         // Speech Synthesis API 지원 확인
         if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
-          reject(new Error('브라우저가 음성 합성을 지원하지 않습니다.'))
+          reject(new Error('브라우저가 음성 합성을 지원하지 않습니다. Chrome 또는 Safari를 사용해주세요.'))
           return
         }
 
         console.log('Web Speech API로 TTS 생성 시작:', { text: text.substring(0, 50), lang, speed })
 
         // AudioContext 생성
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-        
-        // MediaStreamDestination 생성 (녹음용)
-        const destination = audioContext.createMediaStreamDestination()
-        
-        // MediaRecorder 설정
-        const mimeTypes = ['audio/webm', 'audio/webm;codecs=opus', 'audio/ogg;codecs=opus']
-        let selectedMimeType = mimeTypes.find(mime => MediaRecorder.isTypeSupported(mime)) || 'audio/webm'
-        
-        const mediaRecorder = new MediaRecorder(destination.stream, {
-          mimeType: selectedMimeType
-        })
-
-        const chunks: Blob[] = []
-
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data && event.data.size > 0) {
-            chunks.push(event.data)
+        try {
+          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
+          if (!AudioContextClass) {
+            throw new Error('AudioContext를 지원하지 않습니다.')
           }
+          audioContext = new AudioContextClass()
+          
+          if (audioContext.state === 'suspended') {
+            audioContext.resume().catch(() => {})
+          }
+        } catch (ctxError: any) {
+          reject(new Error('오디오 컨텍스트를 생성할 수 없습니다: ' + (ctxError.message || '알 수 없는 오류')))
+          return
         }
 
-        mediaRecorder.onstop = () => {
-          const blob = new Blob(chunks, { type: selectedMimeType })
-          console.log('TTS 녹음 완료:', { size: blob.size, type: blob.type })
-          
-          if (blob.size === 0) {
-            reject(new Error('녹음된 오디오가 비어있습니다.'))
-            return
-          }
-          
-          audioContext.close()
-          resolve(blob)
-        }
-
-        mediaRecorder.onerror = (event: any) => {
-          console.error('MediaRecorder 오류:', event)
-          reject(new Error('녹음 중 오류가 발생했습니다.'))
-          audioContext.close()
+        if (!audioContext) {
+          reject(new Error('AudioContext 생성 실패'))
+          return
         }
 
         // Speech Synthesis Utterance 생성
         const utterance = new SpeechSynthesisUtterance(text)
         
         // 언어 설정
-        utterance.lang = lang === 'ko' ? 'ko-KR' : lang === 'en' ? 'en-US' : lang
+        const langMap: Record<string, string> = {
+          'ko': 'ko-KR',
+          'en': 'en-US',
+          'ja': 'ja-JP',
+          'zh': 'zh-CN',
+          'es': 'es-ES',
+          'fr': 'fr-FR',
+          'de': 'de-DE'
+        }
+        utterance.lang = langMap[lang] || lang
         
-        // 속도 설정 (0.5 ~ 2.0, 기본 1.0)
+        // 속도 및 피치 설정
         utterance.rate = speed === 'slow' ? 0.8 : 1.0
         utterance.pitch = 1.0
+        utterance.volume = 1.0
         
-        // 음성 선택 (성별 및 언어에 따라)
-        const voices = speechSynthesis.getVoices()
-        let selectedVoice: SpeechSynthesisVoice | null = null
-
-        if (lang === 'ko') {
-          // 한국어 음성 찾기
-          const koVoices = voices.filter(v => v.lang.startsWith('ko'))
-          if (gender === 'female') {
-            selectedVoice = koVoices.find(v => v.name.includes('여') || v.name.toLowerCase().includes('female')) || koVoices[0]
-          } else if (gender === 'male') {
-            selectedVoice = koVoices.find(v => v.name.includes('남') || v.name.toLowerCase().includes('male')) || koVoices[0]
-          } else {
-            selectedVoice = koVoices[0]
+        // 음성 선택
+        const loadVoices = (): SpeechSynthesisVoice[] => {
+          return speechSynthesis.getVoices()
+        }
+        
+        // 음성 목록이 로드될 때까지 대기
+        let voices = loadVoices()
+        if (voices.length === 0) {
+          // 음성이 아직 로드되지 않았다면 이벤트 대기
+          speechSynthesis.onvoiceschanged = () => {
+            voices = loadVoices()
+            selectVoice(voices)
           }
-        } else {
-          // 다른 언어
-          const langVoices = voices.filter(v => v.lang.startsWith(lang))
-          selectedVoice = langVoices[0] || voices.find(v => v.lang.startsWith(lang.split('-')[0]))
-        }
-
-        if (selectedVoice) {
-          utterance.voice = selectedVoice
-          console.log('선택된 음성:', selectedVoice.name, selectedVoice.lang)
-        }
-
-        // SpeechSynthesis를 AudioContext와 연결
-        // Web Audio API의 MediaStreamAudioSourceNode를 사용
-        utterance.onstart = () => {
-          console.log('TTS 재생 시작')
-          mediaRecorder.start(100) // 100ms마다 데이터 수신
-        }
-
-        utterance.onend = () => {
-          console.log('TTS 재생 완료')
+          // 타임아웃 설정 (3초)
           setTimeout(() => {
-            if (mediaRecorder.state === 'recording') {
-              mediaRecorder.stop()
+            voices = loadVoices()
+            if (voices.length === 0) {
+              reject(new Error('음성 목록을 불러올 수 없습니다.'))
+              cleanup()
+              return
             }
-          }, 500) // 약간의 여유 시간
+            selectVoice(voices)
+          }, 3000)
+        } else {
+          selectVoice(voices)
         }
 
-        utterance.onerror = (event) => {
-          console.error('Speech Synthesis 오류:', event)
-          if (mediaRecorder.state === 'recording') {
-            mediaRecorder.stop()
+        function selectVoice(voices: SpeechSynthesisVoice[]) {
+          let selectedVoice: SpeechSynthesisVoice | null = null
+
+          if (lang === 'ko') {
+            const koVoices = voices.filter(v => v.lang.startsWith('ko'))
+            if (koVoices.length > 0) {
+              if (gender === 'female') {
+                selectedVoice = koVoices.find(v => 
+                  v.name.includes('여') || 
+                  v.name.toLowerCase().includes('female') ||
+                  v.name.includes('Yuna') ||
+                  v.name.includes('Sora')
+                ) || koVoices[0]
+              } else if (gender === 'male') {
+                selectedVoice = koVoices.find(v => 
+                  v.name.includes('남') || 
+                  v.name.toLowerCase().includes('male')
+                ) || koVoices[0]
+              } else {
+                selectedVoice = koVoices[0]
+              }
+            }
+          } else {
+            const langVoices = voices.filter(v => v.lang.startsWith(lang))
+            if (langVoices.length > 0) {
+              selectedVoice = langVoices[0]
+            } else {
+              // 언어 코드의 첫 부분만 매칭
+              const langPrefix = lang.split('-')[0]
+              selectedVoice = voices.find(v => v.lang.startsWith(langPrefix)) || voices[0]
+            }
           }
-          reject(new Error('음성 생성 중 오류가 발생했습니다.'))
-          audioContext.close()
+
+          if (selectedVoice) {
+            utterance.voice = selectedVoice
+            console.log('선택된 음성:', selectedVoice.name, selectedVoice.lang)
+          }
+
+          startRecording()
         }
 
-        // AudioContext를 resume (suspended 상태일 수 있음)
-        if (audioContext.state === 'suspended') {
-          audioContext.resume()
-        }
+        function startRecording() {
+          try {
+            // MediaStreamDestination 생성
+            const destination = audioContext!.createMediaStreamDestination()
+            
+            // MediaRecorder 설정
+            const mimeTypes = [
+              'audio/webm;codecs=opus',
+              'audio/webm',
+              'audio/ogg;codecs=opus',
+              'audio/mp4'
+            ]
+            const selectedMimeType = mimeTypes.find(mime => MediaRecorder.isTypeSupported(mime)) || 'audio/webm'
+            
+            console.log('MediaRecorder MIME 타입:', selectedMimeType)
+            
+            mediaRecorder = new MediaRecorder(destination.stream, {
+              mimeType: selectedMimeType
+            })
 
-        // 음성이 완전히 로드될 때까지 대기
-        speechSynthesis.cancel()
-        speechSynthesis.speak(utterance)
+            const chunks: Blob[] = []
+
+            mediaRecorder.ondataavailable = (event) => {
+              if (event.data && event.data.size > 0) {
+                chunks.push(event.data)
+              }
+            }
+
+            mediaRecorder.onstop = () => {
+              const blob = new Blob(chunks, { type: selectedMimeType })
+              console.log('TTS 녹음 완료:', { size: blob.size, type: blob.type })
+              
+              if (blob.size === 0) {
+                reject(new Error('녹음된 오디오가 비어있습니다.'))
+                cleanup()
+                return
+              }
+              
+              resolve(blob)
+              cleanup()
+            }
+
+            mediaRecorder.onerror = (event: any) => {
+              console.error('MediaRecorder 오류:', event)
+              reject(new Error('녹음 중 오류가 발생했습니다: ' + (event.error?.message || '알 수 없는 오류')))
+              cleanup()
+            }
+
+            // SpeechSynthesis 이벤트 핸들러
+            utterance.onstart = () => {
+              console.log('TTS 재생 시작')
+              try {
+                mediaRecorder!.start(100) // 100ms마다 데이터 수신
+              } catch (e: any) {
+                console.error('녹음 시작 실패:', e)
+                reject(new Error('녹음 시작에 실패했습니다: ' + (e.message || '알 수 없는 오류')))
+                cleanup()
+              }
+            }
+
+            utterance.onend = () => {
+              console.log('TTS 재생 완료')
+              setTimeout(() => {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                  mediaRecorder.stop()
+                }
+              }, 500) // 약간의 여유 시간
+            }
+
+            utterance.onerror = (event: any) => {
+              console.error('Speech Synthesis 오류:', event)
+              if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop()
+              }
+              reject(new Error('음성 생성 중 오류가 발생했습니다: ' + (event.error || '알 수 없는 오류')))
+              cleanup()
+            }
+
+            // 음성 합성 시작
+            speechSynthesis.cancel()
+            
+            // AudioContext가 suspended 상태이면 resume
+            if (audioContext!.state === 'suspended') {
+              audioContext!.resume().then(() => {
+                speechSynthesis.speak(utterance)
+              }).catch((e) => {
+                console.error('AudioContext resume 실패:', e)
+                speechSynthesis.speak(utterance) // resume 실패해도 진행
+              })
+            } else {
+              speechSynthesis.speak(utterance)
+            }
+
+            // 타임아웃 안전장치 (30초)
+            setTimeout(() => {
+              if (mediaRecorder && mediaRecorder.state === 'recording') {
+                console.warn('타임아웃으로 녹음 중지')
+                mediaRecorder.stop()
+              }
+            }, 30000)
+
+          } catch (error: any) {
+            console.error('녹음 설정 오류:', error)
+            reject(new Error('녹음 설정에 실패했습니다: ' + (error.message || '알 수 없는 오류')))
+            cleanup()
+          }
+        }
 
       } catch (error: any) {
         console.error('TTS 생성 오류:', error)
         reject(new Error('음성 생성에 실패했습니다: ' + (error.message || '알 수 없는 오류')))
+        cleanup()
       }
     })
   }
@@ -567,87 +696,36 @@ export default function AnnouncementPage() {
 
       console.log('방송 생성 시작:', { text: text.substring(0, 50), hasBgm: !!bgmUrl })
 
-      // Step 2: 서버 API 호출 - AI 목소리(Voice) 생성
-      // Python 오류가 발생하면 명확한 안내 메시지 제공
-      console.log('🔄 서버에서 TTS 생성 시도...')
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30초 타임아웃
+      // Step 2: 클라이언트 사이드 TTS 생성 (Web Speech API 사용 - 서버 불필요)
+      // 브라우저 내장 음성 합성 기능을 사용하여 서버 없이 처리
+      console.log('🔄 클라이언트에서 TTS 생성 시작 (Web Speech API)...')
       
-      let response: Response
+      let voiceBlob: Blob
       try {
-        response = await fetch('/api/generate-announcement', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            text, 
-            bgmUrl: null, // 클라이언트에서 항상 BGM을 믹싱하도록 null로 전송
-            voiceOptions: {
-              lang: voiceLang,
-              slow: voiceSpeed === 'slow',
-              tld: voiceTld,
-              gender: voiceGender
-            }
-          }),
-          signal: controller.signal,
+        voiceBlob = await generateSpeechWithWebAPI(
+          text,
+          voiceLang,
+          voiceSpeed,
+          voiceGender
+        )
+        console.log('✅ Voice 생성 완료 (Web Speech API):', {
+          size: voiceBlob.size,
+          type: voiceBlob.type
         })
-        clearTimeout(timeoutId)
-      } catch (fetchError: any) {
-        clearTimeout(timeoutId)
-        if (fetchError.name === 'AbortError') {
-          throw new Error('요청 시간이 초과되었습니다. 네트워크 연결을 확인하고 다시 시도해주세요.')
-        } else if (fetchError.message?.includes('Failed to fetch') || fetchError.message?.includes('network')) {
-          throw new Error('네트워크 오류가 발생했습니다. 인터넷 연결을 확인하고 다시 시도해주세요.')
-        }
-        throw fetchError
-      }
-
-      if (!response.ok) {
-        // 에러 응답 처리 - Python 오류를 명확히 구분
-        let errorMessage = '방송 생성에 실패했습니다.'
-        try {
-          const errorData = await response.json()
-          const errorText = JSON.stringify(errorData).toLowerCase()
-          
-          console.error('서버 API 에러:', errorData)
-          
-          // Python 관련 오류 체크
-          if (errorText.includes('python') || errorText.includes('gtts') || errorText.includes('py :')) {
-            errorMessage = '⚠️ 서버 설정이 필요합니다\n\n'
-            errorMessage += '현재 서버에서 Python이 설정되지 않았습니다.\n'
-            errorMessage += '모바일에서는 서버 설정이 필요합니다.\n\n'
-            errorMessage += '해결 방법:\n'
-            errorMessage += '1. 서버 관리자에게 문의하세요\n'
-            errorMessage += '2. 또는 PC/데스크톱에서 사용해보세요\n'
-            errorMessage += '3. 잠시 후 다시 시도해보세요'
-          } else if (errorText.includes('network') || errorText.includes('connection')) {
-            errorMessage = '네트워크 오류가 발생했습니다.\n인터넷 연결을 확인하고 다시 시도해주세요.'
-          } else {
-            errorMessage = errorData.message || errorData.error || errorMessage
-          }
-        } catch {
-          // JSON 파싱 실패 시 기본 메시지 사용
-          errorMessage = '서버에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+        
+        // 최종 Blob 검증
+        if (voiceBlob.size === 0) {
+          throw new Error('생성된 오디오 파일이 비어있습니다. 다시 시도해주세요.')
         }
         
-        throw new Error(errorMessage)
-      }
-
-      // Step 3: Voice 오디오 Blob 받기
-      const voiceBlob = await response.blob()
-      console.log('✅ Voice 생성 완료:', {
-        size: voiceBlob.size,
-        type: voiceBlob.type,
-        contentType: response.headers.get('content-type')
-      })
-      
-      // 최종 Blob 검증
-      if (voiceBlob.size === 0) {
-        throw new Error('생성된 오디오 파일이 비어있습니다. 다시 시도해주세요.')
-      }
-      
-      // 최소 크기 확인 (1KB 이상이어야 함)
-      if (voiceBlob.size < 1024) {
-        console.warn('생성된 오디오 파일이 너무 작습니다:', voiceBlob.size, 'bytes')
+        // 최소 크기 확인 (1KB 이상이어야 함)
+        if (voiceBlob.size < 1024) {
+          console.warn('생성된 오디오 파일이 너무 작습니다:', voiceBlob.size, 'bytes')
+        }
+      } catch (ttsError: any) {
+        console.error('TTS 생성 실패:', ttsError)
+        const errorMessage = ttsError.message || '음성 생성에 실패했습니다.'
+        throw new Error(`음성 생성 중 오류가 발생했습니다: ${errorMessage}\n\n브라우저가 음성 합성을 지원하지 않을 수 있습니다. 다른 브라우저(Chrome, Safari)에서 시도해보세요.`)
       }
 
       // Step 4: BGM 믹싱 (클라이언트 사이드 - 사장님 폰에서 즉석 처리)
