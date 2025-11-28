@@ -210,23 +210,44 @@ export default function AnnouncementPage() {
     }
   }
 
-  // 오디오 믹싱 (Web Audio API)
+  // 오디오 믹싱 (Web Audio API) - 모바일 최적화
   const mixAudio = async (voiceBlob: Blob, bgmUrl: string): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       try {
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+        // AudioContext 생성 (모바일 호환성 고려)
+        let audioContext: AudioContext
+        try {
+          audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+        } catch (e: any) {
+          reject(new Error('오디오 컨텍스트를 생성할 수 없습니다: ' + e.message))
+          return
+        }
+        
+        // 모바일에서 AudioContext가 suspended 상태일 수 있으므로 resume 시도
+        if (audioContext.state === 'suspended') {
+          audioContext.resume().catch((e) => {
+            console.warn('AudioContext resume 실패:', e)
+          })
+        }
         
         // Voice 오디오 로드
         const voiceUrl = URL.createObjectURL(voiceBlob)
         const voiceAudio = new Audio(voiceUrl)
+        voiceAudio.crossOrigin = 'anonymous'
         
         voiceAudio.addEventListener('loadeddata', async () => {
           try {
             // Voice 길이 확인
-            const voiceDuration = voiceAudio.duration
+            let voiceDuration = voiceAudio.duration
+            if (!voiceDuration || isNaN(voiceDuration) || voiceDuration <= 0) {
+              // Voice 길이를 가져올 수 없으면 기본값 사용
+              voiceDuration = 10
+              console.warn('Voice 길이를 확인할 수 없어 기본값 사용:', voiceDuration, '초')
+            }
 
             // BGM 오디오 로드
             const bgmAudio = new Audio(bgmUrl)
+            bgmAudio.crossOrigin = 'anonymous'
             
             bgmAudio.addEventListener('loadeddata', async () => {
               try {
@@ -234,8 +255,18 @@ export default function AnnouncementPage() {
                 bgmAudio.loop = true
                 
                 // Web Audio API로 믹싱
-                const voiceSource = audioContext.createMediaElementSource(voiceAudio)
-                const bgmSource = audioContext.createMediaElementSource(bgmAudio)
+                let voiceSource: MediaElementAudioSourceNode
+                let bgmSource: MediaElementAudioSourceNode
+                
+                try {
+                  voiceSource = audioContext.createMediaElementSource(voiceAudio)
+                  bgmSource = audioContext.createMediaElementSource(bgmAudio)
+                } catch (e: any) {
+                  reject(new Error('오디오 소스를 생성할 수 없습니다: ' + e.message))
+                  URL.revokeObjectURL(voiceUrl)
+                  audioContext.close()
+                  return
+                }
                 
                 // Gain 노드로 볼륨 조절 (Voice: 1.0, BGM: -15dB ≈ 0.178)
                 const voiceGain = audioContext.createGain()
@@ -340,21 +371,40 @@ export default function AnnouncementPage() {
                 }
                 
                 // 녹음 시작 (timeslice를 지정하여 주기적으로 데이터 수신)
-                mediaRecorder.start(100) // 100ms마다 데이터 수신
-                console.log('녹음 시작:', { duration: voiceDuration, mimeType: selectedMimeType })
+                try {
+                  mediaRecorder.start(100) // 100ms마다 데이터 수신
+                  console.log('녹음 시작:', { duration: voiceDuration, mimeType: selectedMimeType })
+                } catch (e: any) {
+                  reject(new Error('녹음 시작 실패: ' + e.message))
+                  URL.revokeObjectURL(voiceUrl)
+                  audioContext.close()
+                  return
+                }
                 
-                // 오디오 재생
-                const playPromise1 = voiceAudio.play().catch((e) => {
-                  console.error('Voice 재생 실패:', e)
-                })
-                const playPromise2 = bgmAudio.play().catch((e) => {
-                  console.error('BGM 재생 실패:', e)
-                })
+                // 오디오 재생 (모바일 호환성 고려)
+                // AudioContext가 suspended 상태이면 resume
+                if (audioContext.state === 'suspended') {
+                  audioContext.resume().catch((e) => {
+                    console.warn('AudioContext resume 실패:', e)
+                  })
+                }
                 
-                Promise.all([playPromise1, playPromise2]).catch((e) => {
-                  console.warn('오디오 재생 경고:', e)
-                  // 재생 실패해도 녹음은 계속 진행
-                })
+                // 약간의 지연 후 재생 시작 (모바일에서 안정성을 위해)
+                setTimeout(() => {
+                  const playPromise1 = voiceAudio.play().catch((e) => {
+                    console.error('Voice 재생 실패:', e)
+                    // 재생 실패해도 녹음은 계속 진행 (녹음 자체는 문제없을 수 있음)
+                  })
+                  const playPromise2 = bgmAudio.play().catch((e) => {
+                    console.error('BGM 재생 실패:', e)
+                    // 재생 실패해도 녹음은 계속 진행
+                  })
+                  
+                  Promise.all([playPromise1, playPromise2]).catch((e) => {
+                    console.warn('오디오 재생 경고:', e)
+                    // 재생 실패해도 녹음은 계속 진행
+                  })
+                }, 100)
                 
                 // Voice 길이 + 2초 후 정지
                 const stopTimeout = setTimeout(() => {
@@ -451,10 +501,10 @@ export default function AnnouncementPage() {
 
       console.log('방송 생성 시작:', { text: text.substring(0, 50), hasBgm: !!bgmUrl })
 
-      // 2. 서버 API 호출 (TTS + BGM 믹싱)
-      // 모바일에서 네트워크 타임아웃을 고려하여 긴 타임아웃 설정
+      // 2. 서버 API 호출 (TTS만 생성, BGM은 클라이언트에서 처리)
+      // 모바일에서도 확실히 작동하도록 서버에서는 Voice만 생성하고, 클라이언트에서 BGM 믹싱
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 120000) // 2분 타임아웃
+      const timeoutId = setTimeout(() => controller.abort(), 60000) // 1분 타임아웃 (Voice만 생성하므로 더 짧게)
       
       let response: Response
       try {
@@ -463,7 +513,7 @@ export default function AnnouncementPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             text, 
-            bgmUrl: bgmUrl || null,
+            bgmUrl: null, // 클라이언트에서 항상 BGM을 믹싱하도록 null로 전송
             voiceOptions: {
               lang: voiceLang,
               slow: voiceSpeed === 'slow',
@@ -498,8 +548,6 @@ export default function AnnouncementPage() {
             errorMessage = '서버에 Python이 설치되지 않았습니다.\n서버 관리자에게 문의하세요.'
           } else if (errorData.error?.includes('gtts')) {
             errorMessage = '서버에 gTTS 라이브러리가 설치되지 않았습니다.\n서버 관리자에게 문의하세요.'
-          } else if (errorData.error?.includes('FFmpeg') || errorData.error?.includes('ffmpeg')) {
-            errorMessage = 'BGM 믹싱에 실패했습니다. 목소리만 재생됩니다.\nBGM 없이 다시 시도해주세요.'
           } else if (errorData.error?.includes('network') || errorData.error?.includes('Network')) {
             errorMessage = '네트워크 오류가 발생했습니다.\n인터넷 연결을 확인하고 다시 시도해주세요.'
           }
@@ -510,13 +558,12 @@ export default function AnnouncementPage() {
         throw new Error(errorMessage)
       }
 
-      // 3. 오디오 Blob 받기
+      // 3. Voice 오디오 Blob 받기
       const voiceBlob = await response.blob()
-      console.log('서버 응답 받음:', {
+      console.log('Voice 생성 완료:', {
         size: voiceBlob.size,
         type: voiceBlob.type,
-        contentType: response.headers.get('content-type'),
-        bgmStatus: response.headers.get('x-bgm-status')
+        contentType: response.headers.get('content-type')
       })
       
       // 최종 Blob 검증
@@ -529,18 +576,14 @@ export default function AnnouncementPage() {
         console.warn('생성된 오디오 파일이 너무 작습니다:', voiceBlob.size, 'bytes')
       }
 
-      // 4. BGM이 선택되었는데 서버에서 BGM이 믹싱되지 않은 경우, 클라이언트 사이드에서 믹싱 시도
+      // 4. BGM이 선택되었으면 클라이언트에서 항상 믹싱
       let finalBlob = voiceBlob
-      const bgmStatus = response.headers.get('x-bgm-status')
       
-      // BGM이 선택되었고 서버에서 믹싱이 실패했거나 상태가 없는 경우, 클라이언트에서 재시도
-      if (bgmUrl && (bgmStatus === 'failed' || !bgmStatus)) {
-        console.log('🔄 BGM이 선택되었으나 서버에서 믹싱되지 않음, 클라이언트에서 Web Audio API로 믹싱 시도...')
-        console.log('BGM 상태:', bgmStatus || '없음')
+      if (bgmUrl) {
+        console.log('🎵 BGM이 선택됨, 클라이언트에서 Web Audio API로 믹싱 시작...')
         
         try {
           console.log('클라이언트 사이드 BGM 믹싱 시작:', { bgmUrl })
-          setIsGenerating(true) // 재믹싱 중임을 표시
           
           finalBlob = await mixAudio(voiceBlob, bgmUrl)
           
@@ -550,7 +593,8 @@ export default function AnnouncementPage() {
             ratio: (finalBlob.size / voiceBlob.size).toFixed(2)
           })
         } catch (mixError: any) {
-          console.warn('❌ 클라이언트 사이드 BGM 믹싱 실패, Voice만 사용:', mixError.message)
+          console.error('❌ 클라이언트 사이드 BGM 믹싱 실패:', mixError.message)
+          console.warn('Voice만 사용합니다.')
           // 클라이언트 믹싱 실패 시 Voice만 사용 (에러를 throw하지 않음)
           finalBlob = voiceBlob
         }
