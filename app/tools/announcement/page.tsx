@@ -472,42 +472,72 @@ export default function AnnouncementPage() {
       })
       
       // Step 3: BGM 오디오 다운로드 및 디코딩
-      console.log('BGM 오디오 다운로드 및 디코딩 중...')
+      console.log('BGM 오디오 다운로드 및 디코딩 중...', { bgmUrl })
       let bgmBuffer: AudioBuffer
       try {
-        const bgmResponse = await fetch(bgmUrl)
+        const bgmResponse = await fetch(bgmUrl, {
+          mode: 'cors',
+          cache: 'no-cache'
+        })
         if (!bgmResponse.ok) {
           throw new Error(`BGM 파일을 불러올 수 없습니다. (HTTP ${bgmResponse.status})`)
         }
         const bgmArrayBuffer = await bgmResponse.arrayBuffer()
+        console.log('BGM 파일 다운로드 완료:', { size: bgmArrayBuffer.byteLength })
+        
         bgmBuffer = await audioContext.decodeAudioData(bgmArrayBuffer.slice(0))
       } catch (bgmError: any) {
-        throw new Error('BGM 오디오를 불러오거나 디코딩할 수 없습니다. 오류: ' + (bgmError.message || '알 수 없는 오류'))
+        console.error('BGM 로드/디코딩 실패:', bgmError)
+        throw new Error('BGM 오디오를 불러오거나 디코딩할 수 없습니다. 네트워크 연결을 확인하거나 다른 BGM 파일을 선택해주세요. 오류: ' + (bgmError.message || '알 수 없는 오류'))
       }
       
       console.log('BGM 디코딩 완료:', {
         duration: bgmBuffer.duration.toFixed(2),
-        sampleRate: bgmBuffer.sampleRate
+        sampleRate: bgmBuffer.sampleRate,
+        channels: bgmBuffer.numberOfChannels
       })
       
-      // Step 4: 최종 오디오 길이 계산 (Voice + 2초 페이드아웃)
+      // Step 4: 샘플레이트 통일 (Voice와 BGM이 다를 수 있음)
+      // Voice의 샘플레이트를 기준으로 사용
+      const targetSampleRate = sampleRate
+      
+      // BGM 샘플레이트가 다르면 재샘플링 필요
+      if (bgmBuffer.sampleRate !== targetSampleRate) {
+        console.log('BGM 샘플레이트 변환 필요:', {
+          bgmSampleRate: bgmBuffer.sampleRate,
+          targetSampleRate
+        })
+        
+        // 간단한 재샘플링 (원본 샘플레이트 사용, OfflineAudioContext가 자동으로 처리)
+        // 실제로는 OfflineAudioContext가 자동으로 재샘플링해줌
+      }
+      
+      // Step 5: 최종 오디오 길이 계산 (Voice + 2초 페이드아웃)
       const targetDuration = voiceDuration + 2
-      const totalSamples = Math.ceil(targetDuration * sampleRate)
+      const totalSamples = Math.ceil(targetDuration * targetSampleRate)
       
       console.log('믹싱 파라미터:', {
         voiceDuration: voiceDuration.toFixed(2),
         targetDuration: targetDuration.toFixed(2),
-        totalSamples
+        totalSamples,
+        sampleRate: targetSampleRate,
+        channels: numChannels
       })
       
-      // Step 5: OfflineAudioContext로 오프라인 믹싱
+      // Step 6: OfflineAudioContext로 오프라인 믹싱
       try {
         offlineContext = new OfflineAudioContext(
-          sampleRate,
+          targetSampleRate, // 통일된 샘플레이트 사용
           totalSamples,
           numChannels // Voice 채널 수 사용
         )
+        console.log('OfflineAudioContext 생성 성공:', {
+          sampleRate: targetSampleRate,
+          length: totalSamples,
+          channels: numChannels
+        })
       } catch (offlineError: any) {
+        console.error('OfflineAudioContext 생성 실패:', offlineError)
         throw new Error('오프라인 오디오 컨텍스트를 생성할 수 없습니다. 브라우저가 이 기능을 지원하지 않을 수 있습니다. 오류: ' + (offlineError.message || '알 수 없는 오류'))
       }
       
@@ -525,7 +555,7 @@ export default function AnnouncementPage() {
       
       // BGM 소스 생성 (20% 볼륨, 반복 재생)
       const bgmSource = offlineContext.createBufferSource()
-      bgmSource.buffer = bgmBuffer
+      bgmSource.buffer = bgmBuffer // 샘플레이트가 다르면 OfflineAudioContext가 자동 재샘플링
       bgmSource.loop = true
       const bgmGain = offlineContext.createGain()
       bgmGain.gain.value = 0.2 // 20% 볼륨
@@ -539,29 +569,91 @@ export default function AnnouncementPage() {
       bgmSource.connect(bgmGain)
       bgmGain.connect(offlineContext.destination)
       
-      // Step 6: 오프라인 렌더링 (실제 재생 없이 처리)
-      console.log('오프라인 렌더링 시작...')
-      voiceSource.start(0)
-      bgmSource.start(0)
-      
-      const renderedBuffer = await offlineContext.startRendering()
-      
-      console.log('오프라인 렌더링 완료:', {
-        duration: renderedBuffer.duration.toFixed(2),
-        sampleRate: renderedBuffer.sampleRate,
-        channels: renderedBuffer.numberOfChannels,
-        samples: renderedBuffer.length
+      console.log('오디오 소스 연결 완료:', {
+        voiceDuration: voiceDuration.toFixed(2),
+        bgmLoop: true,
+        fadeOutStart: fadeOutStart.toFixed(2),
+        fadeOutEnd: fadeOutEnd.toFixed(2)
       })
       
-      // Step 7: AudioBuffer를 WAV Blob로 변환
-      const wavBlob = audioBufferToWav(renderedBuffer)
+      // Step 7: 오프라인 렌더링 (실제 재생 없이 처리)
+      console.log('오프라인 렌더링 시작...')
+      
+      try {
+        voiceSource.start(0)
+        bgmSource.start(0)
+        console.log('오디오 소스 재생 시작')
+      } catch (startError: any) {
+        console.error('오디오 소스 시작 실패:', startError)
+        throw new Error('오디오 재생을 시작할 수 없습니다: ' + (startError.message || '알 수 없는 오류'))
+      }
+      
+      let renderedBuffer: AudioBuffer
+      try {
+        renderedBuffer = await offlineContext.startRendering()
+        console.log('오프라인 렌더링 완료:', {
+          duration: renderedBuffer.duration.toFixed(2),
+          sampleRate: renderedBuffer.sampleRate,
+          channels: renderedBuffer.numberOfChannels,
+          samples: renderedBuffer.length
+        })
+        
+        // 렌더링된 버퍼가 비어있는지 확인
+        if (renderedBuffer.length === 0) {
+          throw new Error('렌더링된 오디오 버퍼가 비어있습니다.')
+        }
+        
+        // 실제로 오디오 데이터가 있는지 확인 (첫 채널의 일부 샘플 확인)
+        const firstChannel = renderedBuffer.getChannelData(0)
+        let hasAudio = false
+        for (let i = 0; i < Math.min(1000, firstChannel.length); i++) {
+          if (Math.abs(firstChannel[i]) > 0.001) {
+            hasAudio = true
+            break
+          }
+        }
+        
+        if (!hasAudio) {
+          console.warn('⚠️ 렌더링된 오디오에 실제 데이터가 거의 없습니다.')
+        } else {
+          console.log('✅ 렌더링된 오디오에 실제 데이터가 확인됨')
+        }
+        
+      } catch (renderError: any) {
+        console.error('오프라인 렌더링 실패:', renderError)
+        throw new Error('오디오 믹싱 렌더링에 실패했습니다: ' + (renderError.message || '알 수 없는 오류'))
+      }
+      
+      // Step 8: AudioBuffer를 WAV Blob로 변환
+      let wavBlob: Blob
+      try {
+        wavBlob = audioBufferToWav(renderedBuffer)
+        console.log('WAV 변환 완료:', {
+          size: wavBlob.size,
+          type: wavBlob.type
+        })
+        
+        if (wavBlob.size === 0) {
+          throw new Error('변환된 WAV 파일이 비어있습니다.')
+        }
+        
+        // 최소 크기 확인 (1KB 이상이어야 함)
+        if (wavBlob.size < 1024) {
+          console.warn('⚠️ 변환된 WAV 파일이 너무 작습니다:', wavBlob.size, 'bytes')
+        }
+        
+      } catch (convertError: any) {
+        console.error('WAV 변환 실패:', convertError)
+        throw new Error('오디오를 WAV 형식으로 변환하는데 실패했습니다: ' + (convertError.message || '알 수 없는 오류'))
+      }
       
       // 정리
       audioContext.close().catch(() => {})
       
       console.log('✅ 오디오 믹싱 완료:', {
         size: wavBlob.size,
-        type: wavBlob.type
+        type: wavBlob.type,
+        duration: renderedBuffer.duration.toFixed(2)
       })
       
       return wavBlob
@@ -730,9 +822,14 @@ export default function AnnouncementPage() {
       
       if (bgmUrl) {
         console.log('🎵 BGM이 선택됨, 클라이언트에서 Web Audio API로 믹싱 시작...')
+        console.log('BGM URL:', bgmUrl)
         
         try {
-          console.log('클라이언트 사이드 BGM 믹싱 시작:', { bgmUrl })
+          console.log('클라이언트 사이드 BGM 믹싱 시작:', { 
+            bgmUrl,
+            voiceSize: voiceBlob.size,
+            voiceType: voiceBlob.type
+          })
           
           // Web Audio API를 사용하여 Voice + BGM 합성
           // Voice: 100%, BGM: 20% 볼륨
@@ -742,25 +839,30 @@ export default function AnnouncementPage() {
           console.log('✅ 클라이언트 사이드 BGM 믹싱 성공:', {
             voiceSize: voiceBlob.size,
             mixedSize: finalBlob.size,
-            ratio: (finalBlob.size / voiceBlob.size).toFixed(2)
+            ratio: (finalBlob.size / voiceBlob.size).toFixed(2),
+            finalType: finalBlob.type
           })
+          
+          // 믹싱된 파일이 Voice보다 크지 않으면 문제가 있을 수 있음
+          if (finalBlob.size <= voiceBlob.size) {
+            console.warn('⚠️ 믹싱된 파일 크기가 예상보다 작습니다. BGM이 제대로 믹싱되지 않았을 수 있습니다.')
+          }
         } catch (mixError: any) {
           console.error('❌ 클라이언트 사이드 BGM 믹싱 실패:', mixError)
-          console.warn('Voice만 사용합니다.')
-          
-          // 사용자에게 BGM 믹싱 실패를 알림
-          const mixErrorMessage = mixError.message || '알 수 없는 오류'
-          console.warn('BGM 믹싱 실패 상세:', {
-            error: mixErrorMessage,
+          console.error('BGM 믹싱 실패 상세:', {
+            error: mixError.message,
+            stack: mixError.stack,
             bgmUrl,
             voiceSize: voiceBlob.size
           })
           
-          // 클라이언트 믹싱 실패 시 Voice만 사용 (에러를 throw하지 않음)
-          // 단, 사용자에게 알림을 표시
-          setError(`⚠️ BGM 믹싱에 실패했습니다. Voice만 사용합니다.\n\n오류: ${mixErrorMessage}\n\nVoice 오디오는 정상적으로 생성되었습니다.`)
+          // 사용자에게 BGM 믹싱 실패를 알림하되, Voice는 사용 가능
+          const mixErrorMessage = mixError.message || '알 수 없는 오류'
+          setError(`⚠️ BGM 믹싱에 실패했습니다. Voice만 재생됩니다.\n\n오류: ${mixErrorMessage}\n\nVoice 오디오는 정상적으로 생성되었습니다. BGM 없이 사용할 수 있습니다.`)
           finalBlob = voiceBlob
         }
+      } else {
+        console.log('BGM이 선택되지 않음, Voice만 사용')
       }
 
       // 5. 결과 표시
