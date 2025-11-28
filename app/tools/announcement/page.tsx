@@ -515,11 +515,29 @@ export default function AnnouncementPage() {
       const sampleRate = voiceBuffer.sampleRate
       const numChannels = voiceBuffer.numberOfChannels
       
+      // Voice 오디오에 실제 데이터가 있는지 확인
+      const channelData = voiceBuffer.getChannelData(0)
+      let maxAmplitude = 0
+      const checkStep = Math.max(1, Math.floor(channelData.length / 1000))
+      for (let i = 0; i < channelData.length; i += checkStep) {
+        const absValue = Math.abs(channelData[i])
+        if (absValue > maxAmplitude) {
+          maxAmplitude = absValue
+        }
+      }
+      
       console.log('Voice 디코딩 완료:', {
         duration: voiceDuration.toFixed(2),
         sampleRate,
-        channels: numChannels
+        channels: numChannels,
+        maxAmplitude: maxAmplitude.toFixed(6),
+        hasData: maxAmplitude > 0.01
       })
+      
+      // Voice가 비어있으면 에러
+      if (maxAmplitude <= 0.01) {
+        throw new Error('음성 오디오에 실제 데이터가 없습니다. 서버 API를 사용하거나 다시 시도해주세요.')
+      }
       
       // Step 3: BGM 오디오 다운로드 및 디코딩
       console.log('BGM 오디오 다운로드 및 디코딩 중...', { bgmUrl })
@@ -742,6 +760,43 @@ export default function AnnouncementPage() {
     }
   }
   
+  // Voice 오디오가 실제 데이터를 가지고 있는지 확인하는 함수
+  const checkVoiceAudioData = async (voiceBlob: Blob): Promise<boolean> => {
+    try {
+      const audioContext = new AudioContext()
+      const arrayBuffer = await voiceBlob.arrayBuffer()
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+      
+      // 채널 데이터 확인
+      const channelData = audioBuffer.getChannelData(0)
+      let maxAmplitude = 0
+      
+      // 샘플 중 일부만 체크 (성능 최적화)
+      const step = Math.max(1, Math.floor(channelData.length / 1000))
+      for (let i = 0; i < channelData.length; i += step) {
+        const absValue = Math.abs(channelData[i])
+        if (absValue > maxAmplitude) {
+          maxAmplitude = absValue
+        }
+      }
+      
+      audioContext.close().catch(() => {})
+      
+      // 최대 진폭이 0.01보다 크면 데이터가 있다고 판단
+      const hasData = maxAmplitude > 0.01
+      console.log('Voice 오디오 데이터 확인:', { 
+        maxAmplitude: maxAmplitude.toFixed(6),
+        hasData,
+        samples: channelData.length
+      })
+      
+      return hasData
+    } catch (error) {
+      console.error('Voice 오디오 데이터 확인 실패:', error)
+      return false
+    }
+  }
+
   // AudioBuffer를 WAV Blob로 변환하는 헬퍼 함수
   const audioBufferToWav = (buffer: AudioBuffer): Blob => {
     const numChannels = buffer.numberOfChannels
@@ -862,14 +917,43 @@ export default function AnnouncementPage() {
 
         if (response.ok) {
           voiceBlob = await response.blob()
-          console.log('✅ 서버 API TTS 생성 성공:', { size: voiceBlob.size, type: voiceBlob.type })
+          const contentType = response.headers.get('content-type') || 'unknown'
+          console.log('✅ 서버 API TTS 생성 성공:', { 
+            size: voiceBlob.size, 
+            type: voiceBlob.type,
+            contentType,
+            status: response.status
+          })
+          
+          // 서버에서 생성된 오디오가 너무 작으면 문제가 있을 수 있음
+          if (voiceBlob.size < 1000) {
+            console.warn('⚠️ 서버에서 생성된 오디오가 너무 작습니다:', voiceBlob.size, 'bytes')
+          }
         } else {
           const errorData = await response.json().catch(() => ({}))
-          console.warn('⚠️ 서버 API TTS 생성 실패, 클라이언트로 폴백:', errorData.error || response.statusText)
+          const errorMsg = errorData.error || errorData.message || response.statusText
+          console.warn('⚠️ 서버 API TTS 생성 실패, 클라이언트로 폴백:', {
+            status: response.status,
+            error: errorMsg,
+            details: errorData.details
+          })
+          
+          // 서버 오류 상세 정보를 사용자에게 표시
+          if (errorData.message && errorData.message.includes('Python') || errorData.message.includes('gTTS')) {
+            setError(`⚠️ 서버 설정 필요: ${errorData.message}\n\n클라이언트 Web Speech API로 시도합니다.`)
+          }
           voiceBlob = null
         }
       } catch (serverError: any) {
-        console.warn('⚠️ 서버 API 호출 실패, 클라이언트로 폴백:', serverError.message)
+        console.warn('⚠️ 서버 API 호출 실패, 클라이언트로 폴백:', {
+          message: serverError.message,
+          stack: serverError.stack
+        })
+        
+        // 네트워크 오류인 경우 사용자에게 안내
+        if (serverError.message?.includes('Failed to fetch') || serverError.message?.includes('Network')) {
+          console.warn('네트워크 오류 감지, 클라이언트로 폴백')
+        }
         voiceBlob = null
       }
       
@@ -903,31 +987,18 @@ export default function AnnouncementPage() {
           throw new Error(`음성 생성 중 오류가 발생했습니다: ${errorMessage}\n\n브라우저가 음성 합성을 지원하지 않을 수 있습니다. 다른 브라우저(Chrome, Safari)에서 시도해보세요.`)
         }
       }
-      try {
-        voiceBlob = await generateSpeechWithWebAPI(
-          text,
-          voiceLang,
-          voiceSpeed,
-          voiceGender
-        )
-        console.log('✅ Voice 생성 완료 (Web Speech API):', {
-          size: voiceBlob.size,
-          type: voiceBlob.type
-        })
-        
-        // 최종 Blob 검증
-        if (voiceBlob.size === 0) {
-          throw new Error('생성된 오디오 파일이 비어있습니다. 다시 시도해주세요.')
-        }
-        
-        // 최소 크기 확인 (1KB 이상이어야 함)
-        if (voiceBlob.size < 1024) {
-          console.warn('생성된 오디오 파일이 너무 작습니다:', voiceBlob.size, 'bytes')
-        }
-      } catch (ttsError: any) {
-        console.error('TTS 생성 실패:', ttsError)
-        const errorMessage = ttsError.message || '음성 생성에 실패했습니다.'
-        throw new Error(`음성 생성 중 오류가 발생했습니다: ${errorMessage}\n\n브라우저가 음성 합성을 지원하지 않을 수 있습니다. 다른 브라우저(Chrome, Safari)에서 시도해보세요.`)
+      
+      // Voice 오디오 유효성 검사
+      if (!voiceBlob) {
+        throw new Error('음성 생성에 실패했습니다. 서버 설정을 확인하거나 브라우저를 새로고침한 후 다시 시도해주세요.')
+      }
+      
+      // Voice 오디오가 실제 데이터를 가지고 있는지 확인
+      // Web Speech API로 생성된 경우 빈 오디오일 수 있음
+      const voiceHasData = await checkVoiceAudioData(voiceBlob)
+      if (!voiceHasData) {
+        console.warn('⚠️ Voice 오디오에 실제 데이터가 거의 없습니다. BGM만 재생될 수 있습니다.')
+        setError('⚠️ 경고: 음성 오디오에 실제 데이터가 없습니다. 서버 API를 사용하거나 다른 브라우저에서 시도해주세요.')
       }
 
       // Step 4: BGM 믹싱 (클라이언트 사이드 - 사장님 폰에서 즉석 처리)
@@ -945,6 +1016,12 @@ export default function AnnouncementPage() {
             voiceType: voiceBlob.type
           })
           
+          // Voice가 실제 데이터를 가지고 있는지 재확인
+          if (!voiceHasData) {
+            console.error('❌ Voice 오디오에 실제 데이터가 없어 BGM과 제대로 믹싱할 수 없습니다.')
+            throw new Error('음성 오디오에 실제 데이터가 없습니다. 서버 API 설정을 확인하거나 다른 브라우저에서 시도해주세요.')
+          }
+          
           // Web Audio API를 사용하여 Voice + BGM 합성
           // Voice: 100%, BGM: 20% 볼륨
           // 목소리 끝나면 BGM 페이드아웃 후 2초 뒤 종료
@@ -960,6 +1037,7 @@ export default function AnnouncementPage() {
           // 믹싱된 파일이 Voice보다 크지 않으면 문제가 있을 수 있음
           if (finalBlob.size <= voiceBlob.size) {
             console.warn('⚠️ 믹싱된 파일 크기가 예상보다 작습니다. BGM이 제대로 믹싱되지 않았을 수 있습니다.')
+            setError('⚠️ 경고: BGM과 음성이 제대로 합쳐지지 않았을 수 있습니다. 서버 API를 사용하거나 다시 시도해주세요.')
           }
         } catch (mixError: any) {
           console.error('❌ 클라이언트 사이드 BGM 믹싱 실패:', mixError)
