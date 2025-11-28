@@ -136,8 +136,9 @@ except Exception as e:
     }
 
     // stderr에 에러 메시지가 있는지 확인
-    if (stderr && stderr.includes('ERROR:')) {
-      throw new Error(`TTS 생성 실패: ${stderr}`)
+    const stderrStr = typeof stderr === 'string' ? stderr : (stderr ? stderr.toString() : '')
+    if (stderrStr && stderrStr.includes('ERROR:')) {
+      throw new Error(`TTS 생성 실패: ${stderrStr}`)
     }
   } catch (error: any) {
     console.error('TTS 생성 오류 상세:', error)
@@ -276,18 +277,19 @@ async function mixAudio(
     } as any)
     
     // FFmpeg는 stderr에 정보를 출력하므로 확인
-    if (stderr) {
-      const lowerStderr = stderr.toLowerCase()
+    const stderrStr = typeof stderr === 'string' ? stderr : (stderr ? stderr.toString() : '')
+    if (stderrStr) {
+      const lowerStderr = stderrStr.toLowerCase()
       // 실제 에러만 체크 (일반 정보 메시지 제외)
       if (lowerStderr.includes('error') && 
           !lowerStderr.includes('stream #') && 
           !lowerStderr.includes('output #') &&
           !lowerStderr.includes('duration:')) {
-        console.error('FFmpeg 오류:', stderr.substring(0, 2000))
+        console.error('FFmpeg 오류:', stderrStr.substring(0, 2000))
         throw new Error('FFmpeg 오디오 처리 중 오류 발생')
       }
       // 정상적인 정보 출력은 로그만 남기기
-      console.log('FFmpeg 실행 완료 (stderr 정보):', stderr.split('\n').slice(0, 5).join(' | '))
+      console.log('FFmpeg 실행 완료 (stderr 정보):', stderrStr.split('\n').slice(0, 5).join(' | '))
     }
     
     // 출력 파일 확인
