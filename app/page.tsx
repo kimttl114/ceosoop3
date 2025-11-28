@@ -35,7 +35,6 @@ const boardCategories = [
   { value: '빌런박제소', label: '❓ 빌런박제소', emoji: '❓' },
   { value: '유머 & 이슈', label: '유머 & 이슈', emoji: '' },
   { value: '비틱방(자랑방)', label: '🥕 비틱방', emoji: '🥕' },
-  { value: '결정장애', label: '💭 결정장애', emoji: '💭' },
 ]
 
 // 업종 목록 (글쓰기 모달용)
@@ -57,7 +56,6 @@ export default function Home() {
   const [userRegion, setUserRegion] = useState<string>('')
   const [userBusinessType, setUserBusinessType] = useState<string>('치킨')
   const [posts, setPosts] = useState<any[]>([])
-  const [polls, setPolls] = useState<any[]>([])
   const [selectedCategory, setSelectedCategory] = useState('베스트')
   const [isWriteMode, setIsWriteMode] = useState(false)
   const [unreadMessageCount, setUnreadMessageCount] = useState(0)
@@ -109,23 +107,6 @@ export default function Home() {
     return found ? found.emoji : '🏪'
   }
 
-  // 투표 마감까지 남은 시간
-  const getPollTimeRemaining = (deadline: any) => {
-    if (!deadline) return ''
-    const now = new Date()
-    const deadlineDate = deadline.toDate ? deadline.toDate() : new Date(deadline)
-    const diff = deadlineDate.getTime() - now.getTime()
-    if (diff <= 0) return '마감됨'
-    const hours = Math.floor(diff / (1000 * 60 * 60))
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-    if (hours < 1) {
-      if (minutes < 1) return '마감 임박'
-      return `${minutes}분 남음`
-    }
-    if (hours < 24) return `${hours}시간 남음`
-    const days = Math.floor(hours / 24)
-    return `${days}일 남음`
-  }
 
   // 1. 로그인 상태 확인 및 아바타 설정 불러오기
   useEffect(() => {
@@ -239,88 +220,6 @@ export default function Home() {
     return () => unsubscribe()
   }, [db]) // userAvatars dependency 제거
 
-  // 2-2. 투표 목록 불러오기 (실시간 업데이트)
-  useEffect(() => {
-    if (!db) return
-
-    const q = query(collection(db, 'decision_polls'), orderBy('createdAt', 'desc'))
-
-    const unsubscribe = onSnapshot(
-      q,
-      async (snapshot) => {
-        const now = new Date()
-        const pollList = snapshot.docs
-          .map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-            type: 'poll' as const,
-          }))
-          .filter((poll: any) => {
-            // 활성 상태만 필터링
-            if (poll.status === 'closed') return false
-            if (poll.deadline) {
-              const deadline = poll.deadline.toDate ? poll.deadline.toDate() : new Date(poll.deadline)
-              if (deadline < now) return false
-            }
-            return true
-          })
-        
-        setPolls(pollList)
-
-        // 투표 작성자의 아바타 가져오기
-        const userIds = pollList.map((poll: any) => poll.authorId).filter(Boolean) as string[]
-        const uniqueUserIds = Array.from(new Set(userIds))
-        
-        setUserAvatars((prevAvatars) => {
-          const avatarPromises = uniqueUserIds.map(async (uid: string) => {
-            if (prevAvatars[uid] && prevAvatars[uid] !== null && prevAvatars[uid] !== '') {
-              return null
-            }
-            try {
-              const userRef = doc(db, 'users', uid)
-              const userSnap = await getDoc(userRef)
-              if (userSnap.exists()) {
-                const userData = userSnap.data()
-                const avatarUrl = userData.avatarUrl || null
-                if (avatarUrl && avatarUrl.trim() !== '') {
-                  return { uid, avatarUrl }
-                }
-              }
-            } catch (error) {
-              console.error(`사용자 ${uid} 아바타 불러오기 오류:`, error)
-            }
-            return null
-          })
-
-          Promise.all(avatarPromises).then((avatarResults) => {
-            const newAvatars: Record<string, string> = {}
-            avatarResults.forEach((result) => {
-              if (result && result.avatarUrl) {
-                newAvatars[result.uid] = result.avatarUrl
-              }
-            })
-            if (Object.keys(newAvatars).length > 0) {
-              setUserAvatars((current) => {
-                const updated = { ...current }
-                Object.keys(newAvatars).forEach((uid) => {
-                  if (!updated[uid] || updated[uid] === '') {
-                    updated[uid] = newAvatars[uid]
-                  }
-                })
-                return updated
-              })
-            }
-          })
-
-          return prevAvatars
-        })
-      },
-      (error) => {
-        console.error('투표 목록 불러오기 오류:', error)
-      }
-    )
-    return () => unsubscribe()
-  }, [db])
 
   // 3. 안읽은 쪽지 개수 불러오기
   useEffect(() => {
@@ -489,25 +388,19 @@ export default function Home() {
   }
 
   // 필터링된 글 목록 및 정렬
-  const allItems = [
-    ...posts.map((post) => ({ ...post, type: 'post' as const, sortTime: post.timestamp })),
-    ...polls.map((poll) => ({ ...poll, type: 'poll' as const, sortTime: poll.createdAt })),
-  ].sort((a, b) => {
-    // 생성 시간 기준 내림차순 정렬
-    const timeA = a.sortTime?.toDate ? a.sortTime.toDate() : new Date(a.sortTime || 0)
-    const timeB = b.sortTime?.toDate ? b.sortTime.toDate() : new Date(b.sortTime || 0)
-    return timeB.getTime() - timeA.getTime()
-  })
+  const allItems = posts
+    .map((post) => ({ ...post, sortTime: post.timestamp }))
+    .sort((a, b) => {
+      // 생성 시간 기준 내림차순 정렬
+      const timeA = a.sortTime?.toDate ? a.sortTime.toDate() : new Date(a.sortTime || 0)
+      const timeB = b.sortTime?.toDate ? b.sortTime.toDate() : new Date(b.sortTime || 0)
+      return timeB.getTime() - timeA.getTime()
+    })
 
   // 카테고리별 게시글 필터링 함수
   const getPostsByCategory = (category: string, limitCount: number = 10) => {
     return allItems
       .filter((item: any) => {
-        if (item.type === 'poll') {
-          // 결정장애 카테고리에서만 투표글 표시
-          return category === '결정장애'
-        }
-        
         const postCategory = item.category || '잡담'
         if (category === '베스트') {
           return postCategory === '베스트' || (item.likes && item.likes >= 10)
@@ -712,7 +605,7 @@ export default function Home() {
                         </span>
                       </div>
                       <Link
-                        href={category.value === '베스트' ? '/' : `/polls?category=${encodeURIComponent(category.value)}`}
+                        href={category.value === '베스트' ? '/' : `/?category=${encodeURIComponent(category.value)}`}
                         className="text-xs text-gray-600 hover:text-gray-900 font-medium"
                       >
                         더보기 →
@@ -740,7 +633,7 @@ export default function Home() {
                           return (
                             <Link
                               key={item.id}
-                              href={item.type === 'poll' ? `/polls/${item.id}` : `/post/${item.id}`}
+                              href={`/post/${item.id}`}
                               className="block border-b border-gray-200 hover:bg-gray-50 transition-colors last:border-b-0"
                             >
                               {/* 모바일 레이아웃 */}
@@ -748,9 +641,6 @@ export default function Home() {
                                 <div className="flex items-start gap-2">
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
-                                      {item.type === 'poll' && (
-                                        <span className="flex-shrink-0 text-xs text-blue-600 font-bold">🗳️</span>
-                                      )}
                                       <span className="font-medium text-sm text-gray-900 line-clamp-2 flex-1">
                                         {item.title}
                                       </span>
@@ -765,12 +655,7 @@ export default function Home() {
                                       <span>•</span>
                                       <span>{formatRelativeTime(item.timestamp || item.createdAt)}</span>
                                       <span>•</span>
-                                      <span>
-                                        {item.type === 'poll' 
-                                          ? `${(item.optionA?.votes || 0) + (item.optionB?.votes || 0)}명`
-                                          : `${item.likes || 0}`
-                                        }
-                                      </span>
+                                      <span>{item.likes || 0}</span>
                                       {item.comments > 0 && (
                                         <>
                                           <span>•</span>
@@ -826,9 +711,6 @@ export default function Home() {
                                 {/* 제목 */}
                                 <div className="col-span-6 min-w-0">
                                   <div className="flex items-center gap-2">
-                                    {item.type === 'poll' && (
-                                      <span className="flex-shrink-0 text-[10px] text-blue-600 font-bold">🗳️</span>
-                                    )}
                                     <span className="font-medium text-gray-900 truncate">
                                       {item.title}
                                     </span>
@@ -889,10 +771,7 @@ export default function Home() {
                                 
                                 {/* 조회수 */}
                                 <div className="col-span-1 text-center text-xs text-gray-500">
-                                  {item.type === 'poll' 
-                                    ? ((item.optionA?.votes || 0) + (item.optionB?.votes || 0))
-                                    : (item.likes || 0)
-                                  }
+                                  {item.likes || 0}
                                 </div>
                               </div>
                             </Link>
@@ -907,40 +786,6 @@ export default function Home() {
             
             {/* 오른쪽 사이드바 - eToLand 스타일 */}
             <div className="lg:col-span-1 space-y-4">
-              {/* 투표 섹션 */}
-              <div className="bg-white border border-gray-200">
-                <div className="px-3 py-2 bg-gray-100 border-b border-gray-200">
-                  <h3 className="font-bold text-sm text-gray-900">투표 | 이벤트</h3>
-                </div>
-                <div className="p-3">
-                  {polls.length > 0 ? (
-                    <div className="space-y-2">
-                      {polls.slice(0, 5).map((poll: any) => {
-                        const totalVotes = (poll.optionA?.votes || 0) + (poll.optionB?.votes || 0)
-                        return (
-                          <Link
-                            key={poll.id}
-                            href={`/polls/${poll.id}`}
-                            className="block p-2 border border-gray-200 hover:bg-gray-50 transition-colors"
-                          >
-                            <h4 className="font-medium text-xs text-gray-900 mb-1 line-clamp-2">
-                              {poll.title}
-                            </h4>
-                            <div className="flex items-center justify-between text-[10px] text-gray-500">
-                              <span>{poll.authorName || '익명'}</span>
-                              <span>{totalVotes}명</span>
-                            </div>
-                          </Link>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-500 text-center py-4">
-                      진행 중인 투표가 없습니다
-                    </p>
-                  )}
-                </div>
-              </div>
 
               {/* 포인트 랭킹 */}
               <div className="bg-white border border-gray-200">

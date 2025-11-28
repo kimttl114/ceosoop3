@@ -5,7 +5,7 @@ import { auth, db, storage } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL, FirebaseStorage } from 'firebase/storage'
-import { Upload, FileText, X, ArrowLeft, ArrowRight, Eye, Check, Video, Image as ImageIcon } from 'lucide-react'
+import { Upload, FileText, X, ArrowLeft, ArrowRight, Check, Video, Image as ImageIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 // 블라인드 스타일 카테고리
@@ -16,7 +16,6 @@ const blindCategories = [
   { value: '빌런박제소', label: '❓빌런박제소', emoji: '❓' },
   { value: '유머 & 이슈', label: '유머 & 이슈', emoji: '' },
   { value: '비틱방(자랑방)', label: '비틱방(자랑방)', emoji: '🥕' },
-  { value: '결정장애', label: '💭결정장애', emoji: '💭' },
 ]
 
 // 업종 목록
@@ -43,7 +42,7 @@ interface WriteModalProps {
   defaultRegion?: string
 }
 
-type DetailedStep = 1 | 2 | 3
+type DetailedStep = 1 | 2
 
 export default function WriteModal({
   isOpen,
@@ -503,14 +502,8 @@ export default function WriteModal({
   const handleNextStep = useCallback(() => {
     if (detailedStep === 1) {
       setDetailedStep(2)
-    } else if (detailedStep === 2) {
-      if (!content.trim()) {
-        alert('본문을 입력해주세요')
-        return
-      }
-      setDetailedStep(3)
     }
-  }, [detailedStep, content])
+  }, [detailedStep])
 
   // 이전 단계로
   const handlePrevStep = useCallback(() => {
@@ -520,20 +513,6 @@ export default function WriteModal({
   }, [detailedStep])
 
 
-  // 미리보기 데이터 (useMemo로 메모이제이션)
-  const previewData = useMemo(() => {
-    if (detailedStep !== 3) return null
-    
-    const business = defaultBusinessType || userBusinessType || '치킨'
-    const category = businessCategories.find(c => c.value === business)
-    const categoryInfo = blindCategories.find(cat => cat.value === postCategory)
-    
-    return {
-      business: category ? `${category.emoji} ${business}` : business,
-      categoryLabel: categoryInfo?.label || postCategory,
-      categoryEmoji: categoryInfo?.emoji || '',
-    }
-  }, [detailedStep, defaultBusinessType, userBusinessType, postCategory])
 
   if (!isOpen) return null
 
@@ -541,15 +520,30 @@ export default function WriteModal({
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end">
         <div className="bg-white w-full rounded-t-3xl p-6 h-[85vh] overflow-y-auto">
-          {/* 헤더 */}
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-gray-900">글쓰기</h2>
-            <button
-              onClick={handleClose}
-              className="text-2xl text-gray-400 hover:text-gray-600 transition"
-            >
-              ✕
-            </button>
+          {/* 헤더 - 등록 버튼 포함 */}
+          <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200 sticky top-0 bg-white z-10 -mx-6 px-6">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">글쓰기</h2>
+            <div className="flex items-center gap-2">
+              {/* Step 2에서만 등록 버튼 표시 */}
+              {detailedStep === 2 && (
+                <button
+                  onClick={handleDetailedWrite}
+                  disabled={!content.trim() || uploading}
+                  className="px-4 py-2.5 bg-[#1A2B4E] text-white rounded-lg font-bold hover:bg-[#1A2B4E]/90 active:bg-[#1A2B4E]/80 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm sm:text-base whitespace-nowrap"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <Check size={18} />
+                  <span>등록하기</span>
+                </button>
+              )}
+              <button
+                onClick={handleClose}
+                className="text-2xl text-gray-400 hover:text-gray-600 active:text-gray-800 transition"
+                aria-label="닫기"
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
           {/* 작성 모드 */}
@@ -565,16 +559,9 @@ export default function WriteModal({
                 <div className={`flex-1 h-0.5 ${detailedStep >= 2 ? 'bg-[#1A2B4E]' : 'bg-gray-200'}`} />
                 <div className={`flex items-center gap-2 ${detailedStep >= 2 ? 'text-[#1A2B4E]' : 'text-gray-300'}`}>
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${detailedStep >= 2 ? 'bg-[#1A2B4E] text-white' : 'bg-gray-200 text-gray-400'}`}>
-                    {detailedStep > 2 ? <Check size={16} /> : '2'}
+                    2
                   </div>
                   <span className="text-sm font-medium">내용 작성</span>
-                </div>
-                <div className={`flex-1 h-0.5 ${detailedStep >= 3 ? 'bg-[#1A2B4E]' : 'bg-gray-200'}`} />
-                <div className={`flex items-center gap-2 ${detailedStep >= 3 ? 'text-[#1A2B4E]' : 'text-gray-300'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${detailedStep >= 3 ? 'bg-[#1A2B4E] text-white' : 'bg-gray-200 text-gray-400'}`}>
-                    3
-                  </div>
-                  <span className="text-sm font-medium">미리보기</span>
                 </div>
               </div>
 
@@ -797,107 +784,6 @@ export default function WriteModal({
                     >
                       <ArrowLeft size={18} />
                       이전
-                    </button>
-                    <button
-                      onClick={handleNextStep}
-                      disabled={!content.trim()}
-                      className="flex-1 px-4 py-3 bg-[#1A2B4E] text-white rounded-xl font-medium hover:bg-[#1A2B4E]/90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      미리보기
-                      <Eye size={18} />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 3: 미리보기 */}
-              {detailedStep === 3 && previewData && (
-                <div className="space-y-4">
-                  <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
-                        <span className="text-gray-600 text-sm">👤</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-semibold text-sm text-gray-900">
-                          {userAnonymousName || '익명의 사장님'}
-                        </div>
-                        <div className="text-xs text-gray-500">방금 전</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {postCategory && (
-                          <span className="px-2 py-1 bg-[#1A2B4E] text-white text-xs font-medium rounded-full">
-                            {previewData.categoryEmoji} {previewData.categoryLabel}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {defaultRegion && (
-                        <span className="text-xs font-semibold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full">
-                          {defaultRegion}
-                        </span>
-                      )}
-                      <span className="text-xs font-semibold bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full">
-                        {previewData.business}
-                      </span>
-                    </div>
-
-                    <h3 className="font-bold text-lg text-gray-900 mb-2">
-                      {title || '제목 없음'}
-                    </h3>
-
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap mb-3">
-                      {content}
-                    </p>
-
-                    {/* 미디어 미리보기 */}
-                    {uploadedImages.length > 0 && (
-                      <div className="grid grid-cols-2 gap-2 mb-3">
-                        {uploadedImages.map((url, index) => (
-                          <img
-                            key={`img-${index}`}
-                            src={url}
-                            alt={`미리보기 이미지 ${index + 1}`}
-                            className="w-full h-32 object-cover rounded-lg"
-                          />
-                        ))}
-                      </div>
-                    )}
-                    {uploadedVideos.length > 0 && (
-                      <div className="grid grid-cols-1 gap-2 mb-3">
-                        {uploadedVideos.map((url, index) => (
-                          <video
-                            key={`vid-${index}`}
-                            src={url}
-                            controls
-                            className="w-full rounded-lg"
-                          />
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-4 text-xs text-gray-400 pt-3 border-t border-gray-200">
-                      <span>❤️ 0</span>
-                      <span>💬 0</span>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <button
-                      onClick={handlePrevStep}
-                      className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition flex items-center justify-center gap-2"
-                    >
-                      <ArrowLeft size={18} />
-                      수정
-                    </button>
-                    <button
-                      onClick={handleDetailedWrite}
-                      className="flex-1 px-4 py-3 bg-[#1A2B4E] text-white rounded-xl font-bold hover:bg-[#1A2B4E]/90 transition shadow-lg flex items-center justify-center gap-2"
-                    >
-                      <Check size={18} />
-                      등록하기
                     </button>
                   </div>
                 </div>

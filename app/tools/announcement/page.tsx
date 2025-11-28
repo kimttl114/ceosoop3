@@ -22,8 +22,6 @@ export default function AnnouncementPage() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [uploadingBgm, setUploadingBgm] = useState(false)
-  const [localBgmFiles, setLocalBgmFiles] = useState<string[]>([])
-  const [uploadingPublicBgm, setUploadingPublicBgm] = useState(false)
   const audioRef = useRef<HTMLAudioElement>(null)
   const [volume, setVolume] = useState(1)
   
@@ -45,164 +43,7 @@ export default function AnnouncementPage() {
   // BGM 파일 목록 불러오기
   useEffect(() => {
     loadBgmFiles()
-    loadLocalBgmFiles()
   }, [user])
-
-  // 로컬 BGM 파일 목록 불러오기
-  const loadLocalBgmFiles = async () => {
-    try {
-      const response = await fetch('/api/upload-public-bgm')
-      if (response.ok) {
-        const data = await response.json()
-        setLocalBgmFiles(data.files || [])
-      }
-    } catch (error) {
-      console.error('로컬 BGM 목록 불러오기 실패:', error)
-    }
-  }
-
-  // 로컬 BGM을 공용으로 업로드
-  const handleUploadLocalBgm = async (fileName?: string) => {
-    if (localBgmFiles.length === 0) {
-      alert('업로드할 로컬 BGM 파일이 없습니다.')
-      return
-    }
-
-    let targetFileName: string | null | undefined = fileName
-
-    // "all" 처리 (파일명이 아니므로 먼저 체크)
-    if (targetFileName && targetFileName.toLowerCase() === 'all') {
-      targetFileName = null // prompt로 처리하도록
-    }
-
-    if (!targetFileName) {
-      // 파일 선택 UI
-      const fileList = localBgmFiles.join('\n')
-      const promptResult = prompt(
-        `업로드할 파일명을 입력하세요:\n\n${fileList}\n\n(모든 파일을 업로드하려면 "all" 입력)`,
-        localBgmFiles[0]
-      )
-      targetFileName = promptResult
-
-      if (!targetFileName) {
-        return
-      }
-
-      // 모든 파일 업로드
-      if (targetFileName.toLowerCase() === 'all') {
-        setUploadingPublicBgm(true)
-        let successCount = 0
-        let failCount = 0
-        const failedFiles: string[] = []
-        const successFiles: string[] = []
-
-        for (const file of localBgmFiles) {
-          try {
-            await uploadSingleFile(file, true) // true = 배치 업로드 중 (alert 없음)
-            successCount++
-            successFiles.push(file)
-          } catch (error: any) {
-            failCount++
-            failedFiles.push(file)
-            console.error(`${file} 업로드 실패:`, error)
-          }
-        }
-
-        setUploadingPublicBgm(false)
-        await loadBgmFiles()
-
-        // 결과 요약 메시지
-        if (failCount === 0) {
-          alert(`✅ 모든 파일 업로드 완료!\n\n성공: ${successCount}개\n\n업로드된 파일:\n${successFiles.join('\n')}`)
-        } else if (successCount > 0) {
-          alert(`⚠️ 부분 업로드 완료\n\n✅ 성공: ${successCount}개\n${successFiles.map(f => `  - ${f}`).join('\n')}\n\n❌ 실패: ${failCount}개\n${failedFiles.map(f => `  - ${f}`).join('\n')}\n\n실패한 파일은 서버의 bgm 폴더에 있는지 확인해주세요.`)
-        } else {
-          alert(`❌ 모든 파일 업로드 실패\n\n실패한 파일:\n${failedFiles.map(f => `  - ${f}`).join('\n')}\n\n파일이 서버의 bgm 폴더에 있는지 확인해주세요.`)
-        }
-        return
-      }
-
-      if (!localBgmFiles.includes(targetFileName)) {
-        alert('존재하지 않는 파일명입니다.')
-        return
-      }
-    }
-
-    // 단일 파일 업로드
-    if (!localBgmFiles.includes(targetFileName)) {
-      alert(`파일을 찾을 수 없습니다: ${targetFileName}\n\n서버의 bgm 폴더에 파일이 있는지 확인해주세요.`)
-      return
-    }
-
-    await uploadSingleFile(targetFileName, false) // false = 단일 업로드 (alert 표시)
-  }
-
-  // 단일 파일 업로드
-  // isBatch: true = 배치 업로드 중 (alert 없음), false = 단일 업로드 (alert 표시)
-  const uploadSingleFile = async (fileName: string, isBatch: boolean = false): Promise<void> => {
-    if (!storage) {
-      const error = new Error('Storage가 초기화되지 않았습니다.')
-      throw error
-    }
-
-    // 배치 업로드 중이 아니면 로딩 상태 설정
-    if (!isBatch && !uploadingPublicBgm) {
-      setUploadingPublicBgm(true)
-    }
-    setError(null)
-
-    try {
-      // 1. 서버에서 파일 읽기 (Base64)
-      const response = await fetch('/api/upload-public-bgm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || '파일을 찾을 수 없습니다.')
-      }
-
-      if (!data.base64) {
-        throw new Error('파일 데이터를 받을 수 없습니다.')
-      }
-
-      // 2. Base64를 Blob으로 변환
-      const byteCharacters = atob(data.base64)
-      const byteNumbers = new Array(byteCharacters.length)
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i)
-      }
-      const byteArray = new Uint8Array(byteNumbers)
-      const blob = new Blob([byteArray], { type: data.contentType || 'audio/mpeg' })
-
-      // 3. Firebase Storage에 업로드
-      const publicBgmRef = ref(storage, `bgm/public/${fileName}`)
-      await uploadBytes(publicBgmRef, blob)
-
-      console.log(`${fileName} 업로드 성공`)
-      
-      // 단일 파일 업로드일 때만 alert 표시 및 BGM 목록 새로고침
-      if (!isBatch) {
-        alert(`${fileName}이(가) 공용 BGM으로 업로드되었습니다!`)
-        await loadBgmFiles()
-      }
-    } catch (error: any) {
-      console.error(`${fileName} 업로드 실패:`, error)
-      // 단일 파일 업로드일 때만 alert 표시
-      if (!isBatch) {
-        alert(`${fileName} 업로드 실패: ${error.message || '알 수 없는 오류'}\n\n파일이 서버의 bgm 폴더에 있는지 확인해주세요.`)
-      }
-      throw error // 에러를 다시 throw하여 상위 함수에서 처리할 수 있도록
-    } finally {
-      // 단일 파일 업로드일 때만 상태 초기화
-      if (!isBatch) {
-        setUploadingPublicBgm(false)
-      }
-    }
-  }
 
   const loadBgmFiles = async () => {
     if (!storage) return
@@ -658,7 +499,7 @@ export default function AnnouncementPage() {
           } else if (errorData.error?.includes('gtts')) {
             errorMessage = '서버에 gTTS 라이브러리가 설치되지 않았습니다.\n서버 관리자에게 문의하세요.'
           } else if (errorData.error?.includes('FFmpeg') || errorData.error?.includes('ffmpeg')) {
-            errorMessage = '서버에 FFmpeg가 설치되지 않았습니다.\nBGM 없이 생성하거나 서버 관리자에게 문의하세요.'
+            errorMessage = 'BGM 믹싱에 실패했습니다. 목소리만 재생됩니다.\nBGM 없이 다시 시도해주세요.'
           } else if (errorData.error?.includes('network') || errorData.error?.includes('Network')) {
             errorMessage = '네트워크 오류가 발생했습니다.\n인터넷 연결을 확인하고 다시 시도해주세요.'
           }
@@ -670,24 +511,52 @@ export default function AnnouncementPage() {
       }
 
       // 3. 오디오 Blob 받기
-      const finalBlob = await response.blob()
-      console.log('오디오 생성 완료:', {
-        size: finalBlob.size,
-        type: finalBlob.type,
-        contentType: response.headers.get('content-type')
+      const voiceBlob = await response.blob()
+      console.log('서버 응답 받음:', {
+        size: voiceBlob.size,
+        type: voiceBlob.type,
+        contentType: response.headers.get('content-type'),
+        bgmStatus: response.headers.get('x-bgm-status')
       })
       
       // 최종 Blob 검증
-      if (finalBlob.size === 0) {
+      if (voiceBlob.size === 0) {
         throw new Error('생성된 오디오 파일이 비어있습니다. 다시 시도해주세요.')
       }
       
       // 최소 크기 확인 (1KB 이상이어야 함)
-      if (finalBlob.size < 1024) {
-        console.warn('생성된 오디오 파일이 너무 작습니다:', finalBlob.size, 'bytes')
+      if (voiceBlob.size < 1024) {
+        console.warn('생성된 오디오 파일이 너무 작습니다:', voiceBlob.size, 'bytes')
       }
 
-      // 4. 결과 표시
+      // 4. BGM이 선택되었는데 서버에서 BGM이 믹싱되지 않은 경우, 클라이언트 사이드에서 믹싱 시도
+      let finalBlob = voiceBlob
+      const bgmStatus = response.headers.get('x-bgm-status')
+      
+      // BGM이 선택되었고 서버에서 믹싱이 실패했거나 상태가 없는 경우, 클라이언트에서 재시도
+      if (bgmUrl && (bgmStatus === 'failed' || !bgmStatus)) {
+        console.log('🔄 BGM이 선택되었으나 서버에서 믹싱되지 않음, 클라이언트에서 Web Audio API로 믹싱 시도...')
+        console.log('BGM 상태:', bgmStatus || '없음')
+        
+        try {
+          console.log('클라이언트 사이드 BGM 믹싱 시작:', { bgmUrl })
+          setIsGenerating(true) // 재믹싱 중임을 표시
+          
+          finalBlob = await mixAudio(voiceBlob, bgmUrl)
+          
+          console.log('✅ 클라이언트 사이드 BGM 믹싱 성공:', {
+            voiceSize: voiceBlob.size,
+            mixedSize: finalBlob.size,
+            ratio: (finalBlob.size / voiceBlob.size).toFixed(2)
+          })
+        } catch (mixError: any) {
+          console.warn('❌ 클라이언트 사이드 BGM 믹싱 실패, Voice만 사용:', mixError.message)
+          // 클라이언트 믹싱 실패 시 Voice만 사용 (에러를 throw하지 않음)
+          finalBlob = voiceBlob
+        }
+      }
+
+      // 5. 결과 표시
       const url = URL.createObjectURL(finalBlob)
       console.log('오디오 URL 생성:', {
         url,
@@ -838,8 +707,11 @@ export default function AnnouncementPage() {
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               <Music size={16} className="inline mr-1" />
-              배경음악 (BGM)
+              배경음악 (BGM) <span className="text-xs text-gray-500 font-normal">(선택사항)</span>
             </label>
+            <p className="text-xs text-gray-500 mb-2">
+              ✅ 모바일에서도 BGM 믹싱이 가능합니다 (서버에서 처리)
+            </p>
             
             <div className="space-y-3">
               <select
@@ -907,76 +779,6 @@ export default function AnnouncementPage() {
                       )}
                     </div>
                   </label>
-                  {localBgmFiles.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs text-gray-600 font-semibold">📁 로컬 BGM 파일 ({localBgmFiles.length}개)</p>
-                      <div className="max-h-32 overflow-y-auto space-y-1">
-                        {localBgmFiles.map((fileName) => (
-                          <button
-                            key={fileName}
-                            onClick={() => handleUploadLocalBgm(fileName)}
-                            disabled={uploadingBgm || uploadingPublicBgm}
-                            className="w-full px-3 py-1.5 text-left bg-green-50 border border-green-200 rounded text-xs hover:bg-green-100 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between"
-                          >
-                            <span className="truncate flex-1">{fileName}</span>
-                            <Upload size={12} className="flex-shrink-0 ml-2" />
-                          </button>
-                        ))}
-                      </div>
-                      <button
-                        onClick={async () => {
-                          if (localBgmFiles.length === 0) {
-                            alert('업로드할 로컬 BGM 파일이 없습니다.')
-                            return
-                          }
-
-                          setUploadingPublicBgm(true)
-                          let successCount = 0
-                          let failCount = 0
-                          const failedFiles: string[] = []
-                          const successFiles: string[] = []
-
-                          for (const file of localBgmFiles) {
-                            try {
-                              await uploadSingleFile(file, true) // 배치 업로드 (alert 없음)
-                              successCount++
-                              successFiles.push(file)
-                            } catch (error: any) {
-                              failCount++
-                              failedFiles.push(file)
-                              console.error(`${file} 업로드 실패:`, error)
-                            }
-                          }
-
-                          setUploadingPublicBgm(false)
-                          await loadBgmFiles()
-
-                          // 결과 요약 메시지
-                          if (failCount === 0) {
-                            alert(`✅ 모든 파일 업로드 완료!\n\n성공: ${successCount}개\n\n업로드된 파일:\n${successFiles.map(f => `  - ${f}`).join('\n')}`)
-                          } else if (successCount > 0) {
-                            alert(`⚠️ 부분 업로드 완료\n\n✅ 성공: ${successCount}개\n${successFiles.map(f => `  - ${f}`).join('\n')}\n\n❌ 실패: ${failCount}개\n${failedFiles.map(f => `  - ${f}`).join('\n')}\n\n실패한 파일은 서버의 bgm 폴더에 있는지 확인해주세요.`)
-                          } else {
-                            alert(`❌ 모든 파일 업로드 실패\n\n실패한 파일:\n${failedFiles.map(f => `  - ${f}`).join('\n')}\n\n파일이 서버의 bgm 폴더에 있는지 확인해주세요.`)
-                          }
-                        }}
-                        disabled={uploadingBgm || uploadingPublicBgm}
-                        className="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                      >
-                        {uploadingPublicBgm ? (
-                          <>
-                            <Loader2 size={16} className="animate-spin" />
-                            <span>모든 파일 업로드 중...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Upload size={16} />
-                            <span>모든 로컬 BGM을 공용으로 업로드</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
                 </>
               )}
 
@@ -1208,7 +1010,10 @@ export default function AnnouncementPage() {
                 <li>"방송 만들기" 버튼을 클릭하세요</li>
               </ul>
               <p className="text-xs text-blue-600 mt-3">
-                ✅ 모바일에서도 사용 가능합니다 (서버에서 처리)
+                ✅ 모바일에서도 사용 가능합니다 (서버 + 클라이언트 처리)
+              </p>
+              <p className="text-xs text-blue-600 mt-1">
+                📱 모바일에서도 BGM 믹싱이 자동으로 지원됩니다
               </p>
             </div>
           )}

@@ -376,9 +376,12 @@ export async function POST(request: NextRequest) {
     // 임시 파일 경로
     const voicePath = path.join(tmpdir(), `voice_${Date.now()}.mp3`)
     const outputPath = path.join(tmpdir(), `announcement_${Date.now()}.mp3`)
+    
+    // BGM 믹싱 성공 여부 추적 변수
+    let bgmMixingSuccess = false
 
     try {
-      console.log('안내방송 생성 시작:', { text: text.substring(0, 50), bgmUrl: !!bgmUrl })
+      console.log('안내방송 생성 시작:', { text: text.substring(0, 50), bgmUrl: !!bgmUrl, ffmpegAvailable })
       
       // 1. TTS 생성
       console.log('Step 1: TTS 생성 시작', { voiceOptions })
@@ -407,6 +410,7 @@ export async function POST(request: NextRequest) {
       }
 
       // 3. 오디오 믹싱 (BGM이 있고 FFmpeg가 있는 경우)
+      let bgmMixingSuccess = false
       if (bgmPath && ffmpegAvailable) {
         console.log('Step 3: 오디오 믹싱 시작 (FFmpeg 사용)')
         console.log('믹싱 정보:', {
@@ -430,30 +434,40 @@ export async function POST(request: NextRequest) {
             // 믹싱된 파일이 Voice보다 작으면 문제가 있을 수 있음
             if (mixedStats.size < voiceStats.size * 1.1) {
               console.warn('⚠️ 믹싱된 파일이 Voice만 있는 것과 비슷합니다. BGM이 제대로 믹싱되지 않았을 수 있습니다.')
+              bgmMixingSuccess = false
+            } else {
+              bgmMixingSuccess = true
             }
           } catch (statError) {
             console.warn('파일 크기 확인 실패:', statError)
+            bgmMixingSuccess = false
           }
           
           // BGM 임시 파일 삭제
           await fs.unlink(bgmPath).catch(() => {})
-          console.log('Step 3: 오디오 믹싱 완료')
+          if (bgmMixingSuccess) {
+            console.log('Step 3: 오디오 믹싱 완료')
+          } else {
+            console.warn('Step 3: 오디오 믹싱 완료 (의심됨)')
+          }
         } catch (mixError: any) {
-          // BGM 믹싱 실패 시 Voice만 사용
+          // BGM 믹싱 실패 시 Voice만 사용 (에러를 throw하지 않고 계속 진행)
           console.error('❌ BGM 믹싱 실패:', mixError.message)
           console.error('에러 스택:', mixError.stack)
-          console.warn('Voice만 사용하여 계속 진행합니다.')
+          console.warn('⚠️ 서버에서 BGM 믹싱에 실패했습니다. Voice만 반환합니다. 클라이언트에서 재시도할 수 있습니다.')
           await fs.copyFile(voicePath, outputPath)
           await fs.unlink(bgmPath).catch(() => {})
+          bgmMixingSuccess = false
         }
       } else {
         // BGM 없이 Voice만 사용
         if (!bgmPath) {
           console.log('Step 3: BGM 경로가 없어 Voice만 사용')
         } else if (!ffmpegAvailable) {
-          console.log('Step 3: FFmpeg가 없어 Voice만 사용')
+          console.log('Step 3: FFmpeg가 없어 Voice만 사용 (클라이언트에서 재시도 가능)')
         }
         await fs.copyFile(voicePath, outputPath)
+        bgmMixingSuccess = false
       }
 
       // 4. 결과 파일 읽기
@@ -472,12 +486,22 @@ export async function POST(request: NextRequest) {
 
       // 6. 응답 반환
       console.log('안내방송 생성 완료')
-      return new NextResponse(audioBuffer, {
-        headers: {
-          'Content-Type': 'audio/mpeg',
-          'Content-Disposition': `attachment; filename="announcement_${Date.now()}.mp3"`,
-        },
-      })
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'audio/mpeg',
+        'Content-Disposition': `attachment; filename="announcement_${Date.now()}.mp3"`,
+      }
+      
+      // BGM 상태 헤더 설정 (클라이언트에서 재시도 여부 결정)
+      if (bgmUrl) {
+        if (bgmMixingSuccess) {
+          headers['x-bgm-status'] = 'success'
+        } else {
+          headers['x-bgm-status'] = 'failed' // 클라이언트에서 재시도 가능
+        }
+      }
+      
+      return new NextResponse(audioBuffer, { headers })
     } catch (error: any) {
       console.error('안내방송 생성 중 오류:', {
         error: error.message,
@@ -519,12 +543,14 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // FFmpeg 관련 오류 체크
+    // FFmpeg 관련 오류 체크 - BGM 없이도 작동하도록 경고만 표시
     if (errorMessage.includes('FFmpeg') || errorMessage.includes('ffmpeg')) {
+      // BGM 믹싱 실패는 이미 Voice만 반환하도록 처리되므로, 이 에러는 발생하지 않아야 함
+      // 만약 발생한다면 서버 설정 문제이므로 관리자에게 문의하도록 안내
       return NextResponse.json(
         {
           error: 'FFmpeg 오류',
-          message: '서버에 FFmpeg가 설치되지 않았거나 경로가 설정되지 않았습니다. BGM 없이 생성하려면 서버 관리자에게 문의하세요.',
+          message: '서버 설정 오류가 발생했습니다. 목소리만 재생됩니다. BGM이 필요하면 서버 관리자에게 문의하세요.',
         },
         { status: 500 }
       )

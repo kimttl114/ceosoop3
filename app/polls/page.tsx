@@ -15,11 +15,10 @@ import {
   addDoc,
   serverTimestamp,
 } from 'firebase/firestore'
-import { ArrowLeft, Clock, TrendingUp, Loader2, Plus, Trash2, Flag, Sparkles } from 'lucide-react'
+import { ArrowLeft, Clock, Loader2, Plus, Trash2, Flag, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
 import MainLayout from '@/components/MainLayout'
-import DecisionPollModal from '@/components/DecisionPollModal'
 import WriteModal from '@/components/WriteModal'
 import MessageModal from '@/components/MessageModal'
 import ReportModal from '@/components/ReportModal'
@@ -55,7 +54,6 @@ function CommunityPageContent() {
       setSelectedCategory(categoryParam)
     }
   }, [searchParams])
-  const [isPollModalOpen, setIsPollModalOpen] = useState(false)
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false)
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
   const [messageReceiver, setMessageReceiver] = useState<{ id: string; name: string; postTitle?: string } | null>(null)
@@ -741,14 +739,6 @@ function CommunityPageContent() {
         }}
       />
 
-      {/* 투표 작성 모달 */}
-      <DecisionPollModal
-        isOpen={isPollModalOpen}
-        onClose={() => setIsPollModalOpen(false)}
-        onSuccess={() => {
-          setIsPollModalOpen(false)
-        }}
-      />
 
       {/* 쪽지 모달 */}
       {messageReceiver && (
@@ -786,7 +776,7 @@ function CommunityPageContent() {
 
       {/* 글쓰기 버튼 (네비게이션 바 바로 위, 모바일용) */}
       {user && isVerified && (
-        <div className="lg:hidden fixed bottom-[68px] left-1/2 -translate-x-1/2 z-[60] max-w-md w-full flex justify-center gap-3 pointer-events-none">
+        <div className="lg:hidden fixed bottom-[68px] left-1/2 -translate-x-1/2 z-[60] max-w-md w-full flex justify-center pointer-events-none">
           <button
             onClick={() => setIsWriteModalOpen(true)}
             className="w-10 h-10 bg-[#FFBF00] text-[#1A2B4E] rounded-full shadow-lg flex items-center justify-center hover:bg-[#FFBF00]/90 transition transform hover:scale-110 active:scale-95 pointer-events-auto"
@@ -794,14 +784,6 @@ function CommunityPageContent() {
             title="글쓰기"
           >
             <Plus size={18} strokeWidth={2.5} />
-          </button>
-          <button
-            onClick={() => setIsPollModalOpen(true)}
-            className="w-10 h-10 bg-[#1A2B4E] text-white rounded-full shadow-lg flex items-center justify-center hover:bg-[#1A2B4E]/90 transition transform hover:scale-110 active:scale-95 pointer-events-auto"
-            type="button"
-            title="투표 만들기"
-          >
-            <TrendingUp size={18} strokeWidth={2.5} />
           </button>
         </div>
       )}
