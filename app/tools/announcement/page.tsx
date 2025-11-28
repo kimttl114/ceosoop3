@@ -203,12 +203,8 @@ export default function AnnouncementPage() {
   ): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       let audioContext: AudioContext | null = null
-      let mediaRecorder: MediaRecorder | null = null
       
       const cleanup = () => {
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-          try { mediaRecorder.stop() } catch {}
-        }
         if (audioContext && audioContext.state !== 'closed') {
           audioContext.close().catch(() => {})
         }
