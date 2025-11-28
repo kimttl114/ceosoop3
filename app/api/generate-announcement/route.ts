@@ -163,9 +163,9 @@ async function mixAudio(
       // ffprobe로 길이 확인 (더 정확함)
       const probeCmd = `"${ffprobePath}" -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${voicePath}"`
       const { stdout: durationOutput } = await execAsync(probeCmd, {
-        shell: true,
+        shell: true as any,
         maxBuffer: 1024 * 1024
-      })
+      } as any)
       
       const duration = parseFloat(durationOutput.trim())
       if (!isNaN(duration) && duration > 0) {
@@ -183,9 +183,9 @@ async function mixAudio(
         const tempOutput = path.join(path.dirname(outputPath), `temp_${Date.now()}.mp3`)
         const durationCmd = `"${ffmpegCmd}" -i "${voicePath}" -f null "${tempOutput}" 2>&1`
         const { stderr: durationStderr } = await execAsync(durationCmd, {
-          shell: true,
+          shell: true as any,
           maxBuffer: 1024 * 1024
-        })
+        } as any)
         
         // 임시 파일 삭제
         await fs.unlink(tempOutput).catch(() => {})
@@ -270,8 +270,8 @@ async function mixAudio(
     const { stdout, stderr } = await execAsync(ffmpegCommand, {
       timeout: 120000, // 2분
       maxBuffer: 1024 * 1024 * 50, // 50MB
-      shell: true
-    })
+      shell: true as any
+    } as any)
     
     // FFmpeg는 stderr에 정보를 출력하므로 확인
     if (stderr) {
