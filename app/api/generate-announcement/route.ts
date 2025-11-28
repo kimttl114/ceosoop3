@@ -167,7 +167,8 @@ async function mixAudio(
         maxBuffer: 1024 * 1024
       } as any)
       
-      const duration = parseFloat(durationOutput.trim())
+      const durationOutputStr = typeof durationOutput === 'string' ? durationOutput : durationOutput.toString()
+      const duration = parseFloat(durationOutputStr.trim())
       if (!isNaN(duration) && duration > 0) {
         voiceDuration = duration
         console.log('Voice 길이 확인 (ffprobe):', voiceDuration.toFixed(2), '초')
