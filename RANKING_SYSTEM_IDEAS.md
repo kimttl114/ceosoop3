@@ -187,3 +187,5 @@ lastPointsUpdate: timestamp  // 마지막 업데이트
 
 **가장 추천: 마이페이지에 간단한 랭킹 섹션 추가**
 
+
+

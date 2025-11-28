@@ -27,7 +27,6 @@ import MessageModal from '@/components/MessageModal'
 import ReportModal from '@/components/ReportModal'
 import PostAuthorBadge from '@/components/PostAuthorBadge'
 import MainLayout from '@/components/MainLayout'
-import { useVerification } from '@/hooks/useVerification'
 
 // 게시판 카테고리 목록
 const boardCategories = [
@@ -68,7 +67,6 @@ export default function Home() {
   const [reportTarget, setReportTarget] = useState<{ type: 'post', id: string, authorId?: string, content?: string } | null>(null)
   const [userAvatars, setUserAvatars] = useState<Record<string, string>>({})
   const [ranking, setRanking] = useState<Array<{ uid: string; anonymousName: string; points: number }>>([])
-  const { isVerified, loading: verificationLoading } = useVerification()
 
   // 익명 닉네임 생성: [형용사] + [명사] 조합
   const generateAnonymousName = () => {
@@ -485,24 +483,42 @@ export default function Home() {
     <MainLayout>
       <div className="min-h-screen pb-24 bg-gray-50">
         {/* 헤더 섹션 - eToLand 스타일 */}
-        <div className="bg-white border-b border-gray-300">
+        <div className="bg-white border-b border-gray-300 sticky top-0 z-20">
           <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3">
-            <div className="flex items-center justify-between">
-              <h1 className="text-xl font-bold text-gray-900">베스트</h1>
+            <div className="flex items-center justify-between gap-2">
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900">베스트</h1>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => router.push('/checkin')}
-                  className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded text-sm font-medium transition-colors"
-                >
-                  출석체크
-                </button>
-                <button
-                  onClick={() => router.push('/shop')}
-                  className="px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded text-sm font-medium transition-colors flex items-center gap-1.5"
-                >
-                  <ShoppingBag size={14} />
-                  포인트상점
-                </button>
+                {user ? (
+                  <>
+                    <button
+                      onClick={() => router.push('/checkin')}
+                      className="px-2 sm:px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded text-xs sm:text-sm font-medium transition-colors whitespace-nowrap"
+                    >
+                      출석체크
+                    </button>
+                    <button
+                      onClick={() => router.push('/shop')}
+                      className="px-2 sm:px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                    >
+                      <ShoppingBag size={14} />
+                      <span className="hidden sm:inline">포인트상점</span>
+                    </button>
+                    <button
+                      onClick={() => setIsWriteMode(true)}
+                      className="px-3 sm:px-4 py-1.5 bg-[#1A2B4E] hover:bg-[#1A2B4E]/90 text-white rounded text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                    >
+                      <span className="text-base sm:text-lg">✏️</span>
+                      <span className="hidden sm:inline">글쓰기</span>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleLogin}
+                    className="px-3 sm:px-4 py-1.5 bg-[#1A2B4E] hover:bg-[#1A2B4E]/90 text-white rounded text-xs sm:text-sm font-medium transition-colors whitespace-nowrap"
+                  >
+                    로그인
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -561,7 +577,81 @@ export default function Home() {
                               href={item.type === 'poll' ? `/polls/${item.id}` : `/post/${item.id}`}
                               className="block border-b border-gray-200 hover:bg-gray-50 transition-colors last:border-b-0"
                             >
-                              <div className="grid grid-cols-12 gap-2 px-4 py-2.5 items-center text-sm">
+                              {/* 모바일 레이아웃 */}
+                              <div className="md:hidden px-3 py-3">
+                                <div className="flex items-start gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      {item.type === 'poll' && (
+                                        <span className="flex-shrink-0 text-xs text-blue-600 font-bold">🗳️</span>
+                                      )}
+                                      <span className="font-medium text-sm text-gray-900 line-clamp-2 flex-1">
+                                        {item.title}
+                                      </span>
+                                      {(item.likes || 0) >= 10 && (
+                                        <span className="flex-shrink-0 px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded">
+                                          HIT
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                      <span>{item.author || item.authorName || '익명'}</span>
+                                      <span>•</span>
+                                      <span>{formatRelativeTime(item.timestamp || item.createdAt)}</span>
+                                      <span>•</span>
+                                      <span>
+                                        {item.type === 'poll' 
+                                          ? `${(item.optionA?.votes || 0) + (item.optionB?.votes || 0)}명`
+                                          : `${item.likes || 0}`
+                                        }
+                                      </span>
+                                      {item.comments > 0 && (
+                                        <>
+                                          <span>•</span>
+                                          <span className="text-blue-600 font-semibold">댓글 {item.comments}</span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-col gap-1">
+                                    {user && item.uid && user.uid === item.uid && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.preventDefault()
+                                          e.stopPropagation()
+                                          handleDelete(item.id, item.uid, e)
+                                        }}
+                                        className="flex-shrink-0 text-red-500 hover:text-red-700 transition p-1"
+                                        title="삭제"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    )}
+                                    {user && item.uid && user.uid !== item.uid && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.preventDefault()
+                                          e.stopPropagation()
+                                          setReportTarget({
+                                            type: 'post',
+                                            id: item.id,
+                                            authorId: item.uid,
+                                            content: item.content || item.title,
+                                          })
+                                          setIsReportModalOpen(true)
+                                        }}
+                                        className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition p-1"
+                                        title="신고"
+                                      >
+                                        <Flag size={16} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* 데스크톱 레이아웃 */}
+                              <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-2.5 items-center text-sm">
                                 {/* 번호 */}
                                 <div className="col-span-1 text-center text-gray-500 text-xs">
                                   {categoryPosts.length - index}
@@ -764,18 +854,14 @@ export default function Home() {
         />
       )}
 
-      {/* 하단 네비게이션 (모바일용) */}
-      <div className="lg:hidden">
-        <BottomNav onWriteClick={() => {
-          if (!user) {
-            handleLogin()
-          } else if (!isVerified) {
-            router.push('/auth/verify')
-          } else {
-            setIsWriteMode(true)
-          }
-        }} />
-      </div>
+      {/* 하단 네비게이션 (모바일용) - 항상 표시 */}
+      <BottomNav onWriteClick={() => {
+        if (!user) {
+          handleLogin()
+        } else {
+          setIsWriteMode(true)
+        }
+      }} />
     </MainLayout>
   )
 }

@@ -28,7 +28,7 @@ const initFirebase = () => {
   }
 
   // 이미 초기화되어 있으면 성공
-  if (app && _auth && _db) {
+  if (app && _auth && _db && _storage) {
     return true;
   }
 
@@ -87,7 +87,15 @@ const getDb = (): Firestore | null => {
 
 const getStorageInstance = (): FirebaseStorage | null => {
   if (!_storage && typeof window !== "undefined") {
-    initFirebase();
+    const initialized = initFirebase();
+    // Storage가 초기화되지 않았으면 다시 시도
+    if (!_storage && initialized) {
+      try {
+        _storage = getStorage(app!);
+      } catch (error) {
+        console.error("Storage 인스턴스 생성 실패:", error);
+      }
+    }
   }
   return _storage;
 };
@@ -102,7 +110,22 @@ export const ensureFirebaseInitialized = (): boolean => {
 
 // Export - 타입 단언 사용 (클라이언트 사이드에서만 사용)
 // 실제로는 null일 수 있으므로 사용하는 쪽에서 null 체크 필요
+// 런타임에 다시 가져오는 함수도 제공
 export const db = getDb() as Firestore;
 export const auth = getAuthInstance() as Auth;
 export const storage = getStorageInstance() as FirebaseStorage;
 export const googleProvider = getGoogleProvider() as GoogleAuthProvider;
+
+// 런타임에 Firebase 인스턴스를 다시 가져오는 함수들 (내부 함수와 충돌 방지)
+export const getDbRuntime = (): Firestore | null => {
+  if (typeof window === 'undefined') return null;
+  return getDb();
+};
+export const getAuthRuntime = (): Auth | null => {
+  if (typeof window === 'undefined') return null;
+  return getAuthInstance();
+};
+export const getStorageRuntime = (): FirebaseStorage | null => {
+  if (typeof window === 'undefined') return null;
+  return getStorageInstance();
+};

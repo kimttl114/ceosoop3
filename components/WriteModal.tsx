@@ -6,7 +6,6 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { Upload, FileText, X, ArrowLeft, ArrowRight, Eye, Check, Video, Image as ImageIcon } from 'lucide-react'
-import { useVerification } from '@/hooks/useVerification'
 import { useRouter } from 'next/navigation'
 
 // 블라인드 스타일 카테고리
@@ -54,7 +53,6 @@ export default function WriteModal({
   defaultRegion,
 }: WriteModalProps) {
   const router = useRouter()
-  const { isVerified, loading: verificationLoading } = useVerification()
   const [user, setUser] = useState<any>(null)
   const [userAnonymousName, setUserAnonymousName] = useState<string>('')
   const [userRegion, setUserRegion] = useState<string>('')
@@ -83,7 +81,11 @@ export default function WriteModal({
 
   // 로그인 상태 및 사용자 정보 불러오기
   useEffect(() => {
-    if (!auth || !db) return
+    if (!auth || !db) {
+      // Firebase가 초기화되지 않은 경우 로그만 남기고 계속 진행
+      console.warn('Firebase가 아직 초기화되지 않았습니다. 잠시 후 다시 시도됩니다.')
+      return
+    }
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser)
@@ -131,8 +133,80 @@ export default function WriteModal({
 
   // 파일 업로드 공통 함수
   const handleFileUpload = useCallback(async (file: File, type: 'image' | 'video') => {
-    if (!user || !storage) {
+    if (!user) {
       alert('로그인이 필요합니다.')
+      return
+    }
+
+    // Firebase Storage 초기화 확인 및 강제 초기화 (재시도 포함)
+    let storageInstance = storage
+    let retryCount = 0
+    const maxRetries = 3
+
+    while (!storageInstance && retryCount < maxRetries) {
+      try {
+        // Firebase 초기화 시도
+        const { ensureFirebaseInitialized, getStorageRuntime } = await import('@/lib/firebase')
+        
+        if (ensureFirebaseInitialized()) {
+          // Storage 인스턴스 가져오기
+          storageInstance = getStorageRuntime()
+          
+          if (!storageInstance && retryCount < maxRetries - 1) {
+            // 잠시 대기 후 재시도
+            await new Promise(resolve => setTimeout(resolve, 500))
+            retryCount++
+            continue
+          }
+        }
+        
+        if (!storageInstance) {
+          // 직접 초기화 시도
+          const { getStorage } = await import('firebase/storage')
+          const { getApp } = await import('firebase/app')
+          const firebaseApp = getApp()
+          storageInstance = getStorage(firebaseApp)
+        }
+      } catch (error) {
+        console.error(`Storage 초기화 시도 ${retryCount + 1} 실패:`, error)
+        if (retryCount < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+          retryCount++
+        } else {
+          break
+        }
+      }
+    }
+
+    if (!storageInstance) {
+      const errorMsg = '파일 업로드 기능을 사용할 수 없습니다.\n\nFirebase Storage가 초기화되지 않았습니다.\n\n해결 방법:\n1. 페이지를 새로고침하세요\n2. 브라우저 캐시를 삭제하세요\n3. 잠시 후 다시 시도하세요'
+      alert(errorMsg)
+      console.error('Storage 초기화 실패 - 모든 재시도 실패', {
+        retryCount,
+        hasUser: !!user,
+        hasAuth: !!auth
+      })
+      return
+    }
+
+    // 인증 토큰 확인
+    try {
+      const token = await user.getIdToken(true) // 강제 갱신
+      if (!token) {
+        alert('인증 토큰을 가져올 수 없습니다. 다시 로그인해주세요.')
+        console.error('Failed to get ID token')
+        return
+      }
+      console.log('인증 토큰 확인 완료')
+    } catch (authError: any) {
+      console.error('인증 토큰 가져오기 실패:', authError)
+      let errorMsg = '인증에 문제가 있습니다.\n\n'
+      if (authError?.code === 'auth/network-request-failed') {
+        errorMsg += '네트워크 연결을 확인해주세요.'
+      } else {
+        errorMsg += '다시 로그인해주세요.'
+      }
+      alert(errorMsg)
       return
     }
 
@@ -164,43 +238,115 @@ export default function WriteModal({
     
     try {
       const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
-      const fileRef = ref(storage, `posts/${user.uid}/${type}s/${fileName}`)
+      const storagePath = `posts/${user.uid}/${type}s/${fileName}`
+      const fileRef = ref(storageInstance, storagePath)
       
-      // 업로드 진행률 모니터링 (선택사항)
+      console.log('파일 업로드 시작:', {
+        fileName,
+        storagePath,
+        fileSize: file.size,
+        fileType: file.type,
+        storageInitialized: !!storageInstance,
+        storageBucket: storageInstance?.bucket,
+        userUid: user.uid
+      })
+      
+      // 업로드 진행률 표시
+      setUploadProgress(10)
+      
+      // 파일 업로드 실행
       await uploadBytes(fileRef, file)
-      const downloadURL = await getDownloadURL(fileRef)
+      console.log('파일 업로드 완료, URL 생성 중...')
       
+      setUploadProgress(80)
+      
+      // 다운로드 URL 생성
+      const downloadURL = await getDownloadURL(fileRef)
+      console.log('다운로드 URL 생성 완료:', downloadURL)
+      
+      setUploadProgress(100)
+      
+      // 업로드된 파일 URL 추가
       if (type === 'image') {
         setUploadedImages(prev => [...prev, downloadURL])
       } else {
         setUploadedVideos(prev => [...prev, downloadURL])
       }
       
+      // 성공 메시지 (선택사항)
+      console.log(`${type === 'image' ? '이미지' : '비디오'} 업로드 성공!`)
+      
       setUploadProgress(0)
-    } catch (error) {
-      console.error(`${type === 'image' ? '이미지' : '비디오'} 업로드 실패:`, error)
-      alert(`${type === 'image' ? '이미지' : '비디오'} 업로드에 실패했습니다.`)
+    } catch (error: any) {
+      console.error(`${type === 'image' ? '이미지' : '비디오'} 업로드 실패:`, {
+        error,
+        code: error?.code,
+        message: error?.message,
+        serverResponse: error?.serverResponse,
+        stack: error?.stack
+      })
+      
+      // 상세한 에러 메시지
+      let errorMessage = `${type === 'image' ? '이미지' : '비디오'} 업로드에 실패했습니다.\n\n`
+      
+      if (error?.code === 'storage/unauthorized') {
+        errorMessage += '권한이 없습니다. Firebase Storage 규칙을 확인하세요.'
+      } else if (error?.code === 'storage/quota-exceeded') {
+        errorMessage += '저장 공간이 부족합니다.'
+      } else if (error?.code === 'storage/object-not-found') {
+        errorMessage += '파일을 찾을 수 없습니다.'
+      } else if (error?.code === 'storage/canceled') {
+        errorMessage += '업로드가 취소되었습니다.'
+      } else if (error?.code === 'storage/unknown') {
+        errorMessage += '알 수 없는 오류가 발생했습니다.'
+      } else if (error?.message) {
+        errorMessage += `오류: ${error.message}`
+        if (error?.code) {
+          errorMessage += ` (코드: ${error.code})`
+        }
+      } else {
+        errorMessage += '알 수 없는 오류입니다.'
+      }
+      
+      console.error('전체 에러 정보:', JSON.stringify(error, null, 2))
+      alert(errorMessage)
     } finally {
       setUploading(false)
     }
-  }, [user, storage])
+  }, [user])
 
   // 이미지 업로드
-  const handleImageUpload = useCallback(async (file: File) => {
-    if (uploadedImages.length >= 5) {
+  const handleImageUpload = useCallback(async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    
+    const remainingSlots = 5 - uploadedImages.length
+    if (remainingSlots <= 0) {
       alert('이미지는 최대 5개까지 업로드할 수 있습니다.')
       return
     }
-    await handleFileUpload(file, 'image')
+
+    const filesToUpload = Array.from(files).slice(0, remainingSlots)
+    
+    for (const file of filesToUpload) {
+      await handleFileUpload(file, 'image')
+    }
   }, [uploadedImages.length, handleFileUpload])
 
   // 비디오 업로드
-  const handleVideoUpload = useCallback(async (file: File) => {
-    if (uploadedVideos.length >= 3) {
+  const handleVideoUpload = useCallback(async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    
+    const remainingSlots = 3 - uploadedVideos.length
+    if (remainingSlots <= 0) {
       alert('비디오는 최대 3개까지 업로드할 수 있습니다.')
       return
     }
-    await handleFileUpload(file, 'video')
+
+    const filesToUpload = Array.from(files).slice(0, remainingSlots)
+    
+    for (const file of filesToUpload) {
+      await handleFileUpload(file, 'video')
+    }
   }, [uploadedVideos.length, handleFileUpload])
 
   // 이미지 삭제
@@ -224,15 +370,24 @@ export default function WriteModal({
       isSimpleMode: boolean
     }
   ) => {
-    if (!user || !db) {
+    if (!user) {
       alert('로그인이 필요합니다.')
       return false
     }
 
-    if (!isVerified) {
-      alert('사업자 인증이 필요합니다. 인증된 찐사장들만 글을 작성할 수 있습니다.')
-      router.push('/auth/verify')
-      onClose()
+    // Firebase 초기화 확인 및 강제 초기화
+    let dbInstance = db
+    if (!dbInstance) {
+      const { ensureFirebaseInitialized } = await import('@/lib/firebase')
+      if (ensureFirebaseInitialized()) {
+        const { db: newDb } = await import('@/lib/firebase')
+        dbInstance = newDb
+      }
+    }
+
+    if (!dbInstance) {
+      alert('글을 저장할 수 없습니다. Firebase가 초기화되지 않았습니다.')
+      console.error('Firestore is null')
       return false
     }
 
@@ -241,7 +396,16 @@ export default function WriteModal({
       const finalBusinessType = defaultBusinessType || userBusinessType || '치킨'
       const finalRegion = defaultRegion || userRegion || ''
 
-      await addDoc(collection(db, 'posts'), {
+      console.log('글 저장 시작:', {
+        title: postData.title,
+        category: postData.category,
+        imagesCount: postData.images.length,
+        videosCount: postData.videos?.length || 0,
+        dbInitialized: !!dbInstance,
+        userUid: user.uid
+      })
+
+      const postDataToSave = {
         title: postData.title,
         content: postData.content,
         category: postData.category,
@@ -255,15 +419,47 @@ export default function WriteModal({
         images: postData.images,
         videos: postData.videos || [],
         isSimpleMode: postData.isSimpleMode,
-      })
+      }
 
+      console.log('저장할 데이터:', postDataToSave)
+
+      const docRef = await addDoc(collection(dbInstance, 'posts'), postDataToSave)
+
+      console.log('글 저장 완료:', docRef.id)
       return true
-    } catch (e) {
-      console.error('글 저장 실패:', e)
-      alert('글 저장 실패: ' + (e instanceof Error ? e.message : String(e)))
+    } catch (e: any) {
+      console.error('글 저장 실패:', {
+        error: e,
+        code: e?.code,
+        message: e?.message,
+        stack: e?.stack
+      })
+      
+      // 상세한 에러 메시지
+      let errorMessage = '글 저장에 실패했습니다.\n\n'
+      
+      if (e?.code === 'permission-denied') {
+        errorMessage += '권한이 없습니다. Firebase Firestore 규칙을 확인하세요.'
+      } else if (e?.code === 'unavailable') {
+        errorMessage += 'Firebase 서비스에 연결할 수 없습니다. 네트워크를 확인하세요.'
+      } else if (e?.code === 'failed-precondition') {
+        errorMessage += 'Firestore 인덱스가 필요합니다. Firebase Console에서 인덱스를 생성하세요.'
+      } else if (e?.code === 'deadline-exceeded') {
+        errorMessage += '요청 시간이 초과되었습니다. 다시 시도해주세요.'
+      } else if (e?.message) {
+        errorMessage += e.message
+        if (e?.code) {
+          errorMessage += ` (코드: ${e.code})`
+        }
+      } else {
+        errorMessage += '알 수 없는 오류입니다.'
+      }
+      
+      console.error('전체 에러 정보:', JSON.stringify(e, null, 2))
+      alert(errorMessage)
       return false
     }
-  }, [user, userAnonymousName, generateAnonymousName, defaultBusinessType, userBusinessType, defaultRegion, userRegion, db, isVerified, router, onClose])
+  }, [user, userAnonymousName, generateAnonymousName, defaultBusinessType, userBusinessType, defaultRegion, userRegion, onClose])
 
   // 글 저장
   const handleDetailedWrite = useCallback(async () => {
@@ -337,60 +533,6 @@ export default function WriteModal({
   }, [detailedStep, defaultBusinessType, userBusinessType, postCategory])
 
   if (!isOpen) return null
-
-  // 인증 확인 중이거나 인증되지 않은 경우 안내 메시지 표시
-  if (verificationLoading) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end">
-        <div className="bg-white w-full rounded-t-3xl p-6 h-[85vh] flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin text-[#1A2B4E] mb-4">
-              <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </div>
-            <p className="text-gray-600">인증 상태를 확인하는 중...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (user && !isVerified) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end">
-        <div className="bg-white w-full rounded-t-3xl p-6 h-[85vh] flex items-center justify-center">
-          <div className="text-center max-w-md mx-auto px-4">
-            <div className="text-6xl mb-6">🔒</div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">사업자 인증이 필요합니다</h2>
-            <p className="text-gray-600 mb-2">
-              인증된 찐사장들만 게시글을 작성할 수 있습니다.
-            </p>
-            <p className="text-sm text-gray-500 mb-8">
-              사업자등록증을 통해 인증을 완료해주세요.
-            </p>
-            <div className="space-y-3">
-              <button
-                onClick={() => {
-                  onClose()
-                  router.push('/auth/verify')
-                }}
-                className="w-full bg-[#FFBF00] text-[#1A2B4E] px-6 py-4 rounded-xl font-bold hover:bg-[#FFBF00]/90 transition shadow-lg"
-              >
-                사업자 인증하기
-              </button>
-              <button
-                onClick={onClose}
-                className="w-full bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-medium hover:bg-gray-200 transition"
-              >
-                닫기
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <>
@@ -557,12 +699,7 @@ export default function WriteModal({
                               accept="image/*"
                               className="hidden"
                               onChange={(e) => {
-                                const files = e.target.files
-                                if (files) {
-                                  Array.from(files).slice(0, 5 - uploadedImages.length).forEach(file => {
-                                    handleImageUpload(file)
-                                  })
-                                }
+                                handleImageUpload(e.target.files)
                                 e.target.value = '' // 같은 파일 재선택 가능하도록
                               }}
                               disabled={uploading}
@@ -617,12 +754,7 @@ export default function WriteModal({
                               accept="video/*"
                               className="hidden"
                               onChange={(e) => {
-                                const files = e.target.files
-                                if (files) {
-                                  Array.from(files).slice(0, 3 - uploadedVideos.length).forEach(file => {
-                                    handleVideoUpload(file)
-                                  })
-                                }
+                                handleVideoUpload(e.target.files)
                                 e.target.value = ''
                               }}
                               disabled={uploading}

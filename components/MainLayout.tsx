@@ -129,8 +129,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
   }, [])
 
   const handleLogin = async () => {
-    // 로그인 로직은 상위 컴포넌트에서 처리
-    router.push('/')
+    // 로그인 페이지로 이동
+    router.push('/login')
   }
 
   const isActive = (path: string) => {

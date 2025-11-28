@@ -42,3 +42,5 @@ export function getProgressToNextLevel(points: number, currentLevel: Level): num
   return Math.min(100, Math.max(0, (progress / currentRange) * 100));
 }
 
+
+

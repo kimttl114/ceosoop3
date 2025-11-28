@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Calculator, FileText, TrendingUp, Users, Percent, DollarSign, Sparkles, MessageCircle, Brain, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Calculator, FileText, TrendingUp, Users, Percent, DollarSign, Sparkles, MessageCircle, Brain, ShoppingBag, Mic } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 
@@ -67,6 +67,15 @@ const tools = [
     icon: FileText,
     color: 'from-orange-500 to-red-500',
     route: '/ai-document',
+    available: true,
+  },
+  {
+    id: 'announcement',
+    title: '안내방송 생성기',
+    description: '매장 안내방송 자동 제작',
+    icon: Mic,
+    color: 'from-purple-500 to-indigo-500',
+    route: '/tools/announcement',
     available: true,
   },
 ];

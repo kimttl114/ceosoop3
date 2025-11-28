@@ -359,7 +359,7 @@ export default function PostDetailPage() {
     <div className="min-h-screen pb-24 relative z-10">
       {/* 헤더 */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <button
             onClick={() => router.back()}
             className="p-2 hover:bg-gray-100 rounded-full transition"
@@ -399,8 +399,8 @@ export default function PostDetailPage() {
       </header>
 
       {/* 게시글 내용 */}
-      <main className="max-w-md mx-auto bg-white">
-        <article className="p-5">
+      <main className="max-w-4xl mx-auto bg-white min-h-screen">
+        <article className="p-4 sm:p-6 lg:p-8">
           {/* 작성자 정보 */}
           <div className="flex items-center gap-3 mb-4">
             <AvatarMini avatarUrl={authorAvatarUrl} userId={post.uid} size={40} />
@@ -419,7 +419,7 @@ export default function PostDetailPage() {
           </div>
 
           {/* 제목 */}
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">{post.title}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">{post.title}</h1>
 
           {/* 본문 */}
           <div className="text-base text-gray-700 leading-relaxed mb-6 whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
@@ -447,6 +447,56 @@ export default function PostDetailPage() {
               post.content
             )}
           </div>
+
+          {/* 이미지 표시 */}
+          {post.images && Array.isArray(post.images) && post.images.length > 0 && (
+            <div className="mb-6">
+              <div className={`grid gap-3 ${
+                post.images.length === 1 
+                  ? 'grid-cols-1' 
+                  : post.images.length === 2 
+                    ? 'grid-cols-1 sm:grid-cols-2' 
+                    : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+              }`}>
+                {post.images.map((imageUrl: string, index: number) => (
+                  <div key={index} className="relative w-full aspect-video bg-gray-100 rounded-lg overflow-hidden group">
+                    <img
+                      src={imageUrl}
+                      alt={`첨부 이미지 ${index + 1}`}
+                      className="w-full h-full object-contain cursor-pointer hover:opacity-90 transition"
+                      onClick={() => window.open(imageUrl, '_blank')}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement
+                        target.src = '/placeholder-image.png'
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition pointer-events-none" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 영상 표시 */}
+          {post.videos && Array.isArray(post.videos) && post.videos.length > 0 && (
+            <div className="mb-6 space-y-4">
+              {post.videos.map((videoUrl: string, index: number) => (
+                <div key={index} className="w-full aspect-video bg-black rounded-lg overflow-hidden">
+                  <video
+                    src={videoUrl}
+                    controls
+                    className="w-full h-full"
+                    preload="metadata"
+                    onError={(e) => {
+                      console.error('비디오 로드 오류:', videoUrl)
+                    }}
+                  >
+                    브라우저가 비디오 태그를 지원하지 않습니다.
+                  </video>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* 좋아요 및 신고 버튼 */}
           <div className="flex items-center justify-between mb-6 pb-6 border-b border-gray-200">
@@ -541,7 +591,7 @@ export default function PostDetailPage() {
       {/* 댓글 입력창 (Sticky) */}
       {user && isVerified && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
-          <div className="max-w-md mx-auto px-4 py-3">
+          <div className="max-w-4xl mx-auto px-4 py-3">
             <form onSubmit={handleCommentSubmit} className="flex gap-2">
               <input
                 type="text"
@@ -566,7 +616,7 @@ export default function PostDetailPage() {
       {/* 비로그인/미인증 사용자 안내 */}
       {(!user || (user && !isVerified && !verificationLoading)) && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
-          <div className="max-w-md mx-auto px-4 py-3 text-center">
+          <div className="max-w-4xl mx-auto px-4 py-3 text-center">
             {!user ? (
               <p className="text-sm text-gray-600">
                 댓글을 남기려면{' '}

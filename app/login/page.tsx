@@ -124,10 +124,10 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#00C73C] to-[#00A84D] flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">자영업자 대나무숲</h1>
-          <p className="text-gray-600">자영업자 전용 익명 커뮤니티</p>
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-auto">
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-2">자영업자 대나무숲</h1>
+          <p className="text-sm sm:text-base text-gray-600">자영업자 전용 익명 커뮤니티</p>
         </div>
 
         <button
