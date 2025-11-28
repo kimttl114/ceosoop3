@@ -564,15 +564,16 @@ export default function AnnouncementPage() {
       
       // Step 6: OfflineAudioContext로 오프라인 믹싱
       try {
+        // OfflineAudioContext 생성자: (numberOfChannels, length, sampleRate)
         offlineContext = new OfflineAudioContext(
-          targetSampleRate, // 통일된 샘플레이트 사용
-          totalSamples,
-          numChannels // Voice 채널 수 사용
+          numChannels, // 첫 번째: 채널 수 (1)
+          totalSamples, // 두 번째: 샘플 수
+          targetSampleRate // 세 번째: 샘플레이트 (48000)
         )
         console.log('OfflineAudioContext 생성 성공:', {
-          sampleRate: targetSampleRate,
+          numberOfChannels: numChannels,
           length: totalSamples,
-          channels: numChannels
+          sampleRate: targetSampleRate
         })
       } catch (offlineError: any) {
         console.error('OfflineAudioContext 생성 실패:', offlineError)
