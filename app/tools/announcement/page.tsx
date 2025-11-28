@@ -226,70 +226,8 @@ export default function AnnouncementPage() {
         const loadVoices = (): SpeechSynthesisVoice[] => {
           return speechSynthesis.getVoices()
         }
-        
-        // 음성 목록이 로드될 때까지 대기
-        let voices = loadVoices()
-        if (voices.length === 0) {
-          // 음성이 아직 로드되지 않았다면 이벤트 대기
-          speechSynthesis.onvoiceschanged = () => {
-            voices = loadVoices()
-            selectVoice(voices)
-          }
-          // 타임아웃 설정 (3초)
-          setTimeout(() => {
-            voices = loadVoices()
-            if (voices.length === 0) {
-              reject(new Error('음성 목록을 불러올 수 없습니다.'))
-              cleanup()
-              return
-            }
-            selectVoice(voices)
-          }, 3000)
-        } else {
-          selectVoice(voices)
-        }
 
-        const selectVoice = (voices: SpeechSynthesisVoice[]) => {
-          let selectedVoice: SpeechSynthesisVoice | null = null
-
-          if (lang === 'ko') {
-            const koVoices = voices.filter(v => v.lang.startsWith('ko'))
-            if (koVoices.length > 0) {
-              if (gender === 'female') {
-                selectedVoice = koVoices.find(v => 
-                  v.name.includes('여') || 
-                  v.name.toLowerCase().includes('female') ||
-                  v.name.includes('Yuna') ||
-                  v.name.includes('Sora')
-                ) || koVoices[0]
-              } else if (gender === 'male') {
-                selectedVoice = koVoices.find(v => 
-                  v.name.includes('남') || 
-                  v.name.toLowerCase().includes('male')
-                ) || koVoices[0]
-              } else {
-                selectedVoice = koVoices[0]
-              }
-            }
-          } else {
-            const langVoices = voices.filter(v => v.lang.startsWith(lang))
-            if (langVoices.length > 0) {
-              selectedVoice = langVoices[0]
-            } else {
-              // 언어 코드의 첫 부분만 매칭
-              const langPrefix = lang.split('-')[0]
-              selectedVoice = voices.find(v => v.lang.startsWith(langPrefix)) || voices[0]
-            }
-          }
-
-          if (selectedVoice) {
-            utterance.voice = selectedVoice
-            console.log('선택된 음성:', selectedVoice.name, selectedVoice.lang)
-          }
-
-          startRecording()
-        }
-
+        // startRecording 함수 선언 (selectVoice보다 먼저 선언)
         const startRecording = () => {
           try {
             // MediaStreamDestination 생성
@@ -396,6 +334,70 @@ export default function AnnouncementPage() {
             reject(new Error('녹음 설정에 실패했습니다: ' + (error.message || '알 수 없는 오류')))
             cleanup()
           }
+        }
+
+        // selectVoice 함수 선언 (startRecording을 호출하므로 그 다음에 선언)
+        const selectVoice = (voices: SpeechSynthesisVoice[]) => {
+          let selectedVoice: SpeechSynthesisVoice | null = null
+
+          if (lang === 'ko') {
+            const koVoices = voices.filter(v => v.lang.startsWith('ko'))
+            if (koVoices.length > 0) {
+              if (gender === 'female') {
+                selectedVoice = koVoices.find(v => 
+                  v.name.includes('여') || 
+                  v.name.toLowerCase().includes('female') ||
+                  v.name.includes('Yuna') ||
+                  v.name.includes('Sora')
+                ) || koVoices[0]
+              } else if (gender === 'male') {
+                selectedVoice = koVoices.find(v => 
+                  v.name.includes('남') || 
+                  v.name.toLowerCase().includes('male')
+                ) || koVoices[0]
+              } else {
+                selectedVoice = koVoices[0]
+              }
+            }
+          } else {
+            const langVoices = voices.filter(v => v.lang.startsWith(lang))
+            if (langVoices.length > 0) {
+              selectedVoice = langVoices[0]
+            } else {
+              // 언어 코드의 첫 부분만 매칭
+              const langPrefix = lang.split('-')[0]
+              selectedVoice = voices.find(v => v.lang.startsWith(langPrefix)) || voices[0]
+            }
+          }
+
+          if (selectedVoice) {
+            utterance.voice = selectedVoice
+            console.log('선택된 음성:', selectedVoice.name, selectedVoice.lang)
+          }
+
+          startRecording()
+        }
+        
+        // 음성 목록이 로드될 때까지 대기
+        let voices = loadVoices()
+        if (voices.length === 0) {
+          // 음성이 아직 로드되지 않았다면 이벤트 대기
+          speechSynthesis.onvoiceschanged = () => {
+            voices = loadVoices()
+            selectVoice(voices)
+          }
+          // 타임아웃 설정 (3초)
+          setTimeout(() => {
+            voices = loadVoices()
+            if (voices.length === 0) {
+              reject(new Error('음성 목록을 불러올 수 없습니다.'))
+              cleanup()
+              return
+            }
+            selectVoice(voices)
+          }, 3000)
+        } else {
+          selectVoice(voices)
         }
 
       } catch (error: any) {
