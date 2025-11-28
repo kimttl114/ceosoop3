@@ -464,24 +464,22 @@ export default function PostDetailPage() {
                   </div>
                 )}
 
-                {/* 이미지 표시 - 본문과 자연스럽게 섞임 */}
+                {/* 이미지 표시 - 본문과 자연스럽게 섞임, 화면 꽉 차게 */}
                 {post.images && Array.isArray(post.images) && post.images.length > 0 && (
-                  <div className="space-y-4">
+                  <div className="-mx-4 mt-4">
                     {post.images.map((imageUrl: string, index: number) => (
                       <div key={index} className="w-full">
-                        <div className="relative w-full bg-gray-100 rounded-lg overflow-hidden">
-                          <img
-                            src={imageUrl}
-                            alt={`첨부 이미지 ${index + 1}`}
-                            className="w-full h-auto max-h-[600px] object-contain cursor-pointer"
-                            onClick={() => window.open(imageUrl, '_blank')}
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement
-                              target.src = '/placeholder-image.png'
-                            }}
-                            loading="lazy"
-                          />
-                        </div>
+                        <img
+                          src={imageUrl}
+                          alt={`첨부 이미지 ${index + 1}`}
+                          className="w-full h-auto object-contain cursor-pointer block"
+                          onClick={() => window.open(imageUrl, '_blank')}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.src = '/placeholder-image.png'
+                          }}
+                          loading="lazy"
+                        />
                       </div>
                     ))}
                   </div>
