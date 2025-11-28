@@ -136,7 +136,7 @@ except Exception as e:
     }
 
     // stderr에 에러 메시지가 있는지 확인
-    const stderrStr = typeof stderr === 'string' ? stderr : (stderr ? stderr.toString() : '')
+    const stderrStr: string = typeof stderr === 'string' ? stderr : (stderr ? String(stderr) : '')
     if (stderrStr && stderrStr.includes('ERROR:')) {
       throw new Error(`TTS 생성 실패: ${stderrStr}`)
     }
@@ -168,7 +168,7 @@ async function mixAudio(
         maxBuffer: 1024 * 1024
       } as any)
       
-      const durationOutputStr = typeof durationOutput === 'string' ? durationOutput : durationOutput.toString()
+      const durationOutputStr: string = typeof durationOutput === 'string' ? durationOutput : String(durationOutput)
       const duration = parseFloat(durationOutputStr.trim())
       if (!isNaN(duration) && duration > 0) {
         voiceDuration = duration
@@ -193,7 +193,7 @@ async function mixAudio(
         await fs.unlink(tempOutput).catch(() => {})
         
         // Duration 파싱 (예: "Duration: 00:00:05.23")
-        const durationStderrStr = typeof durationStderr === 'string' ? durationStderr : durationStderr.toString()
+        const durationStderrStr: string = typeof durationStderr === 'string' ? durationStderr : String(durationStderr)
         const durationMatch = durationStderrStr.match(/Duration: (\d+):(\d+):(\d+)\.(\d+)/)
         if (durationMatch) {
           const hours = parseInt(durationMatch[1])
@@ -277,7 +277,7 @@ async function mixAudio(
     } as any)
     
     // FFmpeg는 stderr에 정보를 출력하므로 확인
-    const stderrStr = typeof stderr === 'string' ? stderr : (stderr ? stderr.toString() : '')
+    const stderrStr: string = typeof stderr === 'string' ? stderr : (stderr ? String(stderr) : '')
     if (stderrStr) {
       const lowerStderr = stderrStr.toLowerCase()
       // 실제 에러만 체크 (일반 정보 메시지 제외)
