@@ -195,13 +195,63 @@ function getFfmpegPath(): string | null {
     
     // 방법 2: 직접 경로 구성 (node_modules 기준)
     try {
-      const projectRoot = process.cwd()
-      const possiblePaths = [
-        path.join(projectRoot, 'node_modules', 'ffmpeg-static', 'ffmpeg.exe'),
-        path.join(projectRoot, 'node_modules', 'ffmpeg-static', 'bin', 'win32', 'x64', 'ffmpeg.exe'),
-        path.join(projectRoot, 'node_modules', 'ffmpeg-static', 'bin', 'win32', 'ia32', 'ffmpeg.exe'),
-        path.join(projectRoot, 'node_modules', 'ffmpeg-static', 'bin', 'darwin', 'x64', 'ffmpeg'),
-        path.join(projectRoot, 'node_modules', 'ffmpeg-static', 'bin', 'linux', 'x64', 'ffmpeg'),
+      // Vercel 빌드 시 process.cwd()가 잘못된 경로를 반환할 수 있으므로
+      // 여러 가능한 경로를 시도
+      const possibleRoots = [
+        process.cwd(),
+        process.cwd().replace(/\.next\/server.*$/, ''),
+        process.cwd().replace(/app\/api\/generate-audio.*$/, ''),
+        '/var/task', // Lambda 기본 경로
+        '/vercel/path0', // Vercel 경로
+      ]
+      
+      const platform = process.platform
+      console.log('[FFmpeg] 플랫폼:', platform)
+      console.log('[FFmpeg] process.cwd():', process.cwd())
+      
+      // 플랫폼별 경로 우선 (Linux 환경에서는 Linux 바이너리만 확인)
+      const possiblePaths: string[] = []
+      
+      for (const root of possibleRoots) {
+        if (platform === 'linux') {
+          // Linux 환경에서는 Linux 바이너리만 확인
+          possiblePaths.push(
+            path.join(root, 'node_modules', 'ffmpeg-static', 'ffmpeg'),
+            path.join(root, 'node_modules', 'ffmpeg-static', 'bin', 'linux', 'x64', 'ffmpeg'),
+          )
+        } else if (platform === 'win32') {
+          possiblePaths.push(
+            path.join(root, 'node_modules', 'ffmpeg-static', 'ffmpeg.exe'),
+            path.join(root, 'node_modules', 'ffmpeg-static', 'bin', 'win32', 'x64', 'ffmpeg.exe'),
+          )
+        } else if (platform === 'darwin') {
+          possiblePaths.push(
+            path.join(root, 'node_modules', 'ffmpeg-static', 'bin', 'darwin', 'x64', 'ffmpeg'),
+          )
+        }
+      }
+      
+      // 중복 제거
+      const uniquePaths = Array.from(new Set(possiblePaths))
+      
+      const allPossiblePaths = [
+        // 플랫폼별 경로 (플랫폼에 맞는 경로를 먼저 확인)
+        ...uniquePaths,
+        ...(platform === 'win32' ? [
+          path.join(projectRoot, 'node_modules', 'ffmpeg-static', 'ffmpeg.exe'),
+          path.join(projectRoot, 'node_modules', 'ffmpeg-static', 'bin', 'win32', 'x64', 'ffmpeg.exe'),
+          path.join(projectRoot, 'node_modules', 'ffmpeg-static', 'bin', 'win32', 'ia32', 'ffmpeg.exe'),
+        ] : []),
+        ...(platform === 'darwin' ? [
+          path.join(projectRoot, 'node_modules', 'ffmpeg-static', 'bin', 'darwin', 'x64', 'ffmpeg'),
+        ] : []),
+        // 모든 플랫폼 경로 확인 (fallback) - Linux 우선
+        ...(platform === 'linux' ? [
+          ...possibleRoots.flatMap(root => [
+            path.join(root, 'node_modules', 'ffmpeg-static', 'ffmpeg'),
+            path.join(root, 'node_modules', 'ffmpeg-static', 'bin', 'linux', 'x64', 'ffmpeg'),
+          ])
+        ] : []),
       ]
       
       for (const possiblePath of possiblePaths) {
@@ -226,10 +276,27 @@ function getFfmpegPath(): string | null {
 
 // 초기 경로 설정
 console.log('[FFmpeg] ========== FFmpeg 초기 설정 시작 ==========')
+console.log('[FFmpeg] 환경 정보:')
+console.log('  플랫폼:', process.platform)
+console.log('  Vercel:', process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME ? '예' : '아니오')
+console.log('  작업 디렉토리:', process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME ? '/tmp' : tmpdir())
+
 const initialFfmpegPath = getFfmpegPath()
 if (initialFfmpegPath) {
   ffmpeg.setFfmpegPath(initialFfmpegPath)
   console.log('[FFmpeg] ✅ FFmpeg 경로 설정 완료:', initialFfmpegPath)
+  
+  // Vercel/Lambda 환경에서 실행 권한 설정 시도
+  const isVercel = process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME
+  if (isVercel && initialFfmpegPath) {
+    try {
+      const fsSync = require('fs')
+      fsSync.chmodSync(initialFfmpegPath, 0o755) // 실행 권한 부여
+      console.log('[FFmpeg] ✅ 실행 권한 설정 완료 (Vercel)')
+    } catch (chmodError: any) {
+      console.warn('[FFmpeg] ⚠️  실행 권한 설정 실패 (무시 가능):', chmodError.message)
+    }
+  }
 } else {
   console.error('[FFmpeg] ❌ FFmpeg 경로를 설정할 수 없습니다.')
   console.error('[FFmpeg] ffmpeg-static 패키지가 올바르게 설치되었는지 확인하세요.')
@@ -265,7 +332,8 @@ function getFfprobePath(): string | null {
           // 모든 속성을 확인하여 경로 찾기
           for (const key of keys) {
             const value = (ffprobeStatic as any)[key]
-            if (typeof value === 'string' && value.includes('ffprobe') && value.endsWith('.exe')) {
+            // Windows .exe와 Linux 바이너리 모두 확인
+            if (typeof value === 'string' && value.includes('ffprobe') && (value.endsWith('.exe') || value.includes('bin'))) {
               probePath = value
               console.log('[FFmpeg] 방법 1-3: 키 "' + key + '"에서 경로 찾음:', probePath)
               break
@@ -287,15 +355,45 @@ function getFfprobePath(): string | null {
     
     // 방법 2: 직접 경로 구성 (node_modules 기준)
     try {
-      const projectRoot = process.cwd()
-      const possiblePaths = [
-        path.join(projectRoot, 'node_modules', 'ffprobe-static', 'bin', 'win32', 'x64', 'ffprobe.exe'),
-        path.join(projectRoot, 'node_modules', 'ffprobe-static', 'bin', 'win32', 'ia32', 'ffprobe.exe'),
-        path.join(projectRoot, 'node_modules', 'ffprobe-static', 'bin', 'darwin', 'x64', 'ffprobe'),
-        path.join(projectRoot, 'node_modules', 'ffprobe-static', 'bin', 'linux', 'x64', 'ffprobe'),
+      // Vercel 빌드 시 process.cwd()가 잘못된 경로를 반환할 수 있으므로
+      // 여러 가능한 루트 경로를 시도
+      const possibleRoots = [
+        process.cwd(),
+        process.cwd().replace(/\.next\/server.*$/, ''),
+        process.cwd().replace(/app\/api\/generate-audio.*$/, ''),
+        '/var/task', // Lambda 기본 경로
+        '/vercel/path0', // Vercel 경로
       ]
       
-      for (const possiblePath of possiblePaths) {
+      const platform = process.platform
+      console.log('[FFprobe] 플랫폼:', platform)
+      console.log('[FFprobe] process.cwd():', process.cwd())
+      
+      // 플랫폼별 경로 우선 (Linux 환경에서는 Linux 바이너리만 확인)
+      const possiblePaths: string[] = []
+      
+      for (const root of possibleRoots) {
+        if (platform === 'linux') {
+          // Linux 환경에서는 Linux 바이너리만 확인 (Windows 바이너리 제외)
+          possiblePaths.push(
+            path.join(root, 'node_modules', 'ffprobe-static', 'bin', 'linux', 'x64', 'ffprobe'),
+          )
+        } else if (platform === 'win32') {
+          possiblePaths.push(
+            path.join(root, 'node_modules', 'ffprobe-static', 'bin', 'win32', 'x64', 'ffprobe.exe'),
+            path.join(root, 'node_modules', 'ffprobe-static', 'bin', 'win32', 'ia32', 'ffprobe.exe'),
+          )
+        } else if (platform === 'darwin') {
+          possiblePaths.push(
+            path.join(root, 'node_modules', 'ffprobe-static', 'bin', 'darwin', 'x64', 'ffprobe'),
+          )
+        }
+      }
+      
+      // 중복 제거
+      const uniquePaths = Array.from(new Set(possiblePaths))
+      
+      for (const possiblePath of uniquePaths) {
         if (fsSync.existsSync(possiblePath)) {
           console.log('[FFmpeg] ✅ 방법 2 성공: 직접 경로 구성 -', possiblePath)
           return possiblePath
@@ -321,6 +419,18 @@ const initialFfprobePath = getFfprobePath()
 if (initialFfprobePath) {
   ffmpeg.setFfprobePath(initialFfprobePath)
   console.log('[FFmpeg] ✅ FFprobe 경로 설정 완료:', initialFfprobePath)
+  
+  // Vercel/Lambda 환경에서 실행 권한 설정 시도
+  const isVercel = process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME
+  if (isVercel && initialFfprobePath) {
+    try {
+      const fsSync = require('fs')
+      fsSync.chmodSync(initialFfprobePath, 0o755) // 실행 권한 부여
+      console.log('[FFmpeg] ✅ FFprobe 실행 권한 설정 완료 (Vercel)')
+    } catch (chmodError: any) {
+      console.warn('[FFmpeg] ⚠️  FFprobe 실행 권한 설정 실패 (무시 가능):', chmodError.message)
+    }
+  }
 } else {
   console.error('[FFmpeg] ❌ FFprobe 경로를 설정할 수 없습니다.')
   console.error('[FFmpeg] ffprobe-static 패키지가 올바르게 설치되었는지 확인하세요.')
@@ -361,7 +471,15 @@ async function mixVoiceWithBgm(voiceBuffer: Buffer, bgmUrl?: string): Promise<Bu
     return voiceBuffer
   }
 
-  const workDir = tmpdir()
+  // Lambda/Vercel 환경 감지 및 임시 디렉토리 설정
+  const isVercel = process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.VERCEL_ENV
+  const workDir = isVercel ? '/tmp' : tmpdir()
+  
+  console.log('[BGM 믹싱] 환경 정보:')
+  console.log('  플랫폼:', process.platform)
+  console.log('  Vercel:', isVercel)
+  console.log('  작업 디렉토리:', workDir)
+  
   const timestamp = Date.now()
   const voicePath = path.join(workDir, `voice_${timestamp}.mp3`)
   const bgmPath = path.join(workDir, `bgm_${timestamp}.mp3`)
