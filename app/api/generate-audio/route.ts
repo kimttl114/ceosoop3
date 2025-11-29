@@ -10,9 +10,11 @@ import { tmpdir } from 'os'
 // ---- Types ----
 
 interface GenerateAudioRequestBody {
-  keyword: string
-  mood: string
+  keyword?: string
+  mood?: string
   bgmUrl?: string
+  script?: string // 직접 대본 입력 (재생성 모드)
+  regenerateOnly?: boolean // 재생성 플래그
 }
 
 interface VoiceOptions {
@@ -829,16 +831,62 @@ async function mixVoiceWithBgm(voiceBuffer: Buffer, bgmUrl?: string, script?: st
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as GenerateAudioRequestBody
-    const { keyword, mood, bgmUrl } = body
+    const { keyword, mood, bgmUrl, script: providedScript, regenerateOnly } = body
 
     // 디버깅: 요청 데이터 확인
     console.log('[API] 받은 요청 데이터:')
     console.log('  keyword:', keyword)
     console.log('  mood:', mood)
     console.log('  bgmUrl:', bgmUrl || '(없음)')
-    console.log('  bgmUrl 타입:', typeof bgmUrl)
-    console.log('  bgmUrl 길이:', bgmUrl?.length || 0)
+    console.log('  script (제공됨):', providedScript ? '예' : '아니오')
+    console.log('  regenerateOnly:', regenerateOnly)
 
+    // 재생성 모드: 제공된 대본을 직접 사용
+    if (regenerateOnly && providedScript) {
+      if (!providedScript.trim()) {
+        return NextResponse.json({ error: '대본이 필요합니다.' }, { status: 400 })
+      }
+
+      const script = providedScript.trim()
+
+      // TTS 변환 (대본만 사용)
+      const voiceBuffer = await generateTTSWithGoogleCloud(script, {
+        lang: 'ko',
+        gender: 'female',
+        slow: false,
+      })
+
+      console.log('[API] 재생성 모드: BGM 믹싱 시작 전')
+      console.log('  voiceBuffer 길이:', voiceBuffer.length, 'bytes')
+      console.log('  bgmUrl:', bgmUrl || 'undefined')
+
+      // BGM과 믹싱 (있을 경우)
+      const finalBuffer = await mixVoiceWithBgm(voiceBuffer, bgmUrl, script)
+
+      console.log('[API] 재생성 모드: BGM 믹싱 완료')
+      console.log('  finalBuffer 길이:', finalBuffer.length, 'bytes')
+      console.log('  BGM 믹싱 여부:', finalBuffer.length !== voiceBuffer.length ? '예' : '아니오')
+
+      // Base64로 인코딩하여 대본과 함께 반환
+      const audioBase64 = finalBuffer.toString('base64')
+
+      // BGM 믹싱 성공 여부 확인
+      const bgmMixed = bgmUrl && finalBuffer.length > voiceBuffer.length
+
+      console.log('[API] 재생성 모드 응답 데이터:')
+      console.log('  bgmMixed:', bgmMixed)
+      console.log('  bgmUrl (전달 여부):', bgmMixed ? '아니오 (이미 믹싱됨)' : bgmUrl || '없음')
+
+      return NextResponse.json({
+        script,
+        audioBase64,
+        contentType: 'audio/mpeg',
+        bgmMixed,
+        bgmUrl: bgmMixed ? undefined : bgmUrl,
+      })
+    }
+
+    // 일반 모드: keyword로 대본 생성
     if (!keyword || !keyword.trim()) {
       return NextResponse.json({ error: 'keyword가 필요합니다.' }, { status: 400 })
     }

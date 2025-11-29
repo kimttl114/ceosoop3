@@ -36,9 +36,12 @@ export const SmartAudioGenerator: React.FC<SmartAudioGeneratorProps> = ({ bgmOpt
   const [bgmValue, setBgmValue] = useState<string>(bgmOptions[0]?.value ?? '')
 
   const [script, setScript] = useState<string>('')
+  const [editedScript, setEditedScript] = useState<string>('') // 수정된 대본
+  const [isEditingScript, setIsEditingScript] = useState<boolean>(false) // 대본 편집 모드
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [bgmUrl, setBgmUrl] = useState<string | null>(null) // BGM URL (클라이언트 재생용)
   const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [isRegenerating, setIsRegenerating] = useState<boolean>(false) // 재생성 중
   const [error, setError] = useState<string | null>(null)
 
   const handleGenerate = async () => {
@@ -104,6 +107,7 @@ export const SmartAudioGenerator: React.FC<SmartAudioGeneratorProps> = ({ bgmOpt
       const url = URL.createObjectURL(blob)
 
       setScript(data.script)
+      setEditedScript(data.script) // 편집 가능한 대본으로 복사
       setAudioUrl(url)
       
       // BGM 믹싱이 실패한 경우 BGM URL 저장 (클라이언트에서 함께 재생)
@@ -118,6 +122,67 @@ export const SmartAudioGenerator: React.FC<SmartAudioGeneratorProps> = ({ bgmOpt
       setError(message)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleRegenerateAudio = async () => {
+    if (!editedScript.trim()) {
+      setError('대본을 입력해주세요.')
+      return
+    }
+
+    const selectedBgm = bgmOptions.find((b) => b.value === bgmValue)
+    const bgmUrlParam = selectedBgm?.url && selectedBgm.url.trim() !== '' ? selectedBgm.url : undefined
+
+    setIsRegenerating(true)
+    setError(null)
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl)
+      setAudioUrl(null)
+    }
+
+    try {
+      const response = await fetch('/api/generate-audio', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          script: editedScript.trim(),
+          bgmUrl: bgmUrlParam,
+          regenerateOnly: true,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as { message?: string; error?: string }
+        const msg = data.message || data.error || `오류가 발생했습니다. (HTTP ${response.status})`
+        throw new Error(msg)
+      }
+
+      const data = (await response.json()) as GenerateAudioResponse
+
+      if (!data.audioBase64 || !data.contentType) {
+        throw new Error('서버에서 유효한 오디오 데이터를 받지 못했습니다.')
+      }
+
+      const blob = base64ToBlob(data.audioBase64, data.contentType)
+      const url = URL.createObjectURL(blob)
+
+      setScript(editedScript) // 수정된 대본으로 업데이트
+      setAudioUrl(url)
+
+      // BGM 믹싱이 실패한 경우 BGM URL 저장
+      if (!data.bgmMixed && data.bgmUrl) {
+        setBgmUrl(data.bgmUrl)
+      } else {
+        setBgmUrl(null)
+      }
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.'
+      setError(message)
+    } finally {
+      setIsRegenerating(false)
     }
   }
 
@@ -205,10 +270,44 @@ export const SmartAudioGenerator: React.FC<SmartAudioGeneratorProps> = ({ bgmOpt
         <div className="space-y-4 border-t border-slate-100 pt-4">
           {script && (
             <div className="space-y-2">
-              <h3 className="text-xs font-semibold text-slate-800">AI가 생성한 대본</h3>
-              <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2 text-sm text-slate-800 whitespace-pre-line">
-                {script}
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold text-slate-800">AI가 생성한 대본</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditingScript(!isEditingScript)
+                    if (!isEditingScript) {
+                      setEditedScript(script)
+                    }
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-700 underline"
+                >
+                  {isEditingScript ? '편집 취소' : '대본 수정'}
+                </button>
               </div>
+              
+              {isEditingScript ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={editedScript}
+                    onChange={(e) => setEditedScript(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-slate-900/80 focus:border-slate-900/80"
+                    placeholder="대본을 수정하세요..."
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRegenerateAudio}
+                    disabled={isRegenerating || !editedScript.trim()}
+                    className="w-full inline-flex items-center justify-center rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold py-2 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isRegenerating ? '음성 생성 중...' : '수정된 대본으로 음성 생성'}
+                  </button>
+                </div>
+              ) : (
+                <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2 text-sm text-slate-800 whitespace-pre-line">
+                  {script}
+                </div>
+              )}
             </div>
           )}
 
