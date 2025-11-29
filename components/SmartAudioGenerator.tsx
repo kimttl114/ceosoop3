@@ -240,7 +240,6 @@ export const SmartAudioGenerator: React.FC<SmartAudioGeneratorProps> = ({ bgmOpt
                     src={bgmUrl} 
                     className="w-full" 
                     id="bgm-audio"
-                    volume={0.2}
                     onLoadedMetadata={(e) => {
                       const audio = e.currentTarget
                       audio.volume = 0.2 // BGM 볼륨 20%
