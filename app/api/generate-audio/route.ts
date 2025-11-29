@@ -515,8 +515,33 @@ if (initialFfprobePath) {
 }
 console.log('[FFmpeg] ========== FFprobe 초기 설정 완료 ==========')
 
-async function getAudioDuration(filePath: string): Promise<number> {
+/**
+ * 텍스트 길이로 오디오 길이 추정 (FFprobe 없이)
+ * 한국어 TTS는 대략 1초에 3-4자를 읽습니다
+ */
+function estimateAudioDurationFromText(textLength: number): number {
+  // 한국어 TTS 속도: 대략 1초에 3.5자
+  const charactersPerSecond = 3.5
+  const estimatedDuration = textLength / charactersPerSecond
+  // 최소 1초, 최대 60초
+  return Math.max(1, Math.min(60, estimatedDuration))
+}
+
+/**
+ * MP3 파일 버퍼에서 길이를 추정 (간단한 방법)
+ */
+function estimateAudioDurationFromBuffer(buffer: Buffer): number {
+  // MP3 파일 크기로 대략 추정 (정확하지 않지만 대략적인 값)
+  // 평균 비트레이트 128kbps 기준으로 추정
+  const averageBitrate = 128000 // bits per second
+  const fileSizeBits = buffer.length * 8
+  const estimatedDuration = fileSizeBits / averageBitrate
+  return Math.max(0.5, estimatedDuration)
+}
+
+async function getAudioDuration(filePath: string, fallbackTextLength?: number, fallbackBuffer?: Buffer): Promise<number> {
   return new Promise<number>((resolve, reject) => {
+    // 먼저 FFprobe를 시도
     // 매번 최신 경로를 가져와서 설정 (Next.js 빌드 환경에서 경로가 변경될 수 있음)
     const currentFfprobePath = getFfprobePath()
     if (currentFfprobePath) {
@@ -528,20 +553,52 @@ async function getAudioDuration(filePath: string): Promise<number> {
       if (err) {
         console.error('[getAudioDuration] FFprobe 에러:', err.message)
         console.error('[getAudioDuration] 사용된 경로:', currentFfprobePath || '(기본값)')
-        reject(err)
+        
+        // FFprobe 실패 시 fallback 방법 시도
+        console.log('[getAudioDuration] ⚠️  FFprobe 실패, 추정 방법 사용')
+        
+        // 방법 1: 텍스트 길이로 추정
+        if (fallbackTextLength) {
+          const estimatedDuration = estimateAudioDurationFromText(fallbackTextLength)
+          console.log(`[getAudioDuration] ✅ 텍스트 길이로 추정: ${estimatedDuration.toFixed(2)}초 (텍스트 길이: ${fallbackTextLength}자)`)
+          resolve(estimatedDuration)
+          return
+        }
+        
+        // 방법 2: 버퍼 크기로 추정
+        if (fallbackBuffer) {
+          const estimatedDuration = estimateAudioDurationFromBuffer(fallbackBuffer)
+          console.log(`[getAudioDuration] ✅ 버퍼 크기로 추정: ${estimatedDuration.toFixed(2)}초 (버퍼 크기: ${fallbackBuffer.length} bytes)`)
+          resolve(estimatedDuration)
+          return
+        }
+        
+        // Fallback 방법도 실패한 경우
+        reject(new Error(`오디오 길이를 확인할 수 없습니다: ${err.message}`))
         return
       }
       const duration = metadata.format?.duration
       if (!duration || Number.isNaN(duration)) {
+        // FFprobe는 성공했지만 duration이 없는 경우
+        console.warn('[getAudioDuration] ⚠️  FFprobe 성공했지만 duration이 없음, 추정 방법 사용')
+        
+        if (fallbackTextLength) {
+          const estimatedDuration = estimateAudioDurationFromText(fallbackTextLength)
+          console.log(`[getAudioDuration] ✅ 텍스트 길이로 추정: ${estimatedDuration.toFixed(2)}초`)
+          resolve(estimatedDuration)
+          return
+        }
+        
         reject(new Error('오디오 길이를 확인할 수 없습니다.'))
         return
       }
+      console.log(`[getAudioDuration] ✅ FFprobe로 확인: ${duration.toFixed(2)}초`)
       resolve(duration)
     })
   })
 }
 
-async function mixVoiceWithBgm(voiceBuffer: Buffer, bgmUrl?: string): Promise<Buffer> {
+async function mixVoiceWithBgm(voiceBuffer: Buffer, bgmUrl?: string, script?: string): Promise<Buffer> {
   // BGM이 없거나 빈 문자열이면 그대로 반환
   if (!bgmUrl || typeof bgmUrl !== 'string' || bgmUrl.trim() === '') {
     console.log('[BGM 믹싱] BGM URL이 없어 음성만 반환합니다.')
@@ -603,11 +660,24 @@ async function mixVoiceWithBgm(voiceBuffer: Buffer, bgmUrl?: string): Promise<Bu
     console.log('[BGM 믹싱] 3단계: 음성 길이 확인 중...')
     let voiceDuration: number
     try {
-      voiceDuration = await getAudioDuration(voicePath)
+      // FFprobe가 실패할 경우를 대비해 텍스트 길이와 버퍼를 fallback으로 전달
+      const fallbackTextLength = script ? script.length : undefined
+      voiceDuration = await getAudioDuration(voicePath, fallbackTextLength, voiceBuffer)
       console.log(`[BGM 믹싱] ✅ 음성 길이: ${voiceDuration.toFixed(2)}초`)
     } catch (durationError: any) {
       console.error('[BGM 믹싱] ❌ 음성 길이 확인 실패:', durationError.message)
-      throw new Error(`음성 파일의 길이를 확인할 수 없습니다: ${durationError.message}`)
+      
+      // Fallback: 텍스트 길이로 추정
+      if (script) {
+        voiceDuration = estimateAudioDurationFromText(script.length)
+        console.log(`[BGM 믹싱] ⚠️  텍스트 길이로 추정 사용: ${voiceDuration.toFixed(2)}초 (텍스트: ${script.length}자)`)
+      } else {
+        // 마지막 fallback: 버퍼 크기로 추정
+        voiceDuration = estimateAudioDurationFromBuffer(voiceBuffer)
+        console.log(`[BGM 믹싱] ⚠️  버퍼 크기로 추정 사용: ${voiceDuration.toFixed(2)}초 (버퍼: ${voiceBuffer.length} bytes)`)
+      }
+      
+      console.log(`[BGM 믹싱] ✅ 추정된 음성 길이: ${voiceDuration.toFixed(2)}초`)
     }
 
     const targetDuration = voiceDuration + 2 // 끝에 2초 여유
@@ -790,7 +860,7 @@ export async function POST(request: NextRequest) {
     console.log('  bgmUrl:', bgmUrl || 'undefined')
 
     // 3. BGM과 믹싱 (있을 경우)
-    const finalBuffer = await mixVoiceWithBgm(voiceBuffer, bgmUrl)
+    const finalBuffer = await mixVoiceWithBgm(voiceBuffer, bgmUrl, script)
     
     console.log('[API] BGM 믹싱 완료:')
     console.log('  finalBuffer 길이:', finalBuffer.length, 'bytes')
