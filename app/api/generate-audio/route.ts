@@ -21,26 +21,57 @@ interface VoiceOptions {
 
 // ---- Helpers: Vertex AI (Gemini) ----
 
-async function ensureVertexCredentialsFile(): Promise<{ projectId: string; location: string }> {
-  const projectId = process.env.GOOGLE_VERTEX_AI_PROJECT_ID
-  const location = process.env.GOOGLE_VERTEX_AI_LOCATION || 'asia-northeast3'
+// 통합된 자격 증명 관리 (Vertex AI + TTS 공통 사용)
+async function getGoogleCredentials(): Promise<{
+  credentials: unknown
+  projectId: string
+  location: string
+}> {
+  // 1순위: GOOGLE_CLOUD_CREDENTIALS (통합 자격 증명)
+  // 2순위: GOOGLE_VERTEX_AI_CREDENTIALS
+  // 3순위: GOOGLE_CLOUD_TTS_CREDENTIALS
   const credentialsJson =
-    process.env.GOOGLE_VERTEX_AI_CREDENTIALS || process.env.GOOGLE_CLOUD_TTS_CREDENTIALS
-
-  if (!projectId) {
-    throw new Error(
-      'GOOGLE_VERTEX_AI_PROJECT_ID 환경 변수가 설정되지 않았습니다. Vertex AI 프로젝트 ID가 필요합니다.'
-    )
-  }
+    process.env.GOOGLE_CLOUD_CREDENTIALS ||
+    process.env.GOOGLE_VERTEX_AI_CREDENTIALS ||
+    process.env.GOOGLE_CLOUD_TTS_CREDENTIALS
 
   if (!credentialsJson) {
     throw new Error(
-      'GOOGLE_VERTEX_AI_CREDENTIALS 또는 GOOGLE_CLOUD_TTS_CREDENTIALS 환경 변수가 설정되지 않았습니다.'
+      'Google Cloud 자격 증명이 설정되지 않았습니다.\n\n다음 중 하나를 설정해주세요:\n- GOOGLE_CLOUD_CREDENTIALS (권장: Vertex AI + TTS 공통 사용)\n- GOOGLE_VERTEX_AI_CREDENTIALS\n- GOOGLE_CLOUD_TTS_CREDENTIALS'
     )
   }
 
-  const keyPath = path.join(tmpdir(), 'vertex-ai-key.json')
-  await fs.writeFile(keyPath, credentialsJson, 'utf8')
+  let credentials: unknown
+  try {
+    credentials = JSON.parse(credentialsJson)
+  } catch {
+    throw new Error('자격 증명 JSON이 올바르지 않습니다. JSON 형식을 확인해주세요.')
+  }
+
+  // 프로젝트 ID 추출
+  const parsed = credentials as { project_id?: string }
+  const projectId =
+    process.env.GOOGLE_VERTEX_AI_PROJECT_ID ||
+    process.env.GOOGLE_CLOUD_PROJECT_ID ||
+    parsed.project_id
+
+  if (!projectId) {
+    throw new Error(
+      'Google Cloud 프로젝트 ID를 찾을 수 없습니다.\n\n다음 중 하나를 설정해주세요:\n- GOOGLE_VERTEX_AI_PROJECT_ID (권장)\n- GOOGLE_CLOUD_PROJECT_ID\n또는 자격 증명 JSON에 project_id가 포함되어 있어야 합니다.'
+    )
+  }
+
+  const location = process.env.GOOGLE_VERTEX_AI_LOCATION || 'asia-northeast3'
+
+  return { credentials, projectId, location }
+}
+
+async function ensureVertexCredentialsFile(): Promise<{ projectId: string; location: string }> {
+  const { credentials, projectId, location } = await getGoogleCredentials()
+
+  // 임시 파일로 저장 (Vertex AI 클라이언트가 파일 경로를 요구하는 경우 대비)
+  const keyPath = path.join(tmpdir(), `google-cloud-key-${Date.now()}.json`)
+  await fs.writeFile(keyPath, JSON.stringify(credentials), 'utf8')
 
   // Vertex AI 클라이언트가 이 경로를 사용하도록 설정
   process.env.GOOGLE_APPLICATION_CREDENTIALS = keyPath
@@ -99,24 +130,11 @@ async function generateScriptWithGemini(keyword: string, mood: string): Promise<
 // ---- Helpers: Google Cloud TTS ----
 
 async function generateTTSWithGoogleCloud(text: string, options?: VoiceOptions): Promise<Buffer> {
-  const credentialsJson =
-    process.env.GOOGLE_CLOUD_TTS_CREDENTIALS || process.env.GOOGLE_VERTEX_AI_CREDENTIALS
-
-  if (!credentialsJson) {
-    throw new Error(
-      'GOOGLE_CLOUD_TTS_CREDENTIALS 또는 GOOGLE_VERTEX_AI_CREDENTIALS 환경 변수가 설정되지 않았습니다.'
-    )
-  }
+  // 통합된 자격 증명 사용 (Vertex AI와 동일)
+  const { credentials } = await getGoogleCredentials()
 
   // 동적 import (빌드 사이즈 최소화)
   const { TextToSpeechClient } = await import('@google-cloud/text-to-speech')
-
-  let credentials: unknown
-  try {
-    credentials = JSON.parse(credentialsJson)
-  } catch {
-    throw new Error('TTS용 서비스 계정 JSON이 올바르지 않습니다.')
-  }
 
   const client = new TextToSpeechClient({ credentials })
 
