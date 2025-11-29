@@ -622,6 +622,13 @@ export default function AnnouncementPage() {
       voiceSource.connect(voiceGain)
       voiceGain.connect(offlineContext.destination)
       
+      console.log('Voice 소스 설정:', {
+        bufferDuration: voiceBuffer.duration.toFixed(2),
+        bufferChannels: voiceBuffer.numberOfChannels,
+        bufferSampleRate: voiceBuffer.sampleRate,
+        gain: voiceGain.gain.value
+      })
+      
       // BGM 소스 생성 (20% 볼륨, 반복 재생)
       const bgmSource = offlineContext.createBufferSource()
       bgmSource.buffer = bgmBuffer // 샘플레이트가 다르면 OfflineAudioContext가 자동 재샘플링
@@ -638,20 +645,26 @@ export default function AnnouncementPage() {
       bgmSource.connect(bgmGain)
       bgmGain.connect(offlineContext.destination)
       
-      console.log('오디오 소스 연결 완료:', {
-        voiceDuration: voiceDuration.toFixed(2),
-        bgmLoop: true,
+      console.log('BGM 소스 설정:', {
+        bufferDuration: bgmBuffer.duration.toFixed(2),
+        bufferChannels: bgmBuffer.numberOfChannels,
+        bufferSampleRate: bgmBuffer.sampleRate,
+        loop: bgmSource.loop,
+        initialGain: 0.2,
         fadeOutStart: fadeOutStart.toFixed(2),
         fadeOutEnd: fadeOutEnd.toFixed(2)
       })
+      
+      console.log('오디오 소스 연결 완료, 렌더링 준비됨')
       
       // Step 7: 오프라인 렌더링 (실제 재생 없이 처리)
       console.log('오프라인 렌더링 시작...')
       
       try {
+        // 먼저 모든 소스를 시작해야 함 (동시에)
         voiceSource.start(0)
         bgmSource.start(0)
-        console.log('오디오 소스 재생 시작')
+        console.log('오디오 소스 재생 시작됨 (Voice + BGM 동시 시작)')
       } catch (startError: any) {
         console.error('오디오 소스 시작 실패:', startError)
         throw new Error('오디오 재생을 시작할 수 없습니다: ' + (startError.message || '알 수 없는 오류'))
@@ -672,20 +685,51 @@ export default function AnnouncementPage() {
           throw new Error('렌더링된 오디오 버퍼가 비어있습니다.')
         }
         
-        // 실제로 오디오 데이터가 있는지 확인 (첫 채널의 일부 샘플 확인)
+        // 실제로 오디오 데이터가 있는지 확인 (더 정확한 검증)
         const firstChannel = renderedBuffer.getChannelData(0)
+        let maxAmplitude = 0
+        let minAmplitude = Infinity
         let hasAudio = false
-        for (let i = 0; i < Math.min(1000, firstChannel.length); i++) {
-          if (Math.abs(firstChannel[i]) > 0.001) {
+        let totalAmplitude = 0
+        const checkStep = Math.max(1, Math.floor(firstChannel.length / 5000)) // 샘플 확인
+        
+        for (let i = 0; i < firstChannel.length; i += checkStep) {
+          const absValue = Math.abs(firstChannel[i])
+          totalAmplitude += absValue
+          if (absValue > maxAmplitude) {
+            maxAmplitude = absValue
+          }
+          if (absValue < minAmplitude) {
+            minAmplitude = absValue
+          }
+          if (absValue > 0.01) {
             hasAudio = true
-            break
           }
         }
         
-        if (!hasAudio) {
-          console.warn('⚠️ 렌더링된 오디오에 실제 데이터가 거의 없습니다.')
+        const avgAmplitude = totalAmplitude / Math.floor(firstChannel.length / checkStep)
+        
+        console.log('렌더링된 오디오 데이터 검증:', {
+          maxAmplitude: maxAmplitude.toFixed(6),
+          minAmplitude: minAmplitude.toFixed(6),
+          avgAmplitude: avgAmplitude.toFixed(6),
+          hasAudio,
+          samples: firstChannel.length,
+          checkedSamples: Math.floor(firstChannel.length / checkStep)
+        })
+        
+        if (!hasAudio || maxAmplitude < 0.01) {
+          console.error('❌ 렌더링된 오디오에 실제 데이터가 거의 없습니다.', {
+            maxAmplitude: maxAmplitude.toFixed(6),
+            threshold: 0.01,
+            hasAudio
+          })
+          throw new Error('오디오 믹싱 실패: 렌더링된 오디오에 실제 데이터가 없습니다.\n\n가능한 원인:\n1. 브라우저 호환성 문제\n2. 오디오 소스 연결 오류\n\n해결 방법:\n- 브라우저를 새로고침하고 다시 시도해주세요\n- 다른 브라우저(Chrome, Safari)에서 시도해보세요')
         } else {
-          console.log('✅ 렌더링된 오디오에 실제 데이터가 확인됨')
+          console.log('✅ 렌더링된 오디오에 실제 데이터가 확인됨:', {
+            maxAmplitude: maxAmplitude.toFixed(6),
+            avgAmplitude: avgAmplitude.toFixed(6)
+          })
         }
         
       } catch (renderError: any) {
