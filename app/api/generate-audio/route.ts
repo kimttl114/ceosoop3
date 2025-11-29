@@ -234,15 +234,64 @@ function getFfmpegPath(): string | null {
       // 중복 제거
       const uniquePaths = Array.from(new Set(possiblePaths))
       
+      console.log(`[FFmpeg] 방법 2: 확인할 경로 수: ${uniquePaths.length}`)
       for (const possiblePath of uniquePaths) {
-        if (fsSync.existsSync(possiblePath)) {
+        const exists = fsSync.existsSync(possiblePath)
+        console.log(`[FFmpeg] 경로 확인: ${exists ? '✅' : '❌'} ${possiblePath}`)
+        if (exists) {
           console.log('[FFmpeg] ✅ 방법 2 성공: 직접 경로 구성 -', possiblePath)
           return possiblePath
         }
       }
-      console.warn('[FFmpeg] 방법 2: 직접 경로 구성 실패')
+      
+      // 디버깅: node_modules 디렉토리 존재 여부 확인
+      console.warn('[FFmpeg] 방법 2: 직접 경로 구성 실패 - 상세 디버깅 시작')
+      for (const root of possibleRoots) {
+        const nodeModulesPath = path.join(root, 'node_modules')
+        const exists = fsSync.existsSync(nodeModulesPath)
+        console.log(`[FFmpeg] 디버깅: node_modules ${exists ? '✅ 존재' : '❌ 없음'} - ${nodeModulesPath}`)
+        
+        if (exists) {
+          // ffmpeg-static 디렉토리 확인
+          const ffmpegStaticDir = path.join(nodeModulesPath, 'ffmpeg-static')
+          const ffmpegStaticExists = fsSync.existsSync(ffmpegStaticDir)
+          console.log(`[FFmpeg] 디버깅: ffmpeg-static 디렉토리 ${ffmpegStaticExists ? '✅ 존재' : '❌ 없음'} - ${ffmpegStaticDir}`)
+          
+          if (ffmpegStaticExists) {
+            // 디렉토리 내용 확인
+            try {
+              const files = fsSync.readdirSync(ffmpegStaticDir)
+              console.log(`[FFmpeg] 디버깅: ffmpeg-static 디렉토리 내용 (최대 10개):`, files.slice(0, 10))
+              
+              // bin 디렉토리 확인
+              const binDir = path.join(ffmpegStaticDir, 'bin')
+              if (fsSync.existsSync(binDir)) {
+                const binFiles = fsSync.readdirSync(binDir)
+                console.log(`[FFmpeg] 디버깅: bin 디렉토리 내용:`, binFiles)
+                
+                // linux 디렉토리 확인
+                const linuxDir = path.join(binDir, 'linux')
+                if (fsSync.existsSync(linuxDir)) {
+                  const linuxFiles = fsSync.readdirSync(linuxDir)
+                  console.log(`[FFmpeg] 디버깅: linux 디렉토리 내용:`, linuxFiles)
+                  
+                  // x64 디렉토리 확인
+                  const x64Dir = path.join(linuxDir, 'x64')
+                  if (fsSync.existsSync(x64Dir)) {
+                    const x64Files = fsSync.readdirSync(x64Dir)
+                    console.log(`[FFmpeg] 디버깅: x64 디렉토리 내용:`, x64Files)
+                  }
+                }
+              }
+            } catch (err: any) {
+              console.warn('[FFmpeg] 디버깅: 디렉토리 읽기 실패:', err.message)
+            }
+          }
+        }
+      }
     } catch (err2: any) {
       console.warn('[FFmpeg] 방법 2 실패:', err2.message)
+      console.warn('[FFmpeg] 에러 스택:', err2.stack)
     }
     
     console.error('[FFmpeg] ❌ 모든 방법 실패: FFmpeg 경로를 찾을 수 없습니다.')
@@ -373,13 +422,61 @@ function getFfprobePath(): string | null {
       // 중복 제거
       const uniquePaths = Array.from(new Set(possiblePaths))
       
+      console.log(`[FFprobe] 방법 2: 확인할 경로 수: ${uniquePaths.length}`)
       for (const possiblePath of uniquePaths) {
-        if (fsSync.existsSync(possiblePath)) {
+        const exists = fsSync.existsSync(possiblePath)
+        console.log(`[FFprobe] 경로 확인: ${exists ? '✅' : '❌'} ${possiblePath}`)
+        if (exists) {
           console.log('[FFmpeg] ✅ 방법 2 성공: 직접 경로 구성 -', possiblePath)
           return possiblePath
         }
       }
-      console.warn('[FFmpeg] 방법 2: 직접 경로 구성 실패')
+      
+      // 디버깅: node_modules 디렉토리 존재 여부 확인
+      console.warn('[FFprobe] 방법 2: 직접 경로 구성 실패 - 상세 디버깅 시작')
+      for (const root of possibleRoots) {
+        const nodeModulesPath = path.join(root, 'node_modules')
+        const exists = fsSync.existsSync(nodeModulesPath)
+        console.log(`[FFprobe] 디버깅: node_modules ${exists ? '✅ 존재' : '❌ 없음'} - ${nodeModulesPath}`)
+        
+        if (exists) {
+          // ffprobe-static 디렉토리 확인
+          const ffprobeStaticDir = path.join(nodeModulesPath, 'ffprobe-static')
+          const ffprobeStaticExists = fsSync.existsSync(ffprobeStaticDir)
+          console.log(`[FFprobe] 디버깅: ffprobe-static 디렉토리 ${ffprobeStaticExists ? '✅ 존재' : '❌ 없음'} - ${ffprobeStaticDir}`)
+          
+          if (ffprobeStaticExists) {
+            // 디렉토리 내용 확인
+            try {
+              const files = fsSync.readdirSync(ffprobeStaticDir)
+              console.log(`[FFprobe] 디버깅: ffprobe-static 디렉토리 내용 (최대 10개):`, files.slice(0, 10))
+              
+              // bin 디렉토리 확인
+              const binDir = path.join(ffprobeStaticDir, 'bin')
+              if (fsSync.existsSync(binDir)) {
+                const binFiles = fsSync.readdirSync(binDir)
+                console.log(`[FFprobe] 디버깅: bin 디렉토리 내용:`, binFiles)
+                
+                // linux 디렉토리 확인
+                const linuxDir = path.join(binDir, 'linux')
+                if (fsSync.existsSync(linuxDir)) {
+                  const linuxFiles = fsSync.readdirSync(linuxDir)
+                  console.log(`[FFprobe] 디버깅: linux 디렉토리 내용:`, linuxFiles)
+                  
+                  // x64 디렉토리 확인
+                  const x64Dir = path.join(linuxDir, 'x64')
+                  if (fsSync.existsSync(x64Dir)) {
+                    const x64Files = fsSync.readdirSync(x64Dir)
+                    console.log(`[FFprobe] 디버깅: x64 디렉토리 내용:`, x64Files)
+                  }
+                }
+              }
+            } catch (err: any) {
+              console.warn('[FFprobe] 디버깅: 디렉토리 읽기 실패:', err.message)
+            }
+          }
+        }
+      }
     } catch (err2: any) {
       console.warn('[FFmpeg] 방법 2 실패:', err2.message)
     }
