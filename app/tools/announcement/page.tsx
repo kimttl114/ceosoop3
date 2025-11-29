@@ -892,32 +892,48 @@ export default function AnnouncementPage() {
 
       // Step 2: 서버 API로 TTS 생성 시도 (실제 음성 생성 가능)
       // 실패 시 클라이언트 Web Speech API로 폴백
-      console.log('🔄 서버 API로 TTS 생성 시도...')
+      console.log('🔄 서버 API로 TTS 생성 시도...', {
+        text: text.substring(0, 50),
+        lang: voiceLang,
+        speed: voiceSpeed,
+        gender: voiceGender
+      })
       
       let voiceBlob: Blob | null = null
+      let serverApiUsed = false
       
       // 먼저 서버 API 시도 (실제 음성 생성)
       try {
+        const requestBody = {
+          text,
+          bgmUrl: null, // 서버에서는 BGM 믹싱 안 함, 클라이언트에서 처리
+          voiceOptions: {
+            lang: voiceLang,
+            slow: voiceSpeed === 'slow',
+            gender: voiceGender,
+            tld: voiceTld || undefined,
+          },
+        }
+        console.log('서버 API 요청 전송:', requestBody)
+        
         const response = await fetch('/api/generate-announcement', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            text,
-            bgmUrl: null, // 서버에서는 BGM 믹싱 안 함, 클라이언트에서 처리
-            voiceOptions: {
-              lang: voiceLang,
-              slow: voiceSpeed === 'slow',
-              gender: voiceGender,
-              tld: voiceTld || undefined,
-            },
-          }),
+          body: JSON.stringify(requestBody),
+        })
+        
+        console.log('서버 API 응답 받음:', {
+          status: response.status,
+          statusText: response.statusText,
+          contentType: response.headers.get('content-type')
         })
 
         if (response.ok) {
           voiceBlob = await response.blob()
           const contentType = response.headers.get('content-type') || 'unknown'
+          serverApiUsed = true
           console.log('✅ 서버 API TTS 생성 성공:', { 
             size: voiceBlob.size, 
             type: voiceBlob.type,
@@ -959,7 +975,11 @@ export default function AnnouncementPage() {
       
       // 서버 API 실패 시 클라이언트 Web Speech API 사용
       if (!voiceBlob) {
-        console.log('🔄 클라이언트에서 TTS 생성 시작 (Web Speech API 폴백)...')
+        console.log('⚠️ 서버 API 실패, 클라이언트 Web Speech API로 폴백 (주의: 빈 오디오가 생성될 수 있음)...')
+        
+        // 사용자에게 경고 표시
+        setError('⚠️ 서버 API를 사용할 수 없습니다. Web Speech API로 시도하지만, BGM과 함께 사용하기 어려울 수 있습니다.\n\n서버 관리자에게 Python/gTTS 설치를 요청하세요.')
+        
         try {
           voiceBlob = await generateSpeechWithWebAPI(
             text,
@@ -986,6 +1006,8 @@ export default function AnnouncementPage() {
           const errorMessage = ttsError.message || '음성 생성에 실패했습니다.'
           throw new Error(`음성 생성 중 오류가 발생했습니다: ${errorMessage}\n\n브라우저가 음성 합성을 지원하지 않을 수 있습니다. 다른 브라우저(Chrome, Safari)에서 시도해보세요.`)
         }
+      } else {
+        console.log('✅ 서버 API를 사용하여 Voice 생성 완료')
       }
       
       // Voice 오디오 유효성 검사
@@ -996,9 +1018,17 @@ export default function AnnouncementPage() {
       // Voice 오디오가 실제 데이터를 가지고 있는지 확인
       // Web Speech API로 생성된 경우 빈 오디오일 수 있음
       const voiceHasData = await checkVoiceAudioData(voiceBlob)
+      
       if (!voiceHasData) {
-        console.warn('⚠️ Voice 오디오에 실제 데이터가 거의 없습니다. BGM만 재생될 수 있습니다.')
-        setError('⚠️ 경고: 음성 오디오에 실제 데이터가 없습니다. 서버 API를 사용하거나 다른 브라우저에서 시도해주세요.')
+        console.error('❌ Voice 오디오에 실제 데이터가 없습니다.')
+        const errorMsg = '음성 오디오에 실제 데이터가 없습니다.\n\n' +
+          '💡 해결 방법:\n' +
+          '1. 서버에 Python/gTTS가 설치되어 있는지 확인하세요\n' +
+          '2. 서버 API가 작동하지 않으면 관리자에게 문의하세요\n' +
+          '3. 브라우저를 새로고침하고 다시 시도해주세요\n\n' +
+          '현재는 BGM과 음성을 함께 사용할 수 없습니다.'
+        setError(errorMsg)
+        throw new Error('Voice 오디오에 실제 데이터가 없어 BGM 믹싱을 진행할 수 없습니다.')
       }
 
       // Step 4: BGM 믹싱 (클라이언트 사이드 - 사장님 폰에서 즉석 처리)
@@ -1013,14 +1043,9 @@ export default function AnnouncementPage() {
           console.log('클라이언트 사이드 BGM 믹싱 시작:', { 
             bgmUrl,
             voiceSize: voiceBlob.size,
-            voiceType: voiceBlob.type
+            voiceType: voiceBlob.type,
+            voiceHasData
           })
-          
-          // Voice가 실제 데이터를 가지고 있는지 재확인
-          if (!voiceHasData) {
-            console.error('❌ Voice 오디오에 실제 데이터가 없어 BGM과 제대로 믹싱할 수 없습니다.')
-            throw new Error('음성 오디오에 실제 데이터가 없습니다. 서버 API 설정을 확인하거나 다른 브라우저에서 시도해주세요.')
-          }
           
           // Web Audio API를 사용하여 Voice + BGM 합성
           // Voice: 100%, BGM: 20% 볼륨
@@ -1048,10 +1073,18 @@ export default function AnnouncementPage() {
             voiceSize: voiceBlob.size
           })
           
-          // 사용자에게 BGM 믹싱 실패를 알림하되, Voice는 사용 가능
+          // 사용자에게 BGM 믹싱 실패를 알림
           const mixErrorMessage = mixError.message || '알 수 없는 오류'
-          setError(`⚠️ BGM 믹싱에 실패했습니다. Voice만 재생됩니다.\n\n오류: ${mixErrorMessage}\n\nVoice 오디오는 정상적으로 생성되었습니다. BGM 없이 사용할 수 있습니다.`)
-          finalBlob = voiceBlob
+          
+          // Voice가 비어있는 경우와 다른 오류를 구분
+          if (mixErrorMessage.includes('실제 데이터가 없')) {
+            setError(mixErrorMessage)
+            throw mixError // Voice가 비어있으면 에러를 throw하여 진행 중단
+          } else {
+            // 다른 오류인 경우 Voice만 사용
+            setError(`⚠️ BGM 믹싱에 실패했습니다. Voice만 재생됩니다.\n\n오류: ${mixErrorMessage}\n\nVoice 오디오는 정상적으로 생성되었습니다. BGM 없이 사용할 수 있습니다.`)
+            finalBlob = voiceBlob
+          }
         }
       } else {
         console.log('BGM이 선택되지 않음, Voice만 사용')
