@@ -868,11 +868,20 @@ export async function POST(request: NextRequest) {
 
     // 4. Base64로 인코딩하여 대본과 함께 반환
     const audioBase64 = finalBuffer.toString('base64')
+    
+    // BGM 믹싱 성공 여부 확인
+    const bgmMixed = bgmUrl && finalBuffer.length > voiceBuffer.length
+    
+    console.log('[API] 응답 데이터:')
+    console.log('  bgmMixed:', bgmMixed)
+    console.log('  bgmUrl (전달 여부):', bgmMixed ? '아니오 (이미 믹싱됨)' : bgmUrl || '없음')
 
     return NextResponse.json({
       script,
       audioBase64,
       contentType: 'audio/mpeg',
+      bgmMixed, // BGM 믹싱 성공 여부
+      bgmUrl: bgmMixed ? undefined : bgmUrl, // 믹싱 실패 시 클라이언트에서 사용할 BGM URL
     })
   } catch (error: unknown) {
     let errorMessage = '알 수 없는 오류'

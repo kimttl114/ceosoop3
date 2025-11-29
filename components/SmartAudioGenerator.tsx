@@ -16,6 +16,8 @@ interface GenerateAudioResponse {
   script: string
   audioBase64: string
   contentType: string
+  bgmMixed?: boolean // 서버에서 BGM 믹싱 성공 여부
+  bgmUrl?: string // BGM 믹싱 실패 시 클라이언트에서 사용할 BGM URL
 }
 
 function base64ToBlob(base64: string, contentType: string): Blob {
@@ -35,6 +37,7 @@ export const SmartAudioGenerator: React.FC<SmartAudioGeneratorProps> = ({ bgmOpt
 
   const [script, setScript] = useState<string>('')
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const [bgmUrl, setBgmUrl] = useState<string | null>(null) // BGM URL (클라이언트 재생용)
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -102,6 +105,14 @@ export const SmartAudioGenerator: React.FC<SmartAudioGeneratorProps> = ({ bgmOpt
 
       setScript(data.script)
       setAudioUrl(url)
+      
+      // BGM 믹싱이 실패한 경우 BGM URL 저장 (클라이언트에서 함께 재생)
+      if (!data.bgmMixed && data.bgmUrl) {
+        setBgmUrl(data.bgmUrl)
+        console.log('[BGM] 서버에서 BGM 믹싱 실패, 클라이언트에서 함께 재생합니다.')
+      } else {
+        setBgmUrl(null)
+      }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.'
       setError(message)
@@ -204,16 +215,60 @@ export const SmartAudioGenerator: React.FC<SmartAudioGeneratorProps> = ({ bgmOpt
           {audioUrl && (
             <div className="space-y-2">
               <h3 className="text-xs font-semibold text-slate-800">생성된 방송</h3>
-              <audio controls src={audioUrl} className="w-full">
-                브라우저가 오디오 태그를 지원하지 않습니다.
-              </audio>
-              <a
-                href={audioUrl}
-                download="announcement.mp3"
-                className="inline-flex items-center justify-center rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold px-3 py-2 transition-colors"
-              >
-                MP3 다운로드
-              </a>
+              
+              {/* BGM이 별도 재생 필요한 경우 안내 */}
+              {bgmUrl && (
+                <div className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                  💡 BGM은 별도로 재생됩니다. 음성과 함께 재생하려면 아래 두 플레이어를 동시에 시작하세요.
+                </div>
+              )}
+              
+              {/* 음성 오디오 */}
+              <div className="space-y-1">
+                <label className="text-xs text-slate-600">음성</label>
+                <audio controls src={audioUrl} className="w-full" id="voice-audio">
+                  브라우저가 오디오 태그를 지원하지 않습니다.
+                </audio>
+              </div>
+              
+              {/* BGM 오디오 (별도 재생용) */}
+              {bgmUrl && (
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-600">BGM (볼륨: 20%)</label>
+                  <audio 
+                    controls 
+                    src={bgmUrl} 
+                    className="w-full" 
+                    id="bgm-audio"
+                    volume={0.2}
+                    onLoadedMetadata={(e) => {
+                      const audio = e.currentTarget
+                      audio.volume = 0.2 // BGM 볼륨 20%
+                    }}
+                  >
+                    브라우저가 오디오 태그를 지원하지 않습니다.
+                  </audio>
+                </div>
+              )}
+              
+              <div className="flex gap-2 pt-2">
+                <a
+                  href={audioUrl}
+                  download="announcement.mp3"
+                  className="inline-flex items-center justify-center rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold px-3 py-2 transition-colors flex-1"
+                >
+                  음성 MP3 다운로드
+                </a>
+                {bgmUrl && (
+                  <a
+                    href={bgmUrl}
+                    download="bgm.mp3"
+                    className="inline-flex items-center justify-center rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold px-3 py-2 transition-colors flex-1"
+                  >
+                    BGM 다운로드
+                  </a>
+                )}
+              </div>
             </div>
           )}
         </div>
