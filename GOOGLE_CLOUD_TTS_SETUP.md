@@ -57,6 +57,24 @@ GOOGLE_CLOUD_TTS_CREDENTIALS={"type":"service_account","project_id":"your-projec
 
 **주의**: JSON 내용을 한 줄로 작성하거나, 따옴표를 이스케이프 처리해야 합니다.
 
+### 4.5단계: Vertex AI (Gemini API) 설정
+
+올인원 안내방송 생성기에서 대본 작성을 위해 **Vertex AI Gemini API**를 사용합니다.
+
+1. 같은 프로젝트에서 **Vertex AI API** 활성화
+2. 위에서 만든 서비스 계정을 그대로 사용해도 됩니다.
+3. 추가 환경 변수:
+
+```env
+GOOGLE_VERTEX_AI_PROJECT_ID=your-project-id
+GOOGLE_VERTEX_AI_LOCATION=asia-northeast3 # 서울 리전 (권장, 없으면 us-central1 등)
+
+# 선택: Vertex 전용 자격 증명 (TTS와 동일 JSON을 재사용해도 됨)
+GOOGLE_VERTEX_AI_CREDENTIALS={"type":"service_account","project_id":"your-project",...}
+```
+
+> TIP: 설정을 단순하게 하려면 `GOOGLE_CLOUD_TTS_CREDENTIALS`와 `GOOGLE_VERTEX_AI_CREDENTIALS`에 **같은 JSON**을 넣어도 됩니다.
+
 ### 5단계: 테스트
 
 1. 서버 재시작
