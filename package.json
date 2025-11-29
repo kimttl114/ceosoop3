@@ -10,6 +10,7 @@
     "export": "next build"
   },
   "dependencies": {
+    "@google-cloud/text-to-speech": "^6.4.0",
     "ai": "^5.0.102",
     "clsx": "^2.1.1",
     "docx": "^9.5.1",
