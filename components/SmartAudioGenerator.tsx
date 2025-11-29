@@ -45,7 +45,12 @@ export const SmartAudioGenerator: React.FC<SmartAudioGeneratorProps> = ({ bgmOpt
     }
 
     const selectedBgm = bgmOptions.find((b) => b.value === bgmValue)
-    const bgmUrl = selectedBgm?.url
+    const bgmUrl = selectedBgm?.url && selectedBgm.url.trim() !== '' ? selectedBgm.url : undefined
+
+    // 디버깅: BGM URL 확인
+    console.log('[BGM 디버깅] bgmValue:', bgmValue)
+    console.log('[BGM 디버깅] selectedBgm:', selectedBgm)
+    console.log('[BGM 디버깅] bgmUrl:', bgmUrl)
 
     setIsLoading(true)
     setError(null)
@@ -55,17 +60,29 @@ export const SmartAudioGenerator: React.FC<SmartAudioGeneratorProps> = ({ bgmOpt
       setAudioUrl(null)
     }
 
+    // 요청 데이터 준비
+    const requestBody: {
+      keyword: string
+      mood: string
+      bgmUrl?: string
+    } = {
+      keyword: keyword.trim(),
+      mood,
+    }
+    
+    if (bgmUrl) {
+      requestBody.bgmUrl = bgmUrl
+    }
+
+    console.log('[BGM 디버깅] API 요청 데이터:', requestBody)
+
     try {
       const response = await fetch('/api/generate-audio', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          keyword: keyword.trim(),
-          mood,
-          bgmUrl,
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       if (!response.ok) {

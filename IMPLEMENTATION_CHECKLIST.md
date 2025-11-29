@@ -190,3 +190,5 @@ GOOGLE_VERTEX_AI_LOCATION=asia-northeast3
 
 이제 환경 변수만 설정하면 바로 사용 가능합니다!
 
+
+

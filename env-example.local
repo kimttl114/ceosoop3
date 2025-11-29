@@ -1,0 +1,56 @@
+# ============================================
+# Google Cloud 설정 (안내방송 생성기)
+# ============================================
+# 
+# 방법 1: 통합 자격 증명 사용 (권장 - 가장 간단)
+# 하나의 서비스 계정 JSON으로 Vertex AI와 TTS 모두 사용 가능
+#
+GOOGLE_CLOUD_CREDENTIALS={"type":"service_account","project_id":"your-project-id","private_key_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n","client_email":"your-service-account@your-project.iam.gserviceaccount.com","client_id":"...","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"..."}
+
+# 프로젝트 ID (자격 증명 JSON에 있으면 생략 가능)
+GOOGLE_VERTEX_AI_PROJECT_ID=your-project-id
+
+# 리전 (선택, 기본값: asia-northeast3)
+GOOGLE_VERTEX_AI_LOCATION=asia-northeast3
+
+# ============================================
+# 방법 2: 개별 자격 증명 사용 (선택사항)
+# ============================================
+# 통합 자격 증명을 사용하지 않을 경우, 아래 변수를 개별 설정할 수 있습니다.
+# 같은 서비스 계정 JSON을 재사용해도 됩니다.
+#
+# GOOGLE_VERTEX_AI_CREDENTIALS={"type":"service_account",...}
+# GOOGLE_CLOUD_TTS_CREDENTIALS={"type":"service_account",...}
+
+# ============================================
+# 기타 환경 변수
+# ============================================
+
+# 국세청 API 키
+NTS_API_KEY=여기에_국세청_API_키를_입력하세요
+
+# OpenAI API 키
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Firebase 설정 (클라이언트)
+NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+
+# Firebase Admin SDK (서버 사이드, 선택사항)
+FIREBASE_PROJECT_ID=your_project_id
+FIREBASE_CLIENT_EMAIL=your_service_account_email
+FIREBASE_PRIVATE_KEY=your_private_key
+
+# ============================================
+# 참고사항
+# ============================================
+# 1. GOOGLE_CLOUD_CREDENTIALS는 한 줄로 작성해야 합니다.
+# 2. JSON 내용의 따옴표는 그대로 유지하세요 (이스케이프 불필요).
+# 3. private_key의 줄바꿈(\n)은 그대로 유지해야 합니다.
+# 4. 이 파일을 .env.local로 복사하고 실제 값으로 채워주세요.
+
+

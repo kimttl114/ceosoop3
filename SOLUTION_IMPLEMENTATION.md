@@ -141,3 +141,5 @@ async function generateTTSWithOpenAI(
 
 둘 다 Vercel에서 완벽하게 작동합니다!
 
+
+
