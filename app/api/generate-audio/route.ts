@@ -234,27 +234,7 @@ function getFfmpegPath(): string | null {
       // 중복 제거
       const uniquePaths = Array.from(new Set(possiblePaths))
       
-      const allPossiblePaths = [
-        // 플랫폼별 경로 (플랫폼에 맞는 경로를 먼저 확인)
-        ...uniquePaths,
-        ...(platform === 'win32' ? [
-          path.join(projectRoot, 'node_modules', 'ffmpeg-static', 'ffmpeg.exe'),
-          path.join(projectRoot, 'node_modules', 'ffmpeg-static', 'bin', 'win32', 'x64', 'ffmpeg.exe'),
-          path.join(projectRoot, 'node_modules', 'ffmpeg-static', 'bin', 'win32', 'ia32', 'ffmpeg.exe'),
-        ] : []),
-        ...(platform === 'darwin' ? [
-          path.join(projectRoot, 'node_modules', 'ffmpeg-static', 'bin', 'darwin', 'x64', 'ffmpeg'),
-        ] : []),
-        // 모든 플랫폼 경로 확인 (fallback) - Linux 우선
-        ...(platform === 'linux' ? [
-          ...possibleRoots.flatMap(root => [
-            path.join(root, 'node_modules', 'ffmpeg-static', 'ffmpeg'),
-            path.join(root, 'node_modules', 'ffmpeg-static', 'bin', 'linux', 'x64', 'ffmpeg'),
-          ])
-        ] : []),
-      ]
-      
-      for (const possiblePath of possiblePaths) {
+      for (const possiblePath of uniquePaths) {
         if (fsSync.existsSync(possiblePath)) {
           console.log('[FFmpeg] ✅ 방법 2 성공: 직접 경로 구성 -', possiblePath)
           return possiblePath
