@@ -216,6 +216,11 @@ export const SmartAudioGenerator: React.FC<SmartAudioGeneratorProps> = ({ bgmOpt
             <div className="space-y-2">
               <h3 className="text-xs font-semibold text-slate-800">생성된 방송</h3>
               
+              {/* 실시간 안내방송 사용 안내 */}
+              <div className="text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                💡 배경음악 먼저 플레이 후에 멘트 플레이 누르시면 실시간 안내방송이 가능합니다.^^
+              </div>
+              
               {/* BGM이 별도 재생 필요한 경우 안내 */}
               {bgmUrl && (
                 <div className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
