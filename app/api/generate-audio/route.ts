@@ -136,7 +136,9 @@ async function generateTTSWithGoogleCloud(text: string, options?: VoiceOptions):
   // 동적 import (빌드 사이즈 최소화)
   const { TextToSpeechClient } = await import('@google-cloud/text-to-speech')
 
-  const client = new TextToSpeechClient({ credentials })
+  const client = new TextToSpeechClient({ 
+    credentials: credentials as { type: string; project_id?: string; [key: string]: unknown }
+  })
 
   const lang = options?.lang || 'ko'
   const gender = options?.gender || 'neutral'
@@ -180,7 +182,11 @@ async function generateTTSWithGoogleCloud(text: string, options?: VoiceOptions):
 
 // ---- Helpers: FFmpeg 믹싱 ----
 
-ffmpeg.setFfmpegPath(typeof ffmpegStatic === 'string' ? ffmpegStatic : (ffmpegStatic as string | null) || undefined)
+// FFmpeg 경로 설정 (ffmpeg-static 패키지에서 자동으로 경로 제공)
+const ffmpegPath = typeof ffmpegStatic === 'string' ? ffmpegStatic : (ffmpegStatic as string | null) || 'ffmpeg'
+if (ffmpegPath && ffmpegPath !== 'ffmpeg') {
+  ffmpeg.setFfmpegPath(ffmpegPath)
+}
 
 async function getAudioDuration(filePath: string): Promise<number> {
   return new Promise<number>((resolve, reject) => {

@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
         headers['x-bgm-status'] = 'client-side' // 클라이언트에서 BGM 믹싱
       }
 
-      return new NextResponse(voiceBuffer, { headers })
+      return new NextResponse(new Uint8Array(voiceBuffer), { headers })
     } catch (ttsError: any) {
       console.error('TTS 생성 실패:', ttsError)
       
