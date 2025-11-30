@@ -530,7 +530,7 @@ export default function Home() {
                   { id: 'ai-marketing', title: 'AI 마케팅 문구', description: 'SNS/전단지 문구 생성', route: '/tools/ai-marketing', icon: '✨' },
                   { id: 'ai-customer-service', title: 'AI 고객 대응', description: '고객 불만 대응 가이드', route: '/tools/ai-customer-service', icon: '💬' },
                   { id: 'ai-pricing', title: 'AI 가격 조언', description: '최적 가격 전략 제안', route: '/tools/ai-pricing', icon: '🧠' },
-                  { id: 'announcement', title: '안내방송 생성', description: '매장 방송 자동 제작', route: '/tools/announcement', icon: '🎙️' },
+                  { id: 'announcement', title: '안내방송 생성', description: '매장 방송 자동 제작 + 실시간 재생 기능', route: '/tools/announcement', icon: '🎙️' },
                 ].map((tool) => (
                   <Link
                     key={tool.id}
