@@ -54,8 +54,8 @@ export default function AIDocumentPage() {
     if (!auth || !db) return
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser)
       if (currentUser) {
+        setUser(currentUser)
         try {
           const userRef = doc(db, 'users', currentUser.uid)
           const userSnap = await getDoc(userRef)
@@ -71,10 +71,22 @@ export default function AIDocumentPage() {
         } catch (error) {
           console.error('사용자 정보 불러오기 오류:', error)
         }
+      } else {
+        // 로그인하지 않은 경우 로그인 페이지로 리다이렉트
+        router.push('/login')
       }
     })
     return () => unsubscribe()
-  }, [db])
+  }, [router, db])
+
+  // 로그인하지 않은 경우 (리다이렉트 중)
+  if (!user && auth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <Loader2 className="animate-spin text-blue-600" size={32} />
+      </div>
+    );
+  }
 
   // 문서 생성
   const handleGenerate = async () => {

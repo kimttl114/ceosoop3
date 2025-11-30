@@ -23,14 +23,19 @@ export default function AnnouncementPage() {
   const [loadingBgm, setLoadingBgm] = useState(false)
   const [uploadingBgm, setUploadingBgm] = useState(false)
 
-  // 사용자 인증 확인
+  // 사용자 인증 확인 및 로그인 체크
   useEffect(() => {
     if (!auth) return
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser)
+      if (currentUser) {
+        setUser(currentUser)
+      } else {
+        // 로그인하지 않은 경우 로그인 페이지로 리다이렉트
+        router.push('/login')
+      }
     })
     return () => unsubscribe()
-  }, [])
+  }, [router])
 
   // BGM 파일 목록 불러오기
   useEffect(() => {

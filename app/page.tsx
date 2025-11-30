@@ -525,29 +525,55 @@ export default function Home() {
                 <h3 className="text-sm font-semibold text-gray-700">🤖 AI 도구</h3>
               </div>
               <div className="flex flex-wrap gap-3">
-                {[
-                  { id: 'diagnose', title: '내 시급은?', description: '사장님 시급 자동 계산', route: '/diagnose', icon: '🎯' },
-                  { id: 'ai-marketing', title: 'AI 마케팅 문구', description: 'SNS/전단지 문구 생성', route: '/tools/ai-marketing', icon: '✨' },
-                  { id: 'ai-customer-service', title: 'AI 고객 대응', description: '고객 불만 대응 가이드', route: '/tools/ai-customer-service', icon: '💬' },
-                  { id: 'ai-pricing', title: 'AI 가격 조언', description: '최적 가격 전략 제안', route: '/tools/ai-pricing', icon: '🧠' },
-                  { id: 'announcement', title: '안내방송 생성', description: '매장 방송 자동 제작 + 실시간 재생 기능', route: '/tools/announcement', icon: '🎙️' },
-                ].map((tool) => (
-                  <Link
+            {[
+              { id: 'diagnose', title: '내 시급은?', description: '사장님 시급 자동 계산', route: '/diagnose', icon: '🎯' },
+              { id: 'ai-marketing', title: 'AI 마케팅 문구', description: 'SNS/전단지 문구 생성', route: '/tools/ai-marketing', icon: '✨' },
+              { id: 'ai-customer-service', title: 'AI 고객 대응', description: '고객 불만 대응 가이드', route: '/tools/ai-customer-service', icon: '💬' },
+              { id: 'ai-pricing', title: 'AI 가격 조언', description: '최적 가격 전략 제안', route: '/tools/ai-pricing', icon: '🧠' },
+              { id: 'announcement', title: '안내방송 생성', description: '매장 방송 자동 제작 + 실시간 재생 기능', route: '/tools/announcement', icon: '🎙️' },
+              { id: 'fortune', title: '무료 종합 운세', description: 'AI 올인원 운세 서비스', route: 'https://all-fo.vercel.app/', icon: '🔮', external: true },
+            ].map((tool: any) => {
+              const isExternal = tool.external || tool.route?.startsWith('http')
+              
+              const cardContent = (
+                <>
+                  <div className="absolute top-2 right-2">
+                    <span className="px-2 py-0.5 text-xs font-bold text-purple-600 bg-purple-100 rounded-full">
+                      AI
+                    </span>
+                  </div>
+                  <div className="text-3xl mb-2 text-center group-hover:scale-110 transition-transform">{tool.icon}</div>
+                  <div className="text-sm font-semibold text-gray-900 mb-1 text-center leading-tight">{tool.title}</div>
+                  <div className="text-xs text-gray-600 text-center leading-tight">{tool.description}</div>
+                </>
+              )
+
+              if (isExternal) {
+                return (
+                  <a
                     key={tool.id}
                     href={tool.route}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 shadow-sm hover:shadow-md transition-all border border-purple-100 hover:border-purple-300 relative group flex-shrink-0"
                     style={{ minWidth: '160px', width: '160px' }}
                   >
-                    <div className="absolute top-2 right-2">
-                      <span className="px-2 py-0.5 text-xs font-bold text-purple-600 bg-purple-100 rounded-full">
-                        AI
-                      </span>
-                    </div>
-                    <div className="text-3xl mb-2 text-center group-hover:scale-110 transition-transform">{tool.icon}</div>
-                    <div className="text-sm font-semibold text-gray-900 mb-1 text-center leading-tight">{tool.title}</div>
-                    <div className="text-xs text-gray-600 text-center leading-tight">{tool.description}</div>
-                  </Link>
-                ))}
+                    {cardContent}
+                  </a>
+                )
+              }
+
+              return (
+                <Link
+                  key={tool.id}
+                  href={tool.route}
+                  className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 shadow-sm hover:shadow-md transition-all border border-purple-100 hover:border-purple-300 relative group flex-shrink-0"
+                  style={{ minWidth: '160px', width: '160px' }}
+                >
+                  {cardContent}
+                </Link>
+              )
+            })}
               </div>
             </div>
 

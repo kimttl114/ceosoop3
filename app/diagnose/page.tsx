@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, ArrowLeft, Calendar, Sun } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Calendar, Sun, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 type DiagnosisType = 'daily' | 'monthly';
 
@@ -39,8 +41,41 @@ const STEPS = {
 
 export default function DiagnosePage() {
   const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+
+  // 로그인 체크
+  useEffect(() => {
+    if (!auth) {
+      setLoadingAuth(false);
+      return;
+    }
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        router.push('/login');
+      }
+      setLoadingAuth(false);
+    });
+    return () => unsubscribe();
+  }, [router]);
+
+  // 로딩 중 표시
+  if (loadingAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <Loader2 className="animate-spin text-blue-600" size={32} />
+      </div>
+    );
+  }
+
+  // 로그인하지 않은 경우 (리다이렉트 중)
+  if (!user) {
+    return null;
+  }
   
   const { control, handleSubmit, watch, setValue, resetField, formState: { errors } } = useForm<FormData>({
     defaultValues: {

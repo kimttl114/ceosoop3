@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Sparkles, Copy, Check, Loader2, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const businessTypes = ['치킨집', '카페', '한식당', '중식당', '일식당', '양식당', '분식', '베이커리', '술집', '기타'];
 const eventTypes = ['오픈 이벤트', '할인 이벤트', '시즌 이벤트', '프로모션', '기념일 이벤트', '기타'];
@@ -25,6 +27,8 @@ const platforms = [
 
 export default function AIMarketingPage() {
   const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
   const [businessType, setBusinessType] = useState('치킨집');
   const [eventType, setEventType] = useState('할인 이벤트');
   const [discount, setDiscount] = useState<number | ''>('');
@@ -36,6 +40,37 @@ export default function AIMarketingPage() {
   const [results, setResults] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+  // 로그인 체크
+  useEffect(() => {
+    if (!auth) {
+      setLoadingAuth(false);
+      return;
+    }
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        router.push('/login');
+      }
+      setLoadingAuth(false);
+    });
+    return () => unsubscribe();
+  }, [router]);
+
+  // 로딩 중 표시
+  if (loadingAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 flex items-center justify-center">
+        <Loader2 className="animate-spin text-purple-600" size={32} />
+      </div>
+    );
+  }
+
+  // 로그인하지 않은 경우 (리다이렉트 중)
+  if (!user) {
+    return null;
+  }
 
   const handleGenerate = async () => {
     setLoading(true);

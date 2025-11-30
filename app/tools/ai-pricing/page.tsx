@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, DollarSign, TrendingUp, Copy, Check, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatNumber } from '@/lib/utils';
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const businessTypes = ['치킨집', '카페', '한식당', '중식당', '일식당', '양식당', '분식', '베이커리', '술집', '기타'];
 const regions = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'];
@@ -12,6 +14,8 @@ const targetCustomers = ['20대', '30대', '40대', '가족 단위', '직장인'
 
 export default function AIPricingPage() {
   const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
   const [businessType, setBusinessType] = useState('치킨집');
   const [cost, setCost] = useState<number | ''>('');
   const [targetMargin, setTargetMargin] = useState<number | ''>(30);
@@ -22,6 +26,37 @@ export default function AIPricingPage() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // 로그인 체크
+  useEffect(() => {
+    if (!auth) {
+      setLoadingAuth(false);
+      return;
+    }
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        router.push('/login');
+      }
+      setLoadingAuth(false);
+    });
+    return () => unsubscribe();
+  }, [router]);
+
+  // 로딩 중 표시
+  if (loadingAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 flex items-center justify-center">
+        <Loader2 className="animate-spin text-amber-600" size={32} />
+      </div>
+    );
+  }
+
+  // 로그인하지 않은 경우 (리다이렉트 중)
+  if (!user) {
+    return null;
+  }
 
   const handleGenerate = async () => {
     if (!cost || cost <= 0) {
