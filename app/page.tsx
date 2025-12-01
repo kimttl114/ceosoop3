@@ -19,7 +19,7 @@ import {
 } from 'firebase/firestore'
 import { User, Trash2, Image, Search, Bell, Mail, Flag, ShoppingBag, Heart, MessageCircle, Clock, Vote, Sparkles, Calculator, Megaphone, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import AvatarMini from '@/components/AvatarMini'
 import BottomNav from '@/components/BottomNav'
 import WriteModal from '@/components/WriteModal'
@@ -51,12 +51,33 @@ const businessCategories = [
 
 export default function Home() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [user, setUser] = useState<any>(null)
   const [userAnonymousName, setUserAnonymousName] = useState<string>('')
   const [userRegion, setUserRegion] = useState<string>('')
   const [userBusinessType, setUserBusinessType] = useState<string>('치킨')
   const [posts, setPosts] = useState<any[]>([])
   const [selectedCategory, setSelectedCategory] = useState('베스트')
+
+  // URL 쿼리 파라미터에서 카테고리 읽기
+  useEffect(() => {
+    const categoryParam = searchParams?.get('category')
+    if (categoryParam) {
+      const decodedCategory = decodeURIComponent(categoryParam)
+      // 유효한 카테고리인지 확인
+      const isValidCategory = boardCategories.some(cat => cat.value === decodedCategory)
+      if (isValidCategory) {
+        setSelectedCategory(decodedCategory)
+        // 스크롤을 해당 게시판 섹션으로 이동
+        setTimeout(() => {
+          const element = document.getElementById(`category-${decodedCategory}`)
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
+        }, 100)
+      }
+    }
+  }, [searchParams])
   const [isWriteMode, setIsWriteMode] = useState(false)
   const [unreadMessageCount, setUnreadMessageCount] = useState(0)
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
@@ -584,7 +605,7 @@ export default function Home() {
                 const categoryPosts = getPostsByCategory(category.value, 10)
                 
                 return (
-                  <div key={category.value} className="bg-white border border-gray-200">
+                  <div key={category.value} id={`category-${category.value}`} className="bg-white border border-gray-200">
                     {/* 게시판 헤더 */}
                     <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
                       <div className="flex items-center gap-2">
