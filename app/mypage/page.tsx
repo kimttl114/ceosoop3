@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { auth, db } from '@/lib/firebase'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { doc, getDoc, setDoc, collection, query, where, orderBy, onSnapshot, deleteDoc, getDocs, limit } from 'firebase/firestore'
-import { ArrowLeft, LogOut, User, MapPin, Building2, UserCircle, Loader2, FileText, Trash2, Shield, CheckCircle, Sparkles, Trophy, Award, Crown } from 'lucide-react'
+import { ArrowLeft, LogOut, User, MapPin, Building2, UserCircle, Loader2, FileText, Trash2, Shield, CheckCircle, Sparkles, Award } from 'lucide-react'
 import AvatarMini from '@/components/AvatarMini'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
@@ -58,10 +58,6 @@ export default function MyPage() {
     commentsCount: 0,
     gamesPlayed: 0,
   })
-  const [ranking, setRanking] = useState<Array<{ uid: string; anonymousName: string; points: number }>>([])
-  const [myRank, setMyRank] = useState<number | null>(null)
-  const [loadingRanking, setLoadingRanking] = useState(false)
-  const [showRankingModal, setShowRankingModal] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const postsPerPage = 10
 
@@ -207,55 +203,6 @@ export default function MyPage() {
     return () => unsubscribe()
   }, [user, db])
 
-  // 랭킹 데이터 가져오기
-  useEffect(() => {
-    if (!db || !user) return
-
-    const loadRanking = async () => {
-      setLoadingRanking(true)
-      try {
-        // 상위 10명 가져오기
-        const usersRef = collection(db, 'users')
-        const rankingQuery = query(
-          usersRef,
-          orderBy('points', 'desc'),
-          limit(10)
-        )
-        
-        const snapshot = await getDocs(rankingQuery)
-        const topUsers = snapshot.docs.map((doc) => ({
-          uid: doc.id,
-          anonymousName: doc.data().anonymousName || '익명',
-          points: doc.data().points || 0,
-        }))
-        
-        setRanking(topUsers)
-
-        // 내 순위 계산 (전체 사용자 중)
-        const allUsersQuery = query(usersRef, orderBy('points', 'desc'))
-        const allSnapshot = await getDocs(allUsersQuery)
-        const allUsers = allSnapshot.docs.map((doc) => ({
-          uid: doc.id,
-          points: doc.data().points || 0,
-        }))
-        
-        const myRankIndex = allUsers.findIndex((u) => u.uid === user.uid)
-        if (myRankIndex !== -1) {
-          setMyRank(myRankIndex + 1)
-        }
-      } catch (error: any) {
-        console.error('랭킹 불러오기 오류:', error)
-        // 인덱스 오류인 경우 무시
-        if (error?.code !== 'failed-precondition') {
-          alert('랭킹을 불러올 수 없습니다.')
-        }
-      } finally {
-        setLoadingRanking(false)
-      }
-    }
-
-    loadRanking()
-  }, [db, user, userPoints])
 
   // 상대적 시간 포맷팅
   const formatRelativeTime = (timestamp: any) => {
@@ -510,78 +457,6 @@ export default function MyPage() {
           );
         })()}
 
-        {/* 포인트 랭킹 섹션 */}
-        <div className="bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50 rounded-2xl shadow-lg p-6 mb-6 border-2 border-yellow-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-yellow-600" />
-              <h3 className="text-lg font-bold text-gray-800">포인트 랭킹</h3>
-            </div>
-            {myRank !== null && (
-              <div className="text-right">
-                <div className="text-xs text-gray-600 mb-1">내 순위</div>
-                <div className="text-xl font-bold text-amber-600">#{myRank}</div>
-              </div>
-            )}
-          </div>
-
-          {loadingRanking ? (
-            <div className="text-center py-4">
-              <Loader2 className="animate-spin text-gray-400 mx-auto mb-2" size={24} />
-              <p className="text-sm text-gray-500">랭킹 로딩 중...</p>
-            </div>
-          ) : ranking.length === 0 ? (
-            <div className="text-center py-4">
-              <p className="text-sm text-gray-500">아직 랭킹 데이터가 없습니다.</p>
-            </div>
-          ) : (
-            <>
-              <div className="space-y-2 mb-4">
-                {ranking.slice(0, 5).map((user, index) => {
-                  const isMe = user.uid === userId
-                  const rankMedals = ['🥇', '🥈', '🥉']
-                  const medal = index < 3 ? rankMedals[index] : null
-                  
-                  return (
-                    <div
-                      key={user.uid}
-                      className={`flex items-center justify-between p-3 rounded-xl ${
-                        isMe
-                          ? 'bg-gradient-to-r from-amber-200 to-orange-200 border-2 border-amber-400'
-                          : 'bg-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="text-xl font-bold text-gray-700 w-8">
-                          {medal || `${index + 1}`}
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-semibold text-gray-800">
-                            {user.anonymousName}
-                            {isMe && <span className="text-amber-600 ml-1">(나)</span>}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-lg font-bold text-amber-600">
-                        {formatNumber(user.points)}P
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-              
-              {ranking.length >= 5 && (
-                <button
-                  onClick={() => setShowRankingModal(true)}
-                  className="w-full py-3 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl font-bold hover:shadow-lg transition flex items-center justify-center gap-2"
-                >
-                  <Crown size={18} />
-                  <span>전체 랭킹 보기</span>
-                </button>
-              )}
-            </>
-          )}
-        </div>
 
         {/* 사업자 인증 카드 - 프로필 카드 바로 다음 */}
         <div className="bg-gradient-to-br from-[#1A2B4E] to-[#2C3E50] rounded-2xl shadow-lg p-6 mb-6 text-white">
@@ -884,100 +759,6 @@ export default function MyPage() {
         </div>
       </main>
 
-      {/* 전체 랭킹 모달 */}
-      <AnimatePresence>
-        {showRankingModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowRankingModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Trophy className="w-6 h-6 text-yellow-600" />
-                  <h2 className="text-xl font-bold text-gray-900">전체 랭킹</h2>
-                </div>
-                <button
-                  onClick={() => setShowRankingModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition"
-                >
-                  <span className="text-2xl">×</span>
-                </button>
-              </div>
-
-              <div className="overflow-y-auto flex-1">
-                {loadingRanking ? (
-                  <div className="text-center py-8">
-                    <Loader2 className="animate-spin text-gray-400 mx-auto mb-2" size={24} />
-                    <p className="text-sm text-gray-500">로딩 중...</p>
-                  </div>
-                ) : ranking.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-sm text-gray-500">랭킹 데이터가 없습니다.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {ranking.map((user, index) => {
-                      const isMe = user.uid === userId
-                      const rankMedals = ['🥇', '🥈', '🥉']
-                      const medal = index < 3 ? rankMedals[index] : null
-                      
-                      return (
-                        <div
-                          key={user.uid}
-                          className={`flex items-center justify-between p-4 rounded-xl ${
-                            isMe
-                              ? 'bg-gradient-to-r from-amber-200 to-orange-200 border-2 border-amber-400'
-                              : index < 3
-                              ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200'
-                              : 'bg-gray-50'
-                          }`}
-                        >
-                          <div className="flex items-center gap-4 flex-1">
-                            <div className={`text-2xl font-bold ${index < 3 ? 'text-yellow-600' : 'text-gray-400'} w-10 text-center`}>
-                              {medal || `${index + 1}`}
-                            </div>
-                            <div className="flex-1">
-                              <div className={`font-bold ${isMe ? 'text-amber-700' : 'text-gray-800'}`}>
-                                {user.anonymousName}
-                                {isMe && <span className="text-amber-600 ml-2 text-sm">(나)</span>}
-                              </div>
-                            </div>
-                          </div>
-                          <div className={`text-lg font-bold ${index < 3 ? 'text-yellow-600' : 'text-amber-600'}`}>
-                            {formatNumber(user.points)}P
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {myRank !== null && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="flex items-center justify-between bg-gradient-to-r from-amber-100 to-orange-100 rounded-xl p-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">📍</span>
-                      <span className="font-semibold text-gray-800">내 순위</span>
-                    </div>
-                    <div className="text-xl font-bold text-amber-600">#{myRank}</div>
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* 하단 네비게이션 */}
       <BottomNav />

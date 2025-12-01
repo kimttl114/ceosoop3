@@ -64,7 +64,6 @@ export default function Home() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false)
   const [reportTarget, setReportTarget] = useState<{ type: 'post', id: string, authorId?: string, content?: string } | null>(null)
   const [userAvatars, setUserAvatars] = useState<Record<string, string>>({})
-  const [ranking, setRanking] = useState<Array<{ uid: string; anonymousName: string; points: number }>>([])
   const [notices, setNotices] = useState<any[]>([])
 
   // 익명 닉네임 생성: [형용사] + [명사] 조합
@@ -266,41 +265,6 @@ export default function Home() {
     return () => window.removeEventListener('openWriteModal', handleOpenWriteModal)
   }, [user])
 
-  // 포인트 랭킹 불러오기
-  useEffect(() => {
-    if (!db) return
-
-    const loadRanking = async () => {
-      try {
-        const usersRef = collection(db, 'users')
-        const rankingQuery = query(
-          usersRef,
-          orderBy('points', 'desc'),
-          limit(10)
-        )
-        
-        const snapshot = await getDocs(rankingQuery)
-        const topUsers = snapshot.docs.map((doc) => ({
-          uid: doc.id,
-          anonymousName: doc.data().anonymousName || doc.data().displayName || '익명',
-          points: doc.data().points || 0,
-        }))
-        
-        setRanking(topUsers)
-      } catch (error: any) {
-        console.error('랭킹 불러오기 오류:', error)
-        // 인덱스 오류는 무시
-        if (error?.code !== 'failed-precondition') {
-          console.warn('랭킹을 불러올 수 없습니다.')
-        }
-      }
-    }
-
-    loadRanking()
-    // 30초마다 랭킹 갱신
-    const interval = setInterval(loadRanking, 30000)
-    return () => clearInterval(interval)
-  }, [db, user])
 
   // 공지사항 불러오기
   useEffect(() => {
@@ -814,38 +778,6 @@ export default function Home() {
             {/* 오른쪽 사이드바 - eToLand 스타일 */}
             <div className="lg:col-span-1 space-y-4">
 
-              {/* 포인트 랭킹 */}
-              <div className="bg-white border border-gray-200">
-                <div className="px-3 py-2 bg-gray-100 border-b border-gray-200">
-                  <h3 className="font-bold text-sm text-gray-900">포인트 랭킹</h3>
-                </div>
-                <div className="p-3">
-                  {ranking.length > 0 ? (
-                    <div className="space-y-1">
-                      {ranking.map((user, index) => (
-                        <div
-                          key={user.uid}
-                          className="flex items-center justify-between py-1.5 px-2 hover:bg-gray-50 rounded text-xs"
-                        >
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className="font-bold text-gray-700 w-4 flex-shrink-0">
-                              {index + 1}
-                            </span>
-                            <span className="text-gray-700 truncate">{user.anonymousName}</span>
-                          </div>
-                          <span className="text-gray-600 font-semibold flex-shrink-0">
-                            {user.points.toLocaleString()}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-500 text-center py-4">
-                      랭킹 데이터가 없습니다
-                    </p>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
         </div>
