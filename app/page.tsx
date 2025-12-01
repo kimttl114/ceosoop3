@@ -398,8 +398,34 @@ function HomeContent() {
   return (
     <MainLayout>
       <div className="min-h-screen pb-24 bg-gray-50">
+        {/* 널자 브랜딩 헤더 */}
+        <div className="bg-gradient-to-r from-[#1A2B4E] via-[#2A3B5E] to-[#1A2B4E] border-b-4 border-[#FFBF00] sticky top-0 z-20 shadow-lg">
+          <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#FFBF00] to-[#FF9500] flex items-center justify-center text-[#1A2B4E] font-bold text-xl shadow-lg">
+                  널
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-white">널자</h1>
+                  <p className="text-sm text-white/90">널리 자영업자를 이롭게</p>
+                </div>
+              </div>
+              <div className="hidden md:block text-right">
+                <p className="text-sm text-white/80 font-medium">7년 치킨집 사장이 만든</p>
+                <p className="text-sm text-[#FFBF00] font-semibold">AI 도구 모음집</p>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-white/10">
+              <p className="text-sm text-white/90 leading-relaxed">
+                내가 불편했던 것들을 AI로 해결했어요. 실제 자영업 현장에서 필요한 AI 도구들을 직접 만들고 사용하며 검증한 솔루션만을 제공합니다.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* 헤더 섹션 - eToLand 스타일 */}
-        <div className="bg-white border-b border-gray-300 sticky top-0 z-20">
+        <div className="bg-white border-b border-gray-300 sticky top-[120px] z-20">
           <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-3">

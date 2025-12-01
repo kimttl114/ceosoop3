@@ -172,10 +172,12 @@ export default function MainLayout({ children }: MainLayoutProps) {
           <div className="p-4 lg:p-6 border-b border-white/10">
             <div className="flex items-center justify-between">
               <Link href="/" className="flex items-center gap-2" onClick={() => setSidebarOpen(false)}>
-                <span className="text-2xl">🎠</span>
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#FFBF00] to-[#FF9500] flex items-center justify-center text-[#1A2B4E] font-bold text-lg shadow-lg">
+                  널
+                </div>
                 <div>
-                  <h1 className="text-lg font-bold">자영업자</h1>
-                  <p className="text-xs text-white/70">놀이동산</p>
+                  <h1 className="text-lg font-bold">널자</h1>
+                  <p className="text-xs text-white/70">널리 자영업자를 이롭게</p>
                 </div>
               </Link>
               <button
@@ -184,6 +186,12 @@ export default function MainLayout({ children }: MainLayoutProps) {
               >
                 <X size={20} />
               </button>
+            </div>
+            <div className="mt-3 pt-3 border-t border-white/10">
+              <p className="text-xs text-white/80 leading-relaxed">
+                7년 치킨집 사장이 만든<br />
+                AI 도구 모음집
+              </p>
             </div>
           </div>
 
