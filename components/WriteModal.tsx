@@ -569,15 +569,15 @@ export default function WriteModal({
               {detailedStep === 1 && (
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-[10px] font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       카테고리 선택
                     </label>
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-2">
                       {availableCategories.map((cat) => (
                         <button
                           key={cat.value}
                           onClick={() => setPostCategory(cat.value)}
-                          className={`flex-shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium transition whitespace-nowrap ${
+                          className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition whitespace-nowrap ${
                             postCategory === cat.value
                               ? 'bg-[#1A2B4E] text-white shadow-md'
                               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -587,7 +587,7 @@ export default function WriteModal({
                         </button>
                       ))}
                     </div>
-                    <p className="text-[10px] text-gray-500 mt-1.5">
+                    <p className="text-xs text-gray-500 mt-2">
                       업종은 마이페이지에서 설정한 값이 자동으로 사용됩니다.
                     </p>
                   </div>
