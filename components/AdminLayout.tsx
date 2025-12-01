@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { auth, db } from '@/lib/firebase'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { collection, query, getDocs, where } from 'firebase/firestore'
 import { checkAdminStatus, AdminUser } from '@/lib/admin'
 import { 
   LayoutDashboard, 
@@ -55,6 +56,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         // 관리자 권한 확인
         const adminStatus = await checkAdminStatus(currentUser.uid)
         if (!adminStatus || !adminStatus.isAdmin) {
+          // 관리자가 없으면 설정 페이지로 리다이렉트
+          const usersQuery = query(collection(db, 'users'), where('isAdmin', '==', true))
+          const snapshot = await getDocs(usersQuery)
+          if (snapshot.size === 0) {
+            router.push('/admin/setup')
+            return
+          }
           alert('관리자 권한이 없습니다.')
           router.push('/')
           return
