@@ -24,16 +24,17 @@ const FALLBACK_PLAYLISTS = {
 interface MusicRecommendRequest {
   weather: string
   business: string
+  genre: string
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as MusicRecommendRequest
-    const { weather, business } = body
+    const { weather, business, genre } = body
 
-    if (!weather || !business) {
+    if (!weather || !business || !genre) {
       return NextResponse.json(
-        { error: '날씨와 업종을 모두 선택해주세요.' },
+        { error: '날씨, 업종, 장르를 모두 선택해주세요.' },
         { status: 400 }
       )
     }
@@ -63,21 +64,33 @@ export async function POST(request: NextRequest) {
         pharmacy: '약국',
       }
 
+      const genreLabels: Record<string, string> = {
+        kpop: '가요 (K-POP)',
+        pop: '팝 (Pop)',
+        jazz: '재즈 (Jazz)',
+        dance: '댄스 (Dance)',
+        classical: '클래식 (Classical)',
+        rock: '록 (Rock)',
+      }
+
       const weatherLabel = weatherLabels[weather] || '맑음'
       const businessLabel = businessLabels[business] || '카페'
+      const genreLabel = genreLabels[genre] || '가요'
 
-      const prompt = `${businessLabel}에서 ${weatherLabel} 날씨에 어울리는 저작권 없는 배경음악 플레이리스트를 찾기 위한 YouTube 검색어를 생성해주세요.
+      const prompt = `${businessLabel}에서 ${weatherLabel} 날씨에 어울리는 ${genreLabel} 장르의 저작권 없는 배경음악 플레이리스트를 찾기 위한 YouTube 검색어를 생성해주세요.
 
 요구사항:
 - 저작권이 없는 음악 (royalty-free, copyright-free)
 - 1시간 이상 재생되는 긴 플레이리스트
 - ${businessLabel} 분위기에 어울리는 음악
 - ${weatherLabel} 날씨의 감성에 맞는 음악
+- ${genreLabel} 장르의 음악
 - 검색어만 간단하게 생성 (설명 없이 검색어만)
 
-예시: "royalty free cafe music lofi 1 hour"
+예시: "royalty free cafe music kpop 1 hour"
 예시: "copyright free restaurant background music jazz"
-예시: "no copyright coffee shop music acoustic"`
+예시: "no copyright coffee shop music pop acoustic"
+예시: "royalty free dance music background 1 hour"`
 
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o',
@@ -102,7 +115,8 @@ export async function POST(request: NextRequest) {
     } catch (error: any) {
       console.error('[AI 음악 추천] OpenAI 검색어 생성 실패:', error.message)
       // Fallback 검색어 사용
-      searchQuery = `royalty free ${business} background music 1 hour`
+      const genreFallback = genre === 'kpop' ? 'kpop' : genre === 'pop' ? 'pop' : genre === 'jazz' ? 'jazz' : genre === 'dance' ? 'dance' : genre === 'classical' ? 'classical' : genre === 'rock' ? 'rock' : 'background'
+      searchQuery = `royalty free ${business} ${genreFallback} music 1 hour`
     }
 
     // YouTube Data API로 검색

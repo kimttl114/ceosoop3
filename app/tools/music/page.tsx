@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Music, Loader2, Sun, Cloud, CloudRain, Snowflake, Coffee, ShoppingBag, Utensils, Play, Cookie, Wine, Scissors, Dumbbell, BookOpen, Store, Heart, Pill } from 'lucide-react'
+import { ArrowLeft, Music, Loader2, Sun, Cloud, CloudRain, Snowflake, Coffee, ShoppingBag, Utensils, Play, Cookie, Wine, Scissors, Dumbbell, BookOpen, Store, Heart, Pill, Radio } from 'lucide-react'
 import { useMusicStore } from '@/store/useMusicStore'
 import { auth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -29,12 +29,22 @@ const businessOptions = [
   { value: 'pharmacy', label: '약국', icon: Pill, color: 'text-teal-600' },
 ]
 
+const genreOptions = [
+  { value: 'kpop', label: '가요', icon: Radio, color: 'text-pink-500' },
+  { value: 'pop', label: '팝', icon: Music, color: 'text-blue-500' },
+  { value: 'jazz', label: '재즈', icon: Music, color: 'text-amber-600' },
+  { value: 'dance', label: '댄스', icon: Music, color: 'text-purple-500' },
+  { value: 'classical', label: '클래식', icon: Music, color: 'text-gray-600' },
+  { value: 'rock', label: '록', icon: Music, color: 'text-red-600' },
+]
+
 export default function MusicPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [loadingAuth, setLoadingAuth] = useState(true)
   const [selectedWeather, setSelectedWeather] = useState<string>('sunny')
   const [selectedBusiness, setSelectedBusiness] = useState<string>('cafe')
+  const [selectedGenre, setSelectedGenre] = useState<string>('kpop')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [recommendedMusic, setRecommendedMusic] = useState<Array<{
@@ -89,6 +99,7 @@ export default function MusicPage() {
         body: JSON.stringify({
           weather: selectedWeather,
           business: selectedBusiness,
+          genre: selectedGenre,
         }),
       })
 
@@ -152,7 +163,7 @@ export default function MusicPage() {
             <span>상황에 맞는 음악 추천</span>
           </h2>
           <p className="text-sm text-gray-600 mb-4">
-            날씨와 업종을 선택하면 AI가 최적의 배경음악을 추천해드립니다.
+            날씨, 업종, 장르를 선택하면 AI가 최적의 배경음악을 추천해드립니다.
           </p>
 
           {/* 날씨 선택 */}
@@ -279,7 +290,7 @@ export default function MusicPage() {
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
           <p className="text-blue-800 text-sm font-semibold mb-2">💡 사용 방법</p>
           <ul className="text-blue-700 text-xs space-y-1 ml-4 list-disc">
-            <li>현재 날씨와 업종을 선택하세요</li>
+            <li>날씨, 업종, 장르를 선택하세요</li>
             <li>"AI로 음악 추천받기" 버튼을 클릭하세요</li>
             <li>추천된 음악이 플레이리스트에 추가됩니다</li>
             <li>플레이리스트에서 원하는 음악의 재생 버튼을 클릭하세요</li>
