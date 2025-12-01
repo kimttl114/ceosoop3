@@ -595,13 +595,51 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 여러 게시판 섹션 - eToLand 스타일 */}
+        {/* 게시판 탭 및 컨텐츠 */}
         <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4">
+          {/* 게시판 탭 */}
+          <div className="bg-white border-b border-gray-200 mb-4 sticky top-0 z-10">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+              {boardCategories.map((category) => {
+                const isActive = selectedCategory === category.value
+                return (
+                  <button
+                    key={category.value}
+                    onClick={() => {
+                      setSelectedCategory(category.value)
+                      const element = document.getElementById(`category-${category.value}`)
+                      if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                      }
+                      // URL 업데이트
+                      const newUrl = category.value === '베스트' 
+                        ? '/' 
+                        : `/?category=${encodeURIComponent(category.value)}`
+                      router.push(newUrl, { scroll: false })
+                    }}
+                    className={`flex-shrink-0 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                      isActive
+                        ? 'border-[#1A2B4E] text-[#1A2B4E] bg-blue-50'
+                        : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="whitespace-nowrap">{category.label}</span>
+                    <span className="ml-1 text-xs text-gray-500">
+                      ({getPostsByCategory(category.value, 10).length})
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* 메인 컨텐츠 영역 */}
             <div className="lg:col-span-3 space-y-6">
-              {/* 각 게시판 섹션 */}
-              {boardCategories.map((category) => {
+              {/* 선택된 게시판만 표시 또는 전체 표시 */}
+              {selectedCategory === '베스트' ? (
+                // 베스트 선택 시 모든 게시판 표시
+                boardCategories.map((category) => {
                 const categoryPosts = getPostsByCategory(category.value, 10)
                 
                 return (
@@ -793,12 +831,265 @@ export default function Home() {
                     )}
                   </div>
                 )
-              })}
+              })) : (
+                // 특정 게시판 선택 시 해당 게시판만 표시
+                (() => {
+                  const category = boardCategories.find(cat => cat.value === selectedCategory)
+                  if (!category) return null
+                  const categoryPosts = getPostsByCategory(category.value, 50)
+                  
+                  return (
+                    <div key={category.value} id={`category-${category.value}`} className="bg-white border border-gray-200">
+                      {/* 게시판 헤더 */}
+                      <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+                        <div className="flex items-center gap-2">
+                          <h2 className="font-bold text-lg text-gray-900">
+                            {category.label}
+                          </h2>
+                          <span className="text-sm text-gray-500">
+                            ({categoryPosts.length})
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 게시글 리스트 */}
+                      {categoryPosts.length === 0 ? (
+                        <div className="p-6 text-center text-gray-400 text-sm">
+                          아직 게시글이 없습니다
+                        </div>
+                      ) : (
+                        <>
+                          {/* 테이블 헤더 (데스크톱) */}
+                          <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-600">
+                            <div className="col-span-1 text-center">번호</div>
+                            <div className="col-span-6">제목</div>
+                            <div className="col-span-2 text-center">작성자</div>
+                            <div className="col-span-2 text-center">시간</div>
+                            <div className="col-span-1 text-center">조회</div>
+                          </div>
+                          
+                          {/* 게시글 리스트 */}
+                          {categoryPosts.map((item: any, index: number) => {
+                            return (
+                              <Link
+                                key={item.id}
+                                href={`/post/${item.id}`}
+                                className="block border-b border-gray-200 hover:bg-gray-50 transition-colors last:border-b-0"
+                              >
+                                {/* 모바일 레이아웃 */}
+                                <div className="md:hidden px-3 py-3">
+                                  <div className="flex items-start gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="font-medium text-sm text-gray-900 line-clamp-2 flex-1">
+                                          {item.title}
+                                        </span>
+                                        {(item.likes || 0) >= 10 && (
+                                          <span className="flex-shrink-0 px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded">
+                                            HIT
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                        <span>{item.author || item.authorName || '익명'}</span>
+                                        <span>•</span>
+                                        <span>{formatRelativeTime(item.timestamp || item.createdAt)}</span>
+                                        <span>•</span>
+                                        <span>{item.likes || 0}</span>
+                                        {item.comments > 0 && (
+                                          <>
+                                            <span>•</span>
+                                            <span className="text-blue-600 font-semibold">댓글 {item.comments}</span>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                      {user && item.uid && user.uid === item.uid && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.preventDefault()
+                                            e.stopPropagation()
+                                            handleDelete(item.id, item.uid, e)
+                                          }}
+                                          className="flex-shrink-0 text-red-500 hover:text-red-700 transition p-1"
+                                          title="삭제"
+                                        >
+                                          <Trash2 size={16} />
+                                        </button>
+                                      )}
+                                      {user && item.uid && user.uid !== item.uid && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.preventDefault()
+                                            e.stopPropagation()
+                                            setReportTarget({
+                                              type: 'post',
+                                              id: item.id,
+                                              authorId: item.uid,
+                                              content: item.content || item.title,
+                                            })
+                                            setIsReportModalOpen(true)
+                                          }}
+                                          className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition p-1"
+                                          title="신고"
+                                        >
+                                          <Flag size={16} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                {/* 데스크톱 레이아웃 */}
+                                <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-2.5 items-center text-sm">
+                                  {/* 번호 */}
+                                  <div className="col-span-1 text-center text-gray-500 text-xs">
+                                    {categoryPosts.length - index}
+                                  </div>
+                                  
+                                  {/* 제목 */}
+                                  <div className="col-span-6 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium text-gray-900 truncate">
+                                        {item.title}
+                                      </span>
+                                      {(item.likes || 0) >= 10 && (
+                                        <span className="flex-shrink-0 px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded">
+                                          HIT
+                                        </span>
+                                      )}
+                                      {item.comments > 0 && (
+                                        <span className="flex-shrink-0 text-xs text-blue-600 font-semibold">
+                                          [{item.comments}]
+                                        </span>
+                                      )}
+                                      {user && item.uid && user.uid === item.uid && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.preventDefault()
+                                            e.stopPropagation()
+                                            handleDelete(item.id, item.uid, e)
+                                          }}
+                                          className="flex-shrink-0 text-red-500 hover:text-red-700 transition p-0.5"
+                                          title="삭제"
+                                        >
+                                          <Trash2 size={12} />
+                                        </button>
+                                      )}
+                                      {user && item.uid && user.uid !== item.uid && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.preventDefault()
+                                            e.stopPropagation()
+                                            setReportTarget({
+                                              type: 'post',
+                                              id: item.id,
+                                              authorId: item.uid,
+                                              content: item.content || item.title,
+                                            })
+                                            setIsReportModalOpen(true)
+                                          }}
+                                          className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition p-0.5"
+                                          title="신고"
+                                        >
+                                          <Flag size={12} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                  
+                                  {/* 작성자 */}
+                                  <div className="col-span-2 text-center text-xs text-gray-600 truncate">
+                                    {item.author || item.authorName || '익명'}
+                                  </div>
+                                  
+                                  {/* 시간 */}
+                                  <div className="col-span-2 text-center text-xs text-gray-500">
+                                    {formatRelativeTime(item.timestamp || item.createdAt)}
+                                  </div>
+                                  
+                                  {/* 조회수 */}
+                                  <div className="col-span-1 text-center text-xs text-gray-500">
+                                    {item.likes || 0}
+                                  </div>
+                                </div>
+                              </Link>
+                            )
+                          })}
+                        </>
+                      )}
+                    </div>
+                  )
+                })()
+              )}
             </div>
             
-            {/* 오른쪽 사이드바 - eToLand 스타일 */}
+            {/* 오른쪽 사이드바 - 게시판 목록 */}
             <div className="lg:col-span-1 space-y-4">
+              <div className="bg-white border border-gray-200 rounded-lg p-4 sticky top-20">
+                <h3 className="font-bold text-sm text-gray-900 mb-3">게시판 목록</h3>
+                <div className="space-y-1">
+                  {boardCategories.map((category) => {
+                    const isActive = selectedCategory === category.value
+                    const postCount = getPostsByCategory(category.value, 10).length
+                    return (
+                      <button
+                        key={category.value}
+                        onClick={() => {
+                          setSelectedCategory(category.value)
+                          const element = document.getElementById(`category-${category.value}`)
+                          if (element) {
+                            element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          }
+                          const newUrl = category.value === '베스트' 
+                            ? '/' 
+                            : `/?category=${encodeURIComponent(category.value)}`
+                          router.push(newUrl, { scroll: false })
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                          isActive
+                            ? 'bg-[#1A2B4E] text-white font-semibold'
+                            : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{category.label}</span>
+                          <span className={`text-xs ${isActive ? 'text-white/80' : 'text-gray-500'}`}>
+                            {postCount}
+                          </span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
 
+              {/* 인기 게시글 (베스트) */}
+              {selectedCategory === '베스트' && (
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <h3 className="font-bold text-sm text-gray-900 mb-3">🔥 인기 게시글</h3>
+                  <div className="space-y-2">
+                    {getPostsByCategory('베스트', 5)
+                      .filter((post: any) => (post.likes || 0) >= 10)
+                      .slice(0, 5)
+                      .map((post: any) => (
+                        <Link
+                          key={post.id}
+                          href={`/post/${post.id}`}
+                          className="block p-2 rounded hover:bg-gray-50 transition"
+                        >
+                          <p className="text-xs text-gray-900 line-clamp-2 mb-1">{post.title}</p>
+                          <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                            <span>{post.likes || 0} 좋아요</span>
+                            <span>•</span>
+                            <span>{post.comments || 0} 댓글</span>
+                          </div>
+                        </Link>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
