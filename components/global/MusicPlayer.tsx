@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { useMusicStore } from '@/store/useMusicStore'
 import { X, Play, Pause, Music, Loader2, Minimize2, Maximize2 } from 'lucide-react'
@@ -18,10 +18,9 @@ export default function MusicPlayer() {
   const [mounted, setMounted] = useState(false)
   const [isReady, setIsReady] = useState(false)
   const [playerLoaded, setPlayerLoaded] = useState(false)
-  const playerRef = useRef<any>(null)
   const retryCountRef = useRef(0)
   const maxRetries = 3
-  const checkIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const readyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -32,27 +31,37 @@ export default function MusicPlayer() {
     return () => clearTimeout(timer)
   }, [])
 
-  // videoId 변경 시 상태 리셋
+  // videoId 변경 시 상태 리셋 및 타임아웃 설정
   useEffect(() => {
     if (videoId) {
       console.log('[MusicPlayer] 🎵 새로운 음악 로드:', { videoId, title })
       setIsReady(false)
       retryCountRef.current = 0
       
-      // 기존 체크 인터벌 클리어
-      if (checkIntervalRef.current) {
-        clearInterval(checkIntervalRef.current)
-        checkIntervalRef.current = null
+      // 기존 타임아웃 클리어
+      if (readyTimeoutRef.current) {
+        clearTimeout(readyTimeoutRef.current)
+        readyTimeoutRef.current = null
+      }
+
+      // 플레이어 모듈이 로드되면 타임아웃 설정 (1.5초 후 강제로 준비 상태로)
+      if (playerLoaded) {
+        readyTimeoutRef.current = setTimeout(() => {
+          if (!isReady) {
+            console.warn('[MusicPlayer] ⚠️ 타임아웃: 1.5초 후에도 플레이어가 준비되지 않음, 강제로 준비 상태로 전환')
+            setIsReady(true)
+          }
+        }, 1500)
       }
     }
     
     return () => {
-      if (checkIntervalRef.current) {
-        clearInterval(checkIntervalRef.current)
-        checkIntervalRef.current = null
+      if (readyTimeoutRef.current) {
+        clearTimeout(readyTimeoutRef.current)
+        readyTimeoutRef.current = null
       }
     }
-  }, [videoId, title])
+  }, [videoId, title, playerLoaded, isReady])
 
   // 플레이어 활성화 시 body에 padding-bottom 추가
   useEffect(() => {
@@ -72,57 +81,13 @@ export default function MusicPlayer() {
     }
   }, [videoId, isMinimized, mounted])
 
-  // 플레이어 상태 확인 함수
-  const checkPlayerReady = useCallback(() => {
-    if (!playerRef.current || isReady) return
-    
-    try {
-      const internalPlayer = playerRef.current.getInternalPlayer()
-      if (internalPlayer && typeof internalPlayer.getPlayerState === 'function') {
-        const state = internalPlayer.getPlayerState()
-        if (state !== -1 && state !== undefined) {
-          // 플레이어가 준비됨 (UNSTARTED = -1이 아니면 준비됨)
-          console.log('✅ 플레이어가 준비되었습니다 (getPlayerState로 감지):', { state })
-          setIsReady(true)
-          if (checkIntervalRef.current) {
-            clearInterval(checkIntervalRef.current)
-            checkIntervalRef.current = null
-          }
-        }
-      }
-    } catch (e) {
-      // 플레이어가 아직 준비되지 않음
+  // isReady가 true가 되면 타임아웃 클리어
+  useEffect(() => {
+    if (isReady && readyTimeoutRef.current) {
+      clearTimeout(readyTimeoutRef.current)
+      readyTimeoutRef.current = null
     }
   }, [isReady])
-
-  // 플레이어 준비 상태 주기적 확인
-  useEffect(() => {
-    if (!playerRef.current || isReady || !videoId) return
-
-    // 주기적으로 확인 (최대 2초)
-    let attemptCount = 0
-    checkIntervalRef.current = setInterval(() => {
-      attemptCount++
-      checkPlayerReady()
-      
-      if (attemptCount > 20) {
-        // 2초 후에도 준비되지 않으면 강제로 준비 상태로
-        console.warn('[MusicPlayer] ⚠️ 플레이어 준비 타임아웃, 강제로 준비 상태로 전환')
-        setIsReady(true)
-        if (checkIntervalRef.current) {
-          clearInterval(checkIntervalRef.current)
-          checkIntervalRef.current = null
-        }
-      }
-    }, 100)
-
-    return () => {
-      if (checkIntervalRef.current) {
-        clearInterval(checkIntervalRef.current)
-        checkIntervalRef.current = null
-      }
-    }
-  }, [playerRef.current, isReady, videoId, checkPlayerReady])
 
   // Hydration 이슈 방지
   if (!mounted || !videoId) return null
@@ -147,13 +112,6 @@ export default function MusicPlayer() {
               >
                 <div className="absolute inset-0">
                   <ReactPlayer
-                    ref={(player: any) => {
-                      playerRef.current = player
-                      // ref가 설정되면 즉시 확인 시도
-                      if (player) {
-                        setTimeout(() => checkPlayerReady(), 100)
-                      }
-                    }}
                     key={videoId}
                     url={`https://www.youtube.com/watch?v=${videoId}`}
                     playing={isPlaying && isReady}
@@ -182,11 +140,11 @@ export default function MusicPlayer() {
                     }}
                     onReady={() => {
                       console.log('✅ Youtube Player Ready!', { videoId, title })
-                      setIsReady(true)
-                      // onReady에서도 플레이어 ref 확인
-                      if (playerRef.current) {
-                        checkPlayerReady()
+                      if (readyTimeoutRef.current) {
+                        clearTimeout(readyTimeoutRef.current)
+                        readyTimeoutRef.current = null
                       }
+                      setIsReady(true)
                     }}
                     onStart={() => {
                       console.log('✅ Music Started Playing!', { videoId })
@@ -322,13 +280,6 @@ export default function MusicPlayer() {
           {isMinimized && (
             <div className="absolute opacity-0 pointer-events-none w-1 h-1 overflow-hidden" style={{ visibility: 'hidden' }}>
               <ReactPlayer
-                ref={(player: any) => {
-                  playerRef.current = player
-                  // ref가 설정되면 즉시 확인 시도
-                  if (player) {
-                    setTimeout(() => checkPlayerReady(), 100)
-                  }
-                }}
                 key={videoId}
                 url={`https://www.youtube.com/watch?v=${videoId}`}
                 playing={isPlaying && isReady}
@@ -357,11 +308,11 @@ export default function MusicPlayer() {
                 }}
                 onReady={() => {
                   console.log('✅ 미니 모드 Youtube Player Ready!', { videoId })
-                  setIsReady(true)
-                  // onReady에서도 플레이어 ref 확인
-                  if (playerRef.current) {
-                    checkPlayerReady()
+                  if (readyTimeoutRef.current) {
+                    clearTimeout(readyTimeoutRef.current)
+                    readyTimeoutRef.current = null
                   }
+                  setIsReady(true)
                 }}
                 onStart={() => {
                   console.log('✅ 미니 모드 Music Started Playing!', { videoId })
