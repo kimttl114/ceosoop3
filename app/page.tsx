@@ -318,6 +318,11 @@ function HomeContent() {
       },
       (error: any) => {
         console.error('공지사항 불러오기 오류:', error)
+        // 권한 오류인 경우 빈 배열로 설정하여 앱이 크래시하지 않도록 함
+        if (error?.code === 'permission-denied' || error?.message?.includes('permission')) {
+          console.warn('공지사항 읽기 권한이 없습니다. Firestore 보안 규칙을 확인해주세요.')
+          setNotices([])
+        }
       }
     )
 
