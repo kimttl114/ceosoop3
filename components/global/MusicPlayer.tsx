@@ -371,6 +371,25 @@ export default function MusicPlayer() {
                     }
                     setIsReady(true)
                     console.log('[MusicPlayer] ✅ 미니 모드 준비 상태로 전환 완료')
+                    // 준비되면 즉시 재생 시도
+                    if (isPlaying) {
+                      console.log('[MusicPlayer] 미니 모드 준비 완료, 자동 재생 시작')
+                      setTimeout(() => {
+                        console.log('[MusicPlayer] 미니 모드 재생 강제 시도:', { isPlaying, isReady: true })
+                      }, 100)
+                    }
+                  }}
+                  onLoad={() => {
+                    console.log('📥 미니 모드 Youtube Player Loaded!', { videoId })
+                    // onLoad가 호출되면 플레이어가 로드된 것
+                    if (!isReady) {
+                      console.log('✅ 미니 모드가 준비되었습니다 (onLoad로 감지)')
+                      if (readyTimeoutRef.current) {
+                        clearTimeout(readyTimeoutRef.current)
+                        readyTimeoutRef.current = null
+                      }
+                      setIsReady(true)
+                    }
                   }}
                   onStart={() => {
                     console.log('✅ 미니 모드 Music Started Playing!', { videoId, isReady, isPlaying })
