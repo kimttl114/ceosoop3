@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { useMusicStore } from '@/store/useMusicStore'
 import { X, Play, Pause, Music, Loader2, Minimize2, Maximize2 } from 'lucide-react'
@@ -31,6 +31,7 @@ export default function MusicPlayer() {
   const [mounted, setMounted] = useState(false)
   const [isReady, setIsReady] = useState(false)
   const [playerLoaded, setPlayerLoaded] = useState(false) // ReactPlayer 모듈 로드 여부
+  const readyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     console.log('[MusicPlayer] 컴포넌트 마운트 시작')
@@ -42,13 +43,40 @@ export default function MusicPlayer() {
     }, 500)
   }, [])
 
-  // videoId 변경 시 isReady 리셋 (중요!)
+  // videoId 변경 시 isReady 리셋 및 타임아웃 설정
   useEffect(() => {
     if (videoId) {
       console.log('[MusicPlayer] 🎵 새로운 음악 로드:', { videoId, title, isMinimized, isPlaying })
       setIsReady(false)
+      
+      // 기존 타임아웃 클리어
+      if (readyTimeoutRef.current) {
+        clearTimeout(readyTimeoutRef.current)
+        readyTimeoutRef.current = null
+      }
+
+      // 플레이어 모듈이 로드되면 타임아웃 설정 (5초 후 강제로 준비 상태로)
+      if (playerLoaded) {
+        console.log('[MusicPlayer] 플레이어 초기화 시작, 타임아웃 5초 설정')
+        readyTimeoutRef.current = setTimeout(() => {
+          if (!isReady) {
+            console.warn('[MusicPlayer] ⚠️ 타임아웃: 5초 후에도 플레이어가 준비되지 않음, 강제로 준비 상태로 전환', {
+              videoId,
+              isPlaying,
+            })
+            setIsReady(true)
+          }
+        }, 5000)
+      }
     }
-  }, [videoId, title, isMinimized, isPlaying])
+
+    return () => {
+      if (readyTimeoutRef.current) {
+        clearTimeout(readyTimeoutRef.current)
+        readyTimeoutRef.current = null
+      }
+    }
+  }, [videoId, title, isMinimized, isPlaying, playerLoaded, isReady])
 
   // 플레이어 활성화 시 body에 padding-bottom 추가 (모바일 최적화)
   useEffect(() => {
@@ -125,7 +153,10 @@ export default function MusicPlayer() {
                   }}
                   onReady={() => {
                     console.log('✅ Youtube Player Ready!', { videoId, title, isReady, isPlaying })
-                    // onReady가 호출되면 즉시 준비 상태로 설정
+                    if (readyTimeoutRef.current) {
+                      clearTimeout(readyTimeoutRef.current)
+                      readyTimeoutRef.current = null
+                    }
                     setIsReady(true)
                     console.log('[MusicPlayer] ✅ 준비 상태로 전환 완료')
                     // 준비되면 자동 재생 시도 (isPlaying이 true인 경우)
@@ -138,6 +169,10 @@ export default function MusicPlayer() {
                     // onStart가 호출되면 플레이어가 준비된 것
                     if (!isReady) {
                       console.log('✅ 플레이어가 준비되었습니다 (onStart로 감지)')
+                      if (readyTimeoutRef.current) {
+                        clearTimeout(readyTimeoutRef.current)
+                        readyTimeoutRef.current = null
+                      }
                       setIsReady(true)
                     }
                   }}
@@ -153,14 +188,18 @@ export default function MusicPlayer() {
                     console.log('⏸️ 일시정지', { videoId })
                   }}
                   onProgress={(state: any) => {
-                    // onReady가 호출되지 않을 경우 대비
-                    if (!isReady && state.loadedSeconds > 0) {
+                    // onReady가 호출되지 않을 경우 대비 - 더 빠르게 감지
+                    if (!isReady && (state.loadedSeconds > 0 || state.playedSeconds > 0)) {
                       console.log('📊 플레이어가 준비되었습니다 (onProgress로 감지):', {
                         loaded: Math.round(state.loadedSeconds) + '초',
                         played: Math.round(state.playedSeconds) + '초',
                         videoId,
                         isPlaying,
                       })
+                      if (readyTimeoutRef.current) {
+                        clearTimeout(readyTimeoutRef.current)
+                        readyTimeoutRef.current = null
+                      }
                       setIsReady(true)
                     }
                   }}
@@ -297,6 +336,10 @@ export default function MusicPlayer() {
                   }}
                   onReady={() => {
                     console.log('✅ 미니 모드 Youtube Player Ready!', { videoId, title, isReady, isPlaying })
+                    if (readyTimeoutRef.current) {
+                      clearTimeout(readyTimeoutRef.current)
+                      readyTimeoutRef.current = null
+                    }
                     setIsReady(true)
                     console.log('[MusicPlayer] ✅ 미니 모드 준비 상태로 전환 완료')
                   }}
@@ -304,6 +347,10 @@ export default function MusicPlayer() {
                     console.log('✅ 미니 모드 Music Started Playing!', { videoId, isReady, isPlaying })
                     if (!isReady) {
                       console.log('✅ 미니 모드가 준비되었습니다 (onStart로 감지)')
+                      if (readyTimeoutRef.current) {
+                        clearTimeout(readyTimeoutRef.current)
+                        readyTimeoutRef.current = null
+                      }
                       setIsReady(true)
                     }
                   }}
@@ -311,15 +358,24 @@ export default function MusicPlayer() {
                     console.log('▶️ 미니 모드 재생 중', { videoId, isReady, isPlaying })
                     if (!isReady) {
                       console.log('✅ 미니 모드가 준비되었습니다 (onPlay로 감지)')
+                      if (readyTimeoutRef.current) {
+                        clearTimeout(readyTimeoutRef.current)
+                        readyTimeoutRef.current = null
+                      }
                       setIsReady(true)
                     }
                   }}
                   onProgress={(state: any) => {
-                    if (!isReady && state.loadedSeconds > 0) {
+                    if (!isReady && (state.loadedSeconds > 0 || state.playedSeconds > 0)) {
                       console.log('📊 미니 모드가 준비되었습니다 (onProgress로 감지):', {
                         loaded: Math.round(state.loadedSeconds) + '초',
+                        played: Math.round(state.playedSeconds) + '초',
                         videoId,
                       })
+                      if (readyTimeoutRef.current) {
+                        clearTimeout(readyTimeoutRef.current)
+                        readyTimeoutRef.current = null
+                      }
                       setIsReady(true)
                     }
                   }}
