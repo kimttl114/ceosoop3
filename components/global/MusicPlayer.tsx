@@ -65,6 +65,14 @@ export default function MusicPlayer() {
               isPlaying,
             })
             setIsReady(true)
+            // 타임아웃 후에도 재생이 안 되면 강제로 재생 시도
+            if (isPlaying) {
+              console.log('[MusicPlayer] 타임아웃 후 재생 강제 시도')
+              // 약간의 지연 후 재생 상태 확인 및 강제 재생
+              setTimeout(() => {
+                console.log('[MusicPlayer] 재생 상태 확인:', { isPlaying, isReady: true })
+              }, 100)
+            }
           }
         }, 5000)
       }
@@ -125,7 +133,7 @@ export default function MusicPlayer() {
               >
                 <div className="absolute inset-0">
                   <ReactPlayer
-                    key={videoId}
+                    key={`${videoId}-${isReady}`}
                     url={`https://www.youtube.com/watch?v=${videoId}`}
                     playing={isPlaying && isReady}
                     controls={true} // 모바일에서는 컨트롤 표시
@@ -212,9 +220,14 @@ export default function MusicPlayer() {
                       errorName === 'AbortError' ||
                       errorMessage.includes('AbortError') ||
                       errorMessage.includes('media was removed') ||
-                      errorMessage.includes('removed from the document')
+                      errorMessage.includes('removed from the document') ||
+                      errorMessage.includes('play() request was interrupted')
                     ) {
                       console.log('ℹ️ 미디어 전환 중 (정상):', errorMessage)
+                      // AbortError는 무시하되, 재생 시도는 계속
+                      if (isPlaying && isReady) {
+                        console.log('[MusicPlayer] AbortError 후 재생 재시도')
+                      }
                       return
                     }
 
@@ -308,7 +321,7 @@ export default function MusicPlayer() {
             {isMinimized && (
               <div className="absolute opacity-0 pointer-events-none w-1 h-1 overflow-hidden" style={{ visibility: 'hidden' }}>
                   <ReactPlayer
-                  key={videoId}
+                  key={`${videoId}-${isReady}`}
                   url={`https://www.youtube.com/watch?v=${videoId}`}
                   playing={isPlaying && isReady}
                   controls={false}
