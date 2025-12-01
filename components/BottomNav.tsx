@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, Plus, Sparkles, FileText, Vote, Users } from 'lucide-react'
+import { Home, Plus, Sparkles, FileText, Vote, Users, ShoppingBag } from 'lucide-react'
 
 interface BottomNavProps {
   onWriteClick?: () => void
@@ -13,6 +13,7 @@ export default function BottomNav({ onWriteClick }: BottomNavProps) {
 
   const navItems = [
     { path: '/', label: '홈', icon: Home, isExternal: false },
+    { path: '/marketplace', label: '장터', icon: ShoppingBag, isExternal: false },
     { path: '/games', label: '게임', icon: Sparkles, isExternal: false },
     { path: '/tools', label: '도구', icon: FileText, isExternal: false },
     { path: '/polls', label: '커뮤니티', icon: Vote, isExternal: false },

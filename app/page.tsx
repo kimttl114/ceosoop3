@@ -487,6 +487,33 @@ export default function Home() {
           </div>
         )}
 
+        {/* 중고장터 섹션 */}
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200">
+          <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <ShoppingBag size={20} className="text-green-600" />
+                <span>🛒 자영업자 중고장터</span>
+              </h2>
+              <Link
+                href="/marketplace"
+                className="text-sm text-green-600 font-medium hover:underline"
+              >
+                전체보기 →
+              </Link>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              자영업자 장비, 기기, 가구 등을 중고로 거래하세요
+            </p>
+            <Link
+              href="/marketplace"
+              className="inline-block px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition shadow-md"
+            >
+              장터 둘러보기 →
+            </Link>
+          </div>
+        </div>
+
         {/* 도구존 섹션 - 최상단에 배치, 모든 도구 한 화면에 표시 */}
         <div className="bg-white border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4">
