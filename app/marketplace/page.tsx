@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { auth, db } from '@/lib/firebase'
 import { collection, query, getDocs, orderBy, where, limit, onSnapshot } from 'firebase/firestore'
@@ -50,7 +50,7 @@ interface MarketplaceItem {
   updatedAt: any
 }
 
-export default function MarketplacePage() {
+function MarketplaceContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [user, setUser] = useState<any>(null)
@@ -455,6 +455,20 @@ export default function MarketplacePage() {
 
       <BottomNav />
     </MainLayout>
+  )
+}
+
+export default function MarketplacePage() {
+  return (
+    <Suspense fallback={
+      <MainLayout>
+        <div className="min-h-screen pb-24 bg-gray-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1A2B4E]"></div>
+        </div>
+      </MainLayout>
+    }>
+      <MarketplaceContent />
+    </Suspense>
   )
 }
 
