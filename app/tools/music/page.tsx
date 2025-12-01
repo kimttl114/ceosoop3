@@ -216,6 +216,31 @@ export default function MusicPage() {
             </div>
           </div>
 
+          {/* 장르 선택 */}
+          <div className="mb-6">
+            <label className="block text-sm font-semibold text-gray-700 mb-3">장르</label>
+            <div className="grid grid-cols-3 gap-2">
+              {genreOptions.map((genre) => {
+                const Icon = genre.icon
+                const isSelected = selectedGenre === genre.value
+                return (
+                  <button
+                    key={genre.value}
+                    onClick={() => setSelectedGenre(genre.value)}
+                    className={`py-3 rounded-xl border-2 transition ${
+                      isSelected
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <Icon size={20} className={`mx-auto mb-1 ${isSelected ? genre.color : 'text-gray-400'}`} />
+                    <div className="text-xs font-medium leading-tight">{genre.label}</div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           {/* AI 선곡 버튼 */}
           <button
             onClick={handleRecommend}
