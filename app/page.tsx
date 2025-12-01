@@ -531,7 +531,7 @@ export default function Home() {
               { id: 'ai-customer-service', title: 'AI 고객 대응', description: '고객 불만 대응 가이드', route: '/tools/ai-customer-service', icon: '💬' },
               { id: 'ai-pricing', title: 'AI 가격 조언', description: '최적 가격 전략 제안', route: '/tools/ai-pricing', icon: '🧠' },
               { id: 'announcement', title: '안내방송 생성', description: '매장 방송 자동 제작 + 실시간 재생 기능', route: '/tools/announcement', icon: '🎙️' },
-              { id: 'music', title: 'AI 음악 선곡', description: '상황별 배경음악 자동 추천', route: '/tools/music', icon: '🎵' },
+              { id: 'music', title: 'AI 매장음악 선곡', description: '상황별 배경음악 자동 추천 + 저작권 없는 곡 선정', route: '/tools/music', icon: '🎵' },
               { id: 'fortune', title: '무료 종합 운세', description: 'AI 올인원 운세 서비스', route: 'https://all-fo.vercel.app/', icon: '🔮', external: true },
             ].map((tool: any) => {
               const isExternal = tool.external || tool.route?.startsWith('http')
