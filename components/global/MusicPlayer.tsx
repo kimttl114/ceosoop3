@@ -270,7 +270,7 @@ export default function MusicPlayer() {
 
   return (
     <div
-      className={`fixed left-0 right-0 z-[100] transition-all duration-300 ${
+      className={`fixed left-0 right-0 z-[50] transition-all duration-300 ${
         isMinimized ? 'bottom-16' : 'bottom-0'
       }`}
     >

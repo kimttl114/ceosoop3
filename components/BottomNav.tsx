@@ -2,7 +2,6 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import { Home, Plus, Sparkles, FileText, Vote, Users } from 'lucide-react'
-import { useMusicStore } from '@/store/useMusicStore'
 
 interface BottomNavProps {
   onWriteClick?: () => void
@@ -11,7 +10,6 @@ interface BottomNavProps {
 export default function BottomNav({ onWriteClick }: BottomNavProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const { videoId } = useMusicStore() // 플레이어 재생 상태 확인
 
   const navItems = [
     { path: '/', label: '홈', icon: Home, isExternal: false },
@@ -96,12 +94,7 @@ export default function BottomNav({ onWriteClick }: BottomNavProps) {
       </nav>
 
       {/* 중앙 글쓰기 버튼 (네비게이션 바 위에 별도 배치) - 모든 페이지에서 표시 */}
-      {/* 플레이어가 재생 중일 때는 위로 올려서 겹침 방지 */}
-      <div 
-        className={`fixed left-1/2 -translate-x-1/2 z-[110] w-full flex justify-center pointer-events-none px-4 transition-all duration-300 ${
-          videoId ? 'bottom-32' : 'bottom-16'
-        }`}
-      >
+      <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-[110] w-full flex justify-center pointer-events-none px-4">
         <button
           onClick={handleWriteClick}
           className="w-14 h-14 md:w-16 md:h-16 bg-[#1A2B4E] text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-[#1A2B4E]/90 active:bg-[#1A2B4E]/80 pointer-events-auto transition-all"
