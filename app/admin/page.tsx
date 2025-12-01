@@ -10,7 +10,9 @@ import {
   Users, 
   Flag, 
   TrendingUp,
-  Activity
+  Activity,
+  Sparkles,
+  Loader2
 } from 'lucide-react'
 
 interface Stats {
@@ -34,6 +36,10 @@ export default function AdminDashboard() {
     todayUsers: 0,
   })
   const [loading, setLoading] = useState(true)
+  const [generating, setGenerating] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState('대나무숲')
+  const [dummyCount, setDummyCount] = useState(3)
+  const [generateResult, setGenerateResult] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -108,6 +114,76 @@ export default function AdminDashboard() {
 
     fetchStats()
   }, [])
+
+  const categories = [
+    { value: '대나무숲', label: '🗣️ 대나무숲' },
+    { value: '빌런박제소', label: '❓ 빌런박제소' },
+    { value: '유머 & 이슈', label: '유머 & 이슈' },
+    { value: '비틱방(자랑방)', label: '🥕 비틱방(자랑방)' },
+  ]
+
+  const handleGenerateDummyPosts = async () => {
+    if (!selectedCategory || dummyCount < 1 || dummyCount > 10) {
+      alert('카테고리와 개수(1-10)를 올바르게 선택해주세요.')
+      return
+    }
+
+    setGenerating(true)
+    setGenerateResult(null)
+
+    try {
+      const response = await fetch('/api/generate-dummy-posts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          category: selectedCategory,
+          count: dummyCount,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || '더미 글 생성에 실패했습니다.')
+      }
+
+      setGenerateResult(data.message)
+      // 통계 새로고침
+      const fetchStats = async () => {
+        try {
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          const todayTimestamp = Timestamp.fromDate(today)
+
+          const postsQuery = query(collection(db, 'posts'))
+          const postsSnapshot = await getDocs(postsQuery)
+          const totalPosts = postsSnapshot.size
+
+          const todayPostsQuery = query(
+            collection(db, 'posts'),
+            where('timestamp', '>=', todayTimestamp)
+          )
+          const todayPostsSnapshot = await getDocs(todayPostsQuery)
+          const todayPosts = todayPostsSnapshot.size
+
+          setStats((prev) => ({
+            ...prev,
+            totalPosts,
+            todayPosts,
+          }))
+        } catch (error) {
+          console.error('통계 새로고침 오류:', error)
+        }
+      }
+      fetchStats()
+    } catch (error: any) {
+      setGenerateResult(`오류: ${error.message}`)
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   const statCards = [
     {
@@ -223,6 +299,88 @@ export default function AdminDashboard() {
                 <p className="text-sm text-gray-600">전체 {stats.totalUsers}명</p>
               </div>
             </a>
+          </div>
+        </div>
+
+        {/* 더미 글 생성 */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <Sparkles className="text-purple-600" size={24} />
+            <span>더미 글 자동 생성</span>
+          </h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                게시판 선택
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {categories.map((cat) => (
+                  <button
+                    key={cat.value}
+                    onClick={() => setSelectedCategory(cat.value)}
+                    className={`px-4 py-2 rounded-lg border-2 transition ${
+                      selectedCategory === cat.value
+                        ? 'border-purple-500 bg-purple-50 text-purple-700'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                생성할 글 개수 (1-10개)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                value={dummyCount}
+                onChange={(e) => setDummyCount(parseInt(e.target.value) || 1)}
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500"
+              />
+            </div>
+
+            <button
+              onClick={handleGenerateDummyPosts}
+              disabled={generating}
+              className="w-full px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-bold hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="animate-spin" size={20} />
+                  <span>더미 글 생성 중...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={20} />
+                  <span>더미 글 생성하기</span>
+                </>
+              )}
+            </button>
+
+            {generateResult && (
+              <div className={`p-4 rounded-lg ${
+                generateResult.includes('오류') 
+                  ? 'bg-red-50 text-red-700 border border-red-200' 
+                  : 'bg-green-50 text-green-700 border border-green-200'
+              }`}>
+                <p className="text-sm font-medium">{generateResult}</p>
+              </div>
+            )}
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800 font-semibold mb-2">💡 안내</p>
+              <ul className="text-xs text-blue-700 space-y-1 ml-4 list-disc">
+                <li>선택한 게시판의 분위기에 맞는 글을 자동으로 생성합니다.</li>
+                <li>각 글마다 3~6개의 자연스러운 댓글이 자동 생성됩니다.</li>
+                <li>생성된 글은 실제 게시판에 등록됩니다.</li>
+                <li>API 호출 제한을 고려하여 생성에 시간이 걸릴 수 있습니다.</li>
+              </ul>
+            </div>
           </div>
         </div>
 
