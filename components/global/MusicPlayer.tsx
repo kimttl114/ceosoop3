@@ -1,15 +1,16 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import dynamic from 'next/dynamic'
 import { useMusicStore } from '@/store/useMusicStore'
 import { X, Play, Pause, Music, Loader2, Minimize2, Maximize2 } from 'lucide-react'
 
-// ReactPlayer는 클라이언트 사이드에서만 동적 임포트
-const ReactPlayer = dynamic(() => import('react-player'), {
-  ssr: false,
-  loading: () => null,
-}) as any
+// YouTube IFrame API 타입 정의
+declare global {
+  interface Window {
+    YT: any
+    onYouTubeIframeAPIReady: () => void
+  }
+}
 
 // MusicPlayer 컴포넌트
 export default function MusicPlayer() {
@@ -17,51 +18,219 @@ export default function MusicPlayer() {
 
   const [mounted, setMounted] = useState(false)
   const [isReady, setIsReady] = useState(false)
-  const [playerLoaded, setPlayerLoaded] = useState(false)
-  const retryCountRef = useRef(0)
-  const maxRetries = 3
-  const readyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [apiLoaded, setApiLoaded] = useState(false)
+  const playerRef = useRef<any>(null)
+  const playerContainerRef = useRef<HTMLDivElement>(null)
+  const miniPlayerContainerRef = useRef<HTMLDivElement>(null)
+  const playerIdRef = useRef(`youtube-player-${Date.now()}`)
+  const miniPlayerIdRef = useRef(`youtube-player-mini-${Date.now()}`)
 
+  // YouTube IFrame API 로드
   useEffect(() => {
     setMounted(true)
-    // ReactPlayer 모듈 로드 확인
-    const timer = setTimeout(() => {
-      setPlayerLoaded(true)
-    }, 300)
-    return () => clearTimeout(timer)
+
+    // 이미 로드되어 있는지 확인
+    if (window.YT && window.YT.Player) {
+      setApiLoaded(true)
+      return
+    }
+
+    // API가 이미 로딩 중인지 확인
+    if (document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+      // API 로드 대기
+      const checkApi = setInterval(() => {
+        if (window.YT && window.YT.Player) {
+          setApiLoaded(true)
+          clearInterval(checkApi)
+        }
+      }, 100)
+
+      return () => clearInterval(checkApi)
+    }
+
+    // YouTube IFrame API 스크립트 로드
+    const tag = document.createElement('script')
+    tag.src = 'https://www.youtube.com/iframe_api'
+    tag.async = true
+    const firstScriptTag = document.getElementsByTagName('script')[0]
+    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag)
+
+    // API 준비 콜백
+    window.onYouTubeIframeAPIReady = () => {
+      console.log('[MusicPlayer] ✅ YouTube IFrame API 로드 완료')
+      setApiLoaded(true)
+    }
   }, [])
 
-  // videoId 변경 시 상태 리셋 및 타임아웃 설정
+  // 플레이어 초기화 (확장 모드)
   useEffect(() => {
-    if (videoId) {
-      console.log('[MusicPlayer] 🎵 새로운 음악 로드:', { videoId, title })
-      setIsReady(false)
-      retryCountRef.current = 0
-      
-      // 기존 타임아웃 클리어
-      if (readyTimeoutRef.current) {
-        clearTimeout(readyTimeoutRef.current)
-        readyTimeoutRef.current = null
-      }
+    if (!apiLoaded || !videoId || !playerContainerRef.current || isMinimized) return
 
-      // 플레이어 모듈이 로드되면 타임아웃 설정 (1.5초 후 강제로 준비 상태로)
-      if (playerLoaded) {
-        readyTimeoutRef.current = setTimeout(() => {
-          if (!isReady) {
-            console.warn('[MusicPlayer] ⚠️ 타임아웃: 1.5초 후에도 플레이어가 준비되지 않음, 강제로 준비 상태로 전환')
+    console.log('[MusicPlayer] 🎵 플레이어 초기화 시작 (확장 모드):', { videoId, title })
+
+    // 기존 플레이어 제거
+    if (playerRef.current) {
+      try {
+        playerRef.current.destroy()
+      } catch (e) {
+        console.warn('[MusicPlayer] 기존 플레이어 제거 실패:', e)
+      }
+      playerRef.current = null
+    }
+
+    setIsReady(false)
+
+    // 새 플레이어 생성
+    try {
+      playerRef.current = new window.YT.Player(playerContainerRef.current, {
+        videoId: videoId,
+        width: '100%',
+        height: '100%',
+        playerVars: {
+          autoplay: 0,
+          controls: 1,
+          rel: 0,
+          modestbranding: 1,
+          playsinline: 1,
+          enablejsapi: 1,
+          mute: 0,
+          origin: typeof window !== 'undefined' ? window.location.origin : '',
+        },
+        events: {
+          onReady: (event: any) => {
+            console.log('✅ Youtube Player Ready! (확장 모드)', { videoId, title })
             setIsReady(true)
-          }
-        }, 1500)
-      }
+            // 자동 재생이 활성화되어 있으면 재생
+            if (isPlaying) {
+              event.target.playVideo()
+            }
+          },
+          onStateChange: (event: any) => {
+            const state = event.data
+            if (state === 1) {
+              console.log('▶️ 재생 중 (확장 모드)', { videoId })
+            } else if (state === 2) {
+              console.log('⏸️ 일시정지 (확장 모드)', { videoId })
+            } else if (state === 0) {
+              console.log('⏹️ 재생 종료 (확장 모드)', { videoId })
+            }
+          },
+          onError: (event: any) => {
+            const errorCode = event.data
+            console.error('❌ Youtube Error (확장 모드):', { videoId, errorCode })
+            if (errorCode === 100 || errorCode === 101 || errorCode === 150) {
+              console.warn('[MusicPlayer] 비디오 재생 제한, 다른 비디오로 시도 필요')
+            }
+          },
+        },
+      })
+    } catch (error) {
+      console.error('[MusicPlayer] 플레이어 생성 실패:', error)
     }
-    
+
     return () => {
-      if (readyTimeoutRef.current) {
-        clearTimeout(readyTimeoutRef.current)
-        readyTimeoutRef.current = null
+      if (playerRef.current) {
+        try {
+          playerRef.current.destroy()
+        } catch (e) {
+          console.warn('[MusicPlayer] 플레이어 정리 실패:', e)
+        }
+        playerRef.current = null
       }
     }
-  }, [videoId, title, playerLoaded, isReady])
+  }, [apiLoaded, videoId, title, isMinimized, isPlaying])
+
+  // 플레이어 초기화 (미니 모드)
+  useEffect(() => {
+    if (!apiLoaded || !videoId || !miniPlayerContainerRef.current || !isMinimized) return
+
+    console.log('[MusicPlayer] 🎵 플레이어 초기화 시작 (미니 모드):', { videoId, title })
+
+    // 기존 플레이어 제거
+    if (playerRef.current) {
+      try {
+        playerRef.current.destroy()
+      } catch (e) {
+        console.warn('[MusicPlayer] 기존 플레이어 제거 실패:', e)
+      }
+      playerRef.current = null
+    }
+
+    setIsReady(false)
+
+    // 새 플레이어 생성 (미니 모드)
+    try {
+      playerRef.current = new window.YT.Player(miniPlayerContainerRef.current, {
+        videoId: videoId,
+        width: '100%',
+        height: '100%',
+        playerVars: {
+          autoplay: 0,
+          controls: 0,
+          rel: 0,
+          modestbranding: 1,
+          playsinline: 1,
+          enablejsapi: 1,
+          mute: 0,
+          origin: typeof window !== 'undefined' ? window.location.origin : '',
+        },
+        events: {
+          onReady: (event: any) => {
+            console.log('✅ Youtube Player Ready! (미니 모드)', { videoId, title })
+            setIsReady(true)
+            // 자동 재생이 활성화되어 있으면 재생
+            if (isPlaying) {
+              event.target.playVideo()
+            }
+          },
+          onStateChange: (event: any) => {
+            const state = event.data
+            if (state === 1) {
+              console.log('▶️ 재생 중 (미니 모드)', { videoId })
+            } else if (state === 2) {
+              console.log('⏸️ 일시정지 (미니 모드)', { videoId })
+            }
+          },
+          onError: (event: any) => {
+            const errorCode = event.data
+            console.error('❌ Youtube Error (미니 모드):', { videoId, errorCode })
+          },
+        },
+      })
+    } catch (error) {
+      console.error('[MusicPlayer] 미니 모드 플레이어 생성 실패:', error)
+    }
+
+    return () => {
+      if (playerRef.current) {
+        try {
+          playerRef.current.destroy()
+        } catch (e) {
+          console.warn('[MusicPlayer] 미니 모드 플레이어 정리 실패:', e)
+        }
+        playerRef.current = null
+      }
+    }
+  }, [apiLoaded, videoId, title, isMinimized, isPlaying])
+
+  // 재생/일시정지 제어
+  useEffect(() => {
+    if (!playerRef.current || !isReady) return
+
+    try {
+      const playerState = playerRef.current.getPlayerState()
+      // YT.PlayerState.PLAYING = 1
+      // YT.PlayerState.PAUSED = 2
+
+      if (isPlaying && playerState !== 1) {
+        playerRef.current.playVideo()
+      } else if (!isPlaying && playerState === 1) {
+        playerRef.current.pauseVideo()
+      }
+    } catch (error) {
+      console.error('[MusicPlayer] 재생 제어 실패:', error)
+    }
+  }, [isPlaying, isReady])
 
   // 플레이어 활성화 시 body에 padding-bottom 추가
   useEffect(() => {
@@ -81,14 +250,6 @@ export default function MusicPlayer() {
     }
   }, [videoId, isMinimized, mounted])
 
-  // isReady가 true가 되면 타임아웃 클리어
-  useEffect(() => {
-    if (isReady && readyTimeoutRef.current) {
-      clearTimeout(readyTimeoutRef.current)
-      readyTimeoutRef.current = null
-    }
-  }, [isReady])
-
   // Hydration 이슈 방지
   if (!mounted || !videoId) return null
 
@@ -98,274 +259,117 @@ export default function MusicPlayer() {
         isMinimized ? 'bottom-16' : 'bottom-0'
       }`}
     >
-      {mounted && videoId && playerLoaded && (
-        <>
-          {/* 확장 모드: 보이는 플레이어 */}
-          {!isMinimized && (
-            <div className="w-full bg-black">
-              <div
-                className="relative w-full"
-                style={{
-                  paddingBottom: '56.25%',
-                  maxHeight: '60vh',
-                }}
-              >
-                <div className="absolute inset-0">
-                  <ReactPlayer
-                    key={videoId}
-                    url={`https://www.youtube.com/watch?v=${videoId}`}
-                    playing={isPlaying && isReady}
-                    controls={true}
-                    width="100%"
-                    height="100%"
-                    playsinline={true}
-                    volume={1}
-                    muted={true}
-                    loop={false}
-                    light={false}
-                    stopOnUnmount={false}
-                    config={{
-                      youtube: {
-                        playerVars: {
-                          autoplay: 0,
-                          controls: 1,
-                          rel: 0,
-                          modestbranding: 1,
-                          playsinline: 1,
-                          enablejsapi: 1,
-                          mute: 0,
-                          origin: typeof window !== 'undefined' ? window.location.origin : '',
-                        },
-                      } as any,
-                    }}
-                    onReady={() => {
-                      console.log('✅ Youtube Player Ready!', { videoId, title })
-                      if (readyTimeoutRef.current) {
-                        clearTimeout(readyTimeoutRef.current)
-                        readyTimeoutRef.current = null
-                      }
-                      setIsReady(true)
-                    }}
-                    onStart={() => {
-                      console.log('✅ Music Started Playing!', { videoId })
-                      if (!isReady) {
-                        setIsReady(true)
-                      }
-                    }}
-                    onPlay={() => {
-                      console.log('▶️ 재생 중', { videoId })
-                      if (!isReady) {
-                        setIsReady(true)
-                      }
-                    }}
-                    onPause={() => {
-                      console.log('⏸️ 일시정지', { videoId })
-                    }}
-                    onProgress={(state: any) => {
-                      if (!isReady && (state.loadedSeconds > 0 || state.playedSeconds > 0)) {
-                        console.log('📊 플레이어가 준비되었습니다 (onProgress로 감지):', {
-                          loaded: Math.round(state.loadedSeconds) + '초',
-                          played: Math.round(state.playedSeconds) + '초',
-                        })
-                        setIsReady(true)
-                      }
-                    }}
-                    onError={(e: any) => {
-                      const errorMessage = e?.message || ''
-                      const errorName = e?.name || ''
-
-                      if (
-                        errorName === 'AbortError' ||
-                        errorMessage.includes('AbortError') ||
-                        errorMessage.includes('media was removed') ||
-                        errorMessage.includes('removed from the document') ||
-                        errorMessage.includes('play() request was interrupted') ||
-                        errorMessage.includes('interrupted by a call')
-                      ) {
-                        return
-                      }
-
-                      console.error('❌ Youtube Error:', {
-                        error: e,
-                        videoId,
-                        errorName,
-                        errorMessage,
-                      })
-                      
-                      // 재시도 로직
-                      if (retryCountRef.current < maxRetries) {
-                        retryCountRef.current++
-                        console.log(`[MusicPlayer] 재시도 ${retryCountRef.current}/${maxRetries}`)
-                        setTimeout(() => {
-                          setIsReady(false)
-                        }, 1000)
-                      }
-                    }}
-                  />
+      {/* 확장 모드: 보이는 플레이어 */}
+      {!isMinimized && (
+        <div className="w-full bg-black">
+          <div
+            className="relative w-full"
+            style={{
+              paddingBottom: '56.25%',
+              maxHeight: '60vh',
+            }}
+          >
+            <div className="absolute inset-0">
+              {!apiLoaded ? (
+                <div className="w-full h-full bg-gray-900 flex items-center justify-center">
+                  <div className="text-center text-white">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+                    <p className="text-sm">YouTube API 로딩 중...</p>
+                  </div>
                 </div>
-                {(!playerLoaded || !isReady) && (
-                  <div className="absolute inset-0 bg-gray-900 flex items-center justify-center z-20">
-                    <div className="text-center text-white">
-                      <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
-                      <p className="text-sm">
-                        {!playerLoaded
-                          ? '플레이어 모듈 로딩 중...'
-                          : '영상 준비 중... (YouTube API 로딩 중)'}
-                      </p>
-                      {playerLoaded && !isReady && (
-                        <p className="text-xs text-gray-400 mt-2">Video ID: {videoId}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
+              ) : (
+                <div
+                  ref={playerContainerRef}
+                  id={playerIdRef.current}
+                  className="w-full h-full"
+                />
+              )}
+            </div>
 
-                {/* 플레이어 헤더 */}
-                <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/70 to-transparent p-3 z-10">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0 pr-2">
-                      <p className="text-white text-sm font-semibold truncate">{title}</p>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        minimize()
-                      }}
-                      className="p-2 text-white hover:bg-white/20 rounded-full transition active:scale-95"
-                      aria-label="최소화"
-                    >
-                      <Minimize2 size={20} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        close()
-                      }}
-                      className="p-2 text-white hover:bg-red-500/50 rounded-full transition active:scale-95"
-                      aria-label="닫기"
-                    >
-                      <X size={20} />
-                    </button>
-                  </div>
+            {(!apiLoaded || !isReady) && (
+              <div className="absolute inset-0 bg-gray-900 flex items-center justify-center z-20">
+                <div className="text-center text-white">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+                  <p className="text-sm">
+                    {!apiLoaded
+                      ? 'YouTube API 로딩 중...'
+                      : '영상 준비 중... (YouTube API 로딩 중)'}
+                  </p>
+                  {apiLoaded && !isReady && (
+                    <p className="text-xs text-gray-400 mt-2">Video ID: {videoId}</p>
+                  )}
                 </div>
               </div>
+            )}
 
-              {/* 플레이어 하단 컨트롤바 */}
-              <div className="bg-gray-900 px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      if (!isReady) {
-                        console.warn('⚠️ 플레이어가 아직 준비되지 않았습니다.')
-                        return
-                      }
-                      togglePlay()
-                    }}
-                    disabled={!isReady}
-                    className="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 active:scale-95 transition flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-xs truncate">
-                      {isReady ? '재생 중' : `로딩 중... (${playerLoaded ? 'API 대기' : '모듈 로딩'})`}
-                    </p>
-                  </div>
+            {/* 플레이어 헤더 */}
+            <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/70 to-transparent p-3 z-10">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0 pr-2">
+                  <p className="text-white text-sm font-semibold truncate">{title}</p>
                 </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    minimize()
+                  }}
+                  className="p-2 text-white hover:bg-white/20 rounded-full transition active:scale-95"
+                  aria-label="최소화"
+                >
+                  <Minimize2 size={20} />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    close()
+                  }}
+                  className="p-2 text-white hover:bg-red-500/50 rounded-full transition active:scale-95"
+                  aria-label="닫기"
+                >
+                  <X size={20} />
+                </button>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* 미니 모드: 숨겨진 플레이어 */}
-          {isMinimized && (
-            <div className="absolute opacity-0 pointer-events-none w-1 h-1 overflow-hidden" style={{ visibility: 'hidden' }}>
-              <ReactPlayer
-                key={videoId}
-                url={`https://www.youtube.com/watch?v=${videoId}`}
-                playing={isPlaying && isReady}
-                controls={false}
-                width="100%"
-                height="100%"
-                playsinline={true}
-                volume={1}
-                muted={true}
-                loop={false}
-                light={false}
-                stopOnUnmount={false}
-                config={{
-                  youtube: {
-                    playerVars: {
-                      autoplay: 0,
-                      controls: 0,
-                      rel: 0,
-                      modestbranding: 1,
-                      playsinline: 1,
-                      enablejsapi: 1,
-                      mute: 0,
-                      origin: typeof window !== 'undefined' ? window.location.origin : '',
-                    },
-                  } as any,
-                }}
-                onReady={() => {
-                  console.log('✅ 미니 모드 Youtube Player Ready!', { videoId })
-                  if (readyTimeoutRef.current) {
-                    clearTimeout(readyTimeoutRef.current)
-                    readyTimeoutRef.current = null
-                  }
-                  setIsReady(true)
-                }}
-                onStart={() => {
-                  console.log('✅ 미니 모드 Music Started Playing!', { videoId })
+          {/* 플레이어 하단 컨트롤바 */}
+          <div className="bg-gray-900 px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
                   if (!isReady) {
-                    setIsReady(true)
-                  }
-                }}
-                onPlay={() => {
-                  console.log('▶️ 미니 모드 재생 중', { videoId })
-                  if (!isReady) {
-                    setIsReady(true)
-                  }
-                }}
-                onProgress={(state: any) => {
-                  if (!isReady && (state.loadedSeconds > 0 || state.playedSeconds > 0)) {
-                    console.log('📊 미니 모드가 준비되었습니다 (onProgress로 감지)')
-                    setIsReady(true)
-                  }
-                }}
-                onError={(e: any) => {
-                  const errorMessage = e?.message || ''
-                  const errorName = e?.name || ''
-
-                  if (
-                    errorName === 'AbortError' ||
-                    errorMessage.includes('AbortError') ||
-                    errorMessage.includes('media was removed') ||
-                    errorMessage.includes('removed from the document') ||
-                    errorMessage.includes('play() request was interrupted') ||
-                    errorMessage.includes('interrupted by a call')
-                  ) {
+                    console.warn('⚠️ 플레이어가 아직 준비되지 않았습니다.')
                     return
                   }
-
-                  console.error('❌ 미니 모드 Youtube Error:', {
-                    error: e,
-                    videoId,
-                    errorName,
-                    errorMessage,
-                  })
-                  
-                  if (retryCountRef.current < maxRetries) {
-                    retryCountRef.current++
-                    console.log(`[MusicPlayer] 미니 모드 재시도 ${retryCountRef.current}/${maxRetries}`)
-                    setTimeout(() => {
-                      setIsReady(false)
-                    }, 1000)
-                  }
+                  togglePlay()
                 }}
-              />
+                disabled={!isReady}
+                className="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 active:scale-95 transition flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+              </button>
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-xs truncate">
+                  {isReady ? '재생 중' : `로딩 중... (${apiLoaded ? 'API 대기' : 'API 로딩'})`}
+                </p>
+              </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 미니 모드: 숨겨진 플레이어 */}
+      {isMinimized && (
+        <div className="absolute opacity-0 pointer-events-none w-1 h-1 overflow-hidden" style={{ visibility: 'hidden' }}>
+          {apiLoaded && (
+            <div
+              ref={miniPlayerContainerRef}
+              id={miniPlayerIdRef.current}
+              className="w-full h-full"
+            />
           )}
-        </>
+        </div>
       )}
 
       {/* 미니 플레이어 UI */}
@@ -399,8 +403,8 @@ export default function MusicPlayer() {
                 {title || '음악 로딩 중...'}
               </span>
               <span className="text-xs text-gray-500 truncate">
-                {!playerLoaded
-                  ? '플레이어 모듈 로딩 중...'
+                {!apiLoaded
+                  ? 'YouTube API 로딩 중...'
                   : isReady
                     ? 'AI DJ Playing 🎵 (탭하여 확대)'
                     : '유튜브 연결 중...'}
