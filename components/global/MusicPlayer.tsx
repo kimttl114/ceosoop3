@@ -46,7 +46,7 @@ export default function MusicPlayer() {
   // videoId 변경 시 isReady 리셋 및 타임아웃 설정
   useEffect(() => {
     if (videoId) {
-      console.log('[MusicPlayer] 🎵 새로운 음악 로드:', { videoId, title, isMinimized, isPlaying })
+      console.log('[MusicPlayer] 🎵 새로운 음악 로드:', { videoId, title, isMinimized, isPlaying, playerLoaded })
       setIsReady(false)
       
       // 기존 타임아웃 클리어
@@ -55,27 +55,16 @@ export default function MusicPlayer() {
         readyTimeoutRef.current = null
       }
 
-      // 플레이어 모듈이 로드되면 타임아웃 설정 (5초 후 강제로 준비 상태로)
-      if (playerLoaded) {
-        console.log('[MusicPlayer] 플레이어 초기화 시작, 타임아웃 5초 설정')
-        readyTimeoutRef.current = setTimeout(() => {
-          if (!isReady) {
-            console.warn('[MusicPlayer] ⚠️ 타임아웃: 5초 후에도 플레이어가 준비되지 않음, 강제로 준비 상태로 전환', {
-              videoId,
-              isPlaying,
-            })
-            setIsReady(true)
-            // 타임아웃 후에도 재생이 안 되면 강제로 재생 시도
-            if (isPlaying) {
-              console.log('[MusicPlayer] 타임아웃 후 재생 강제 시도')
-              // 약간의 지연 후 재생 상태 확인 및 강제 재생
-              setTimeout(() => {
-                console.log('[MusicPlayer] 재생 상태 확인:', { isPlaying, isReady: true })
-              }, 100)
-            }
-          }
-        }, 5000)
-      }
+      // 타임아웃 설정 (3초 후 강제로 준비 상태로) - playerLoaded와 관계없이 설정
+      console.log('[MusicPlayer] 플레이어 초기화 시작, 타임아웃 3초 설정')
+      readyTimeoutRef.current = setTimeout(() => {
+        console.warn('[MusicPlayer] ⚠️ 타임아웃: 3초 후에도 플레이어가 준비되지 않음, 강제로 준비 상태로 전환', {
+          videoId,
+          isPlaying,
+          playerLoaded,
+        })
+        setIsReady(true)
+      }, 3000) // 5초에서 3초로 단축
     }
 
     return () => {
@@ -84,7 +73,7 @@ export default function MusicPlayer() {
         readyTimeoutRef.current = null
       }
     }
-  }, [videoId, title, isMinimized, isPlaying, playerLoaded, isReady])
+  }, [videoId, title, isMinimized, isPlaying, playerLoaded])
 
   // 플레이어 활성화 시 body에 padding-bottom 추가 (모바일 최적화)
   useEffect(() => {
@@ -105,6 +94,17 @@ export default function MusicPlayer() {
       document.body.style.paddingBottom = ''
     }
   }, [videoId, isMinimized, mounted])
+
+  // isReady가 true가 되면 즉시 재생 시도
+  useEffect(() => {
+    if (isReady && isPlaying && videoId) {
+      console.log('[MusicPlayer] 🔄 isReady가 true로 변경됨, 재생 강제 시도:', { videoId, isPlaying, isReady })
+      // 컴포넌트 리렌더링을 강제하여 playing prop 업데이트
+      setTimeout(() => {
+        console.log('[MusicPlayer] 재생 상태 재확인:', { isPlaying, isReady })
+      }, 50)
+    }
+  }, [isReady, isPlaying, videoId])
 
   // Hydration 이슈 방지 & 비디오 없으면 렌더링 안 함
   if (!mounted || !videoId) return null
@@ -167,9 +167,25 @@ export default function MusicPlayer() {
                     }
                     setIsReady(true)
                     console.log('[MusicPlayer] ✅ 준비 상태로 전환 완료')
-                    // 준비되면 자동 재생 시도 (isPlaying이 true인 경우)
+                    // 준비되면 즉시 재생 시도 (isPlaying이 true인 경우)
                     if (isPlaying) {
                       console.log('[MusicPlayer] 준비 완료, 자동 재생 시작')
+                      // 약간의 지연 후 재생 강제 시도
+                      setTimeout(() => {
+                        console.log('[MusicPlayer] 재생 강제 시도:', { isPlaying, isReady: true })
+                      }, 100)
+                    }
+                  }}
+                  onLoad={() => {
+                    console.log('📥 Youtube Player Loaded!', { videoId })
+                    // onLoad가 호출되면 플레이어가 로드된 것
+                    if (!isReady) {
+                      console.log('✅ 플레이어가 준비되었습니다 (onLoad로 감지)')
+                      if (readyTimeoutRef.current) {
+                        clearTimeout(readyTimeoutRef.current)
+                        readyTimeoutRef.current = null
+                      }
+                      setIsReady(true)
                     }
                   }}
                   onStart={() => {
