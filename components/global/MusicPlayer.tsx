@@ -55,16 +55,16 @@ export default function MusicPlayer() {
         readyTimeoutRef.current = null
       }
 
-      // 타임아웃 설정 (3초 후 강제로 준비 상태로) - playerLoaded와 관계없이 설정
-      console.log('[MusicPlayer] 플레이어 초기화 시작, 타임아웃 3초 설정')
+      // 타임아웃 설정 (2초 후 강제로 준비 상태로) - playerLoaded와 관계없이 설정
+      console.log('[MusicPlayer] 플레이어 초기화 시작, 타임아웃 2초 설정')
       readyTimeoutRef.current = setTimeout(() => {
-        console.warn('[MusicPlayer] ⚠️ 타임아웃: 3초 후에도 플레이어가 준비되지 않음, 강제로 준비 상태로 전환', {
+        console.warn('[MusicPlayer] ⚠️ 타임아웃: 2초 후에도 플레이어가 준비되지 않음, 강제로 준비 상태로 전환', {
           videoId,
           isPlaying,
           playerLoaded,
         })
         setIsReady(true)
-      }, 3000) // 5초에서 3초로 단축
+      }, 2000) // 3초에서 2초로 단축
     }
 
     return () => {
@@ -133,7 +133,7 @@ export default function MusicPlayer() {
               >
                 <div className="absolute inset-0">
                   <ReactPlayer
-                    key={`${videoId}-${isReady}`}
+                    key={videoId}
                     url={`https://www.youtube.com/watch?v=${videoId}`}
                     playing={isPlaying && isReady}
                     controls={true} // 모바일에서는 컨트롤 표시
@@ -237,13 +237,10 @@ export default function MusicPlayer() {
                       errorMessage.includes('AbortError') ||
                       errorMessage.includes('media was removed') ||
                       errorMessage.includes('removed from the document') ||
-                      errorMessage.includes('play() request was interrupted')
+                      errorMessage.includes('play() request was interrupted') ||
+                      errorMessage.includes('interrupted by a call')
                     ) {
-                      console.log('ℹ️ 미디어 전환 중 (정상):', errorMessage)
-                      // AbortError는 무시하되, 재생 시도는 계속
-                      if (isPlaying && isReady) {
-                        console.log('[MusicPlayer] AbortError 후 재생 재시도')
-                      }
+                      // AbortError는 완전히 무시 (정상적인 컴포넌트 생명주기)
                       return
                     }
 
@@ -337,7 +334,7 @@ export default function MusicPlayer() {
             {isMinimized && (
               <div className="absolute opacity-0 pointer-events-none w-1 h-1 overflow-hidden" style={{ visibility: 'hidden' }}>
                   <ReactPlayer
-                  key={`${videoId}-${isReady}`}
+                  key={videoId}
                   url={`https://www.youtube.com/watch?v=${videoId}`}
                   playing={isPlaying && isReady}
                   controls={false}
@@ -435,9 +432,11 @@ export default function MusicPlayer() {
                       errorName === 'AbortError' ||
                       errorMessage.includes('AbortError') ||
                       errorMessage.includes('media was removed') ||
-                      errorMessage.includes('removed from the document')
+                      errorMessage.includes('removed from the document') ||
+                      errorMessage.includes('play() request was interrupted') ||
+                      errorMessage.includes('interrupted by a call')
                     ) {
-                      console.log('ℹ️ 미니 모드 미디어 전환 중 (정상):', errorMessage)
+                      // AbortError는 완전히 무시 (정상적인 컴포넌트 생명주기)
                       return
                     }
 
