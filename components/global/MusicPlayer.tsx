@@ -105,7 +105,7 @@ export default function MusicPlayer() {
                     height="100%"
                     playsinline={true}
                     volume={1}
-                    muted={false}
+                    muted={true}
                     loop={false}
                     light={false}
                     stopOnUnmount={false}
@@ -275,9 +275,6 @@ export default function MusicPlayer() {
                   controls={false}
                   width="100%"
                   height="100%"
-                  playsinline={true}
-                  volume={1}
-                  muted={true}
                   playsinline={true}
                   volume={1}
                   muted={true}
