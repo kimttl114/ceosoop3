@@ -85,12 +85,22 @@ export default function MyMarketplacePage() {
         const liked: MarketplaceItem[] = []
 
         for (const itemDoc of itemsSnapshot.docs) {
-          const likesQuery = query(
-            collection(db, 'marketplace', itemDoc.id, 'likes'),
-            where('userId', '==', user.uid)
-          )
-          const likesSnap = await getDocs(likesQuery)
-          const isLiked = !likesSnap.empty
+          let isLiked = false
+          try {
+            const likesQuery = query(
+              collection(db, 'marketplace', itemDoc.id, 'likes'),
+              where('userId', '==', user.uid)
+            )
+            const likesSnap = await getDocs(likesQuery)
+            isLiked = !likesSnap.empty
+          } catch (error) {
+            // 인덱스가 없을 수 있으므로 전체 조회로 fallback
+            const likesSnap = await getDocs(collection(db, 'marketplace', itemDoc.id, 'likes'))
+            isLiked = likesSnap.docs.some(likeDoc => {
+              const data = likeDoc.data()
+              return data.userId === user.uid
+            })
+          }
           
           if (isLiked) {
             liked.push({

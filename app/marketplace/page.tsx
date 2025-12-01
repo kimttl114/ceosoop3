@@ -83,17 +83,18 @@ export default function MarketplacePage() {
         const likedItems: string[] = []
         
         for (const itemDoc of itemsSnapshot.docs) {
+          let isLiked = false
           try {
             const likesQuery = query(
               collection(db, 'marketplace', itemDoc.id, 'likes'),
               where('userId', '==', user.uid)
             )
             const likesSnapshot = await getDocs(likesQuery)
-            const isLiked = !likesSnapshot.empty
+            isLiked = !likesSnapshot.empty
           } catch (error) {
             // 인덱스가 없을 수 있으므로 전체 조회로 fallback
             const likesSnapshot = await getDocs(collection(db, 'marketplace', itemDoc.id, 'likes'))
-            const isLiked = likesSnapshot.docs.some(likeDoc => {
+            isLiked = likesSnapshot.docs.some(likeDoc => {
               const data = likeDoc.data()
               return data.userId === user.uid
             })
