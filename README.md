@@ -96,6 +96,11 @@ NTS_API_KEY=여기에_국세청_API_키를_입력하세요
 # OpenAI API 키
 OPENAI_API_KEY=your_openai_api_key_here
 
+# YouTube Data API v3 키 (AI 음악 선곡 기능용, 선택사항)
+# YouTube API 키가 없으면 Fallback 플레이리스트가 재생됩니다.
+# 설정 방법: YOUTUBE_API_SETUP.md 파일 참조
+YOUTUBE_API_KEY=your_youtube_api_key_here
+
 # Firebase 설정 (클라이언트)
 NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
@@ -114,7 +119,8 @@ FIREBASE_PRIVATE_KEY=your_private_key
 
 1. **국세청 API 키**: [공공데이터포털](https://www.data.go.kr/)에서 발급
 2. **OpenAI API 키**: [OpenAI Platform](https://platform.openai.com/)에서 발급
-3. **Firebase 설정**: [Firebase Console](https://console.firebase.google.com/)에서 프로젝트 생성 후 설정
+3. **YouTube Data API v3 키**: [YOUTUBE_API_SETUP.md](./YOUTUBE_API_SETUP.md) 파일 참조
+4. **Firebase 설정**: [Firebase Console](https://console.firebase.google.com/)에서 프로젝트 생성 후 설정
 
 ## 사업자 인증 기능
 

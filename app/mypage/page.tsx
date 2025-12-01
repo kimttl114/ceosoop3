@@ -643,51 +643,6 @@ export default function MyPage() {
           </div>
         </div>
 
-        {/* AI 아바타 생성 */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Sparkles size={20} className="text-[#1A2B4E]" />
-            <span>AI 아바타</span>
-          </h3>
-          <div className="space-y-4">
-            {/* 현재 아바타 표시 */}
-            {avatarUrl ? (
-              <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-[#1A2B4E] bg-gray-100 flex items-center justify-center flex-shrink-0">
-                  <img
-                    src={avatarUrl}
-                    alt="프로필 아바타"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-gray-600 mb-2">현재 아바타가 설정되어 있습니다.</p>
-                  <Link
-                    href="/avatar"
-                    className="inline-block px-4 py-2 bg-[#1A2B4E] text-white rounded-lg text-sm font-medium hover:bg-[#1A2B4E]/90 transition"
-                  >
-                    아바타 변경하기
-                  </Link>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-4">
-                <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center mx-auto mb-4">
-                  <User size={40} className="text-gray-400" />
-                </div>
-                <p className="text-sm text-gray-600 mb-4">아직 아바타가 설정되지 않았습니다.</p>
-                <Link
-                  href="/avatar"
-                  className="inline-block px-6 py-3 bg-gradient-to-r from-[#1A2B4E] to-[#2C3E50] text-white rounded-xl font-bold hover:from-[#1A2B4E]/90 hover:to-[#2C3E50]/90 transition shadow-lg flex items-center gap-2 mx-auto"
-                >
-                  <Sparkles size={20} />
-                  <span>AI 아바타 만들기</span>
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* 프로필 설정 - 간결하게 */}
         <div className="bg-white rounded-2xl shadow-lg p-4 mb-6">
           <h3 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
