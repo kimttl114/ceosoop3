@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Music, Loader2, Sun, Cloud, CloudRain, Snowflake, Coffee, ShoppingBag, Utensils, Play } from 'lucide-react'
+import { ArrowLeft, Music, Loader2, Sun, Cloud, CloudRain, Snowflake, Coffee, ShoppingBag, Utensils, Play, Cookie, Wine, Scissors, Dumbbell, BookOpen, Store, Heart, Pill } from 'lucide-react'
 import { useMusicStore } from '@/store/useMusicStore'
 import { auth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -19,6 +19,14 @@ const businessOptions = [
   { value: 'cafe', label: '카페', icon: Coffee, color: 'text-amber-700' },
   { value: 'restaurant', label: '음식점', icon: Utensils, color: 'text-orange-600' },
   { value: 'retail', label: '소매점', icon: ShoppingBag, color: 'text-purple-600' },
+  { value: 'bakery', label: '베이커리', icon: Cookie, color: 'text-yellow-600' },
+  { value: 'bar', label: '술집/바', icon: Wine, color: 'text-red-600' },
+  { value: 'salon', label: '미용실', icon: Scissors, color: 'text-pink-600' },
+  { value: 'gym', label: '헬스장', icon: Dumbbell, color: 'text-blue-600' },
+  { value: 'bookstore', label: '서점', icon: BookOpen, color: 'text-indigo-600' },
+  { value: 'convenience', label: '편의점', icon: Store, color: 'text-green-600' },
+  { value: 'hospital', label: '병원', icon: Heart, color: 'text-red-500' },
+  { value: 'pharmacy', label: '약국', icon: Pill, color: 'text-teal-600' },
 ]
 
 export default function MusicPage() {
@@ -183,14 +191,14 @@ export default function MusicPage() {
                   <button
                     key={business.value}
                     onClick={() => setSelectedBusiness(business.value)}
-                    className={`py-4 rounded-xl border-2 transition ${
+                    className={`py-3 rounded-xl border-2 transition ${
                       isSelected
                         ? 'border-pink-500 bg-pink-50 text-pink-700'
                         : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                     }`}
                   >
-                    <Icon size={24} className={`mx-auto mb-2 ${isSelected ? business.color : 'text-gray-400'}`} />
-                    <div className="text-xs font-medium">{business.label}</div>
+                    <Icon size={20} className={`mx-auto mb-1 ${isSelected ? business.color : 'text-gray-400'}`} />
+                    <div className="text-xs font-medium leading-tight">{business.label}</div>
                   </button>
                 )
               })}

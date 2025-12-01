@@ -10,6 +10,14 @@ const FALLBACK_PLAYLISTS = {
   cafe: 'jfKfPfyJRdk', // Lofi Girl - 24/7 Lofi Hip Hop Radio
   restaurant: 'jfKfPfyJRdk', // Lofi Girl
   retail: 'jfKfPfyJRdk', // Lofi Girl
+  bakery: 'jfKfPfyJRdk', // Lofi Girl
+  bar: 'jfKfPfyJRdk', // Lofi Girl
+  salon: 'jfKfPfyJRdk', // Lofi Girl
+  gym: 'jfKfPfyJRdk', // Lofi Girl
+  bookstore: 'jfKfPfyJRdk', // Lofi Girl
+  convenience: 'jfKfPfyJRdk', // Lofi Girl
+  hospital: 'jfKfPfyJRdk', // Lofi Girl
+  pharmacy: 'jfKfPfyJRdk', // Lofi Girl
   default: 'jfKfPfyJRdk', // Lofi Girl
 }
 
@@ -45,6 +53,14 @@ export async function POST(request: NextRequest) {
         cafe: '카페',
         restaurant: '음식점',
         retail: '소매점',
+        bakery: '베이커리',
+        bar: '술집/바',
+        salon: '미용실',
+        gym: '헬스장',
+        bookstore: '서점',
+        convenience: '편의점',
+        hospital: '병원',
+        pharmacy: '약국',
       }
 
       const weatherLabel = weatherLabels[weather] || '맑음'

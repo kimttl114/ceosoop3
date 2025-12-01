@@ -218,16 +218,31 @@ export default function MusicPlayer() {
     if (!playerRef.current || !isReady) return
 
     try {
+      // getPlayerState가 함수인지 확인
+      if (typeof playerRef.current.getPlayerState !== 'function') {
+        console.warn('[MusicPlayer] getPlayerState가 아직 사용 가능하지 않습니다.')
+        return
+      }
+
       const playerState = playerRef.current.getPlayerState()
       // YT.PlayerState.PLAYING = 1
       // YT.PlayerState.PAUSED = 2
 
       if (isPlaying && playerState !== 1) {
-        playerRef.current.playVideo()
+        if (typeof playerRef.current.playVideo === 'function') {
+          playerRef.current.playVideo()
+        }
       } else if (!isPlaying && playerState === 1) {
-        playerRef.current.pauseVideo()
+        if (typeof playerRef.current.pauseVideo === 'function') {
+          playerRef.current.pauseVideo()
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
+      // getPlayerState 오류는 무시 (플레이어가 아직 준비되지 않았을 수 있음)
+      if (error?.message?.includes('getPlayerState')) {
+        console.log('[MusicPlayer] 플레이어 상태 확인 대기 중...')
+        return
+      }
       console.error('[MusicPlayer] 재생 제어 실패:', error)
     }
   }, [isPlaying, isReady])
