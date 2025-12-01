@@ -12,9 +12,9 @@ import { onAuthStateChanged } from 'firebase/auth';
 type DiagnosisType = 'daily' | 'monthly';
 
 interface FormData {
-  diagnosisType: DiagnosisType;
+  diagnosisType?: DiagnosisType;
   // 하루 진단 필드
-  dailyRevenue: number;
+  dailyRevenue?: number;
   dailyNetProfit?: number;
   dailyHours: number;
   dailyKnowsNetProfit: boolean;
@@ -22,7 +22,7 @@ interface FormData {
   dailyCostRate: number;
   dailyCommissionRate: number;
   // 월 진단 필드
-  monthlyRevenue: number;
+  monthlyRevenue?: number;
   monthlyNetProfit?: number;
   monthlyDailyHours: number;
   monthlyWeeklyDays: number;
@@ -79,7 +79,7 @@ export default function DiagnosePage() {
   
   const { control, handleSubmit, watch, setValue, resetField, formState: { errors } } = useForm<FormData>({
     defaultValues: {
-      diagnosisType: undefined,
+      diagnosisType: undefined as DiagnosisType | undefined,
       // 하루 진단 기본값
       dailyRevenue: undefined,
       dailyNetProfit: undefined,
@@ -130,6 +130,11 @@ export default function DiagnosePage() {
         ((monthlyRevenue * 10000) * monthlyCommissionRate / 100)) / 10000 : 0);
 
   const onSubmit = async (data: FormData) => {
+    if (!data.diagnosisType) {
+      alert('진단 타입을 선택해주세요.')
+      return
+    }
+    
     setIsLoading(true);
     try {
       if (data.diagnosisType === 'daily') {
@@ -152,10 +157,10 @@ export default function DiagnosePage() {
 
         const params = new URLSearchParams({
           type: 'monthly',
-          monthlyRevenue: (data.monthlyRevenue || 0).toString(),
+          monthlyRevenue: ((data.monthlyRevenue ?? 0) || 0).toString(),
           netProfit: (netProfit || 0).toString(),
-          dailyHours: data.monthlyDailyHours.toString(),
-          weeklyDays: data.monthlyWeeklyDays.toString(),
+          dailyHours: (data.monthlyDailyHours || 8).toString(),
+          weeklyDays: (data.monthlyWeeklyDays || 5).toString(),
         });
 
         router.push(`/result?${params.toString()}`);
