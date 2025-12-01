@@ -138,10 +138,6 @@ export default function MusicPlayer() {
                     // onStart가 호출되면 플레이어가 준비된 것
                     if (!isReady) {
                       console.log('✅ 플레이어가 준비되었습니다 (onStart로 감지)')
-                      if (readyTimeoutRef.current) {
-                        clearTimeout(readyTimeoutRef.current)
-                        readyTimeoutRef.current = null
-                      }
                       setIsReady(true)
                     }
                   }}
@@ -150,10 +146,6 @@ export default function MusicPlayer() {
                     // onPlay가 호출되면 플레이어가 준비된 것
                     if (!isReady) {
                       console.log('✅ 플레이어가 준비되었습니다 (onPlay로 감지)')
-                      if (readyTimeoutRef.current) {
-                        clearTimeout(readyTimeoutRef.current)
-                        readyTimeoutRef.current = null
-                      }
                       setIsReady(true)
                     }
                   }}
@@ -312,10 +304,6 @@ export default function MusicPlayer() {
                     console.log('✅ 미니 모드 Music Started Playing!', { videoId, isReady, isPlaying })
                     if (!isReady) {
                       console.log('✅ 미니 모드가 준비되었습니다 (onStart로 감지)')
-                      if (readyTimeoutRef.current) {
-                        clearTimeout(readyTimeoutRef.current)
-                        readyTimeoutRef.current = null
-                      }
                       setIsReady(true)
                     }
                   }}
@@ -323,10 +311,6 @@ export default function MusicPlayer() {
                     console.log('▶️ 미니 모드 재생 중', { videoId, isReady, isPlaying })
                     if (!isReady) {
                       console.log('✅ 미니 모드가 준비되었습니다 (onPlay로 감지)')
-                      if (readyTimeoutRef.current) {
-                        clearTimeout(readyTimeoutRef.current)
-                        readyTimeoutRef.current = null
-                      }
                       setIsReady(true)
                     }
                   }}
@@ -336,10 +320,6 @@ export default function MusicPlayer() {
                         loaded: Math.round(state.loadedSeconds) + '초',
                         videoId,
                       })
-                      if (readyTimeoutRef.current) {
-                        clearTimeout(readyTimeoutRef.current)
-                        readyTimeoutRef.current = null
-                      }
                       setIsReady(true)
                     }
                   }}
