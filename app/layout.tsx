@@ -15,8 +15,8 @@ const notoSansKR = Noto_Sans_KR({
 })
 
 export const metadata: Metadata = {
-  title: '자영업자 놀이동산 - 재미와 유용함을 한 곳에',
-  description: '자영업자를 위한 게임, 도구, 커뮤니티 - 스트레스 풀고, 재미있게, 유용하게!',
+  title: '널자 - 자영업자를 위한 AI 도구 모음집',
+  description: '7년 치킨집 사장이 만든 AI 도구 모음집. 내가 불편했던 것들을 AI로 해결했어요.',
 }
 
 export default function RootLayout({
