@@ -158,6 +158,81 @@ export default function UsersPage() {
     )
   }
 
+  const [showSetupGuide, setShowSetupGuide] = useState(false)
+  const [hasAdmin, setHasAdmin] = useState(false)
+
+  useEffect(() => {
+    // 관리자 존재 여부 확인
+    const checkAdminExists = async () => {
+      try {
+        const adminUsers = users.filter((u) => u.isAdmin)
+        setHasAdmin(adminUsers.length > 0)
+      } catch (error) {
+        console.error('관리자 확인 오류:', error)
+      }
+    }
+    checkAdminExists()
+  }, [users])
+
+  const handleQuickSetup = async () => {
+    if (!auth || !auth.currentUser) {
+      alert('로그인이 필요합니다.')
+      return
+    }
+
+    const user = auth.currentUser
+    const script = `
+(async function() {
+  try {
+    const { db, auth } = await import('/lib/firebase.js');
+    const { doc, setDoc, getDoc } = await import('firebase/firestore');
+    const user = auth.currentUser;
+    if (!user) { alert('로그인이 필요합니다.'); return; }
+    const userRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) {
+      await setDoc(userRef, {
+        email: user.email,
+        displayName: user.displayName || '관리자',
+        createdAt: new Date(),
+      });
+    }
+    await setDoc(userRef, {
+      isAdmin: true,
+      adminLevel: 'super',
+      adminSince: new Date(),
+      permissions: {
+        canDeletePosts: true,
+        canBanUsers: true,
+        canManageSettings: true,
+        canManageReports: true,
+        canManageComments: true,
+      },
+    }, { merge: true });
+    alert('✅ 슈퍼 관리자 권한이 부여되었습니다!\\n페이지를 새로고침합니다.');
+    window.location.reload();
+  } catch (error) {
+    console.error('오류:', error);
+    alert('오류 발생: ' + error.message);
+  }
+})();
+    `.trim()
+
+    // 클립보드에 복사
+    navigator.clipboard.writeText(script).then(() => {
+      alert('✅ 스크립트가 클립보드에 복사되었습니다!\n\n브라우저 콘솔(F12)을 열고 붙여넣기(Ctrl+V) 후 Enter를 누르세요.')
+    }).catch(() => {
+      // 복사 실패 시 텍스트 영역으로 표시
+      const textarea = document.createElement('textarea')
+      textarea.value = script
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+      alert('✅ 스크립트가 클립보드에 복사되었습니다!\n\n브라우저 콘솔(F12)을 열고 붙여넣기(Ctrl+V) 후 Enter를 누르세요.')
+    })
+  }
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -166,6 +241,85 @@ export default function UsersPage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">사용자 관리</h1>
           <p className="text-gray-600">사용자 목록을 확인하고 관리자 권한을 부여할 수 있습니다.</p>
         </div>
+
+        {/* 초기 슈퍼 관리자 설정 가이드 */}
+        {!hasAdmin && (
+          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-xl p-6">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+                  <Crown className="text-yellow-600" size={24} />
+                  <span>초기 슈퍼 관리자 설정</span>
+                </h2>
+                <p className="text-gray-700 mb-4">
+                  아직 관리자가 없습니다. 먼저 슈퍼 관리자 권한을 설정해야 합니다.
+                </p>
+                <div className="space-y-3">
+                  <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <h3 className="font-semibold text-gray-900 mb-2">방법 1: 빠른 설정 (권장)</h3>
+                    <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-3">
+                      <li>아래 "설정 스크립트 복사" 버튼 클릭</li>
+                      <li>브라우저 개발자 도구 열기 (F12 키)</li>
+                      <li>콘솔 탭에서 붙여넣기 (Ctrl+V)</li>
+                      <li>Enter 키 누르기</li>
+                      <li>페이지 자동 새로고침 후 완료</li>
+                    </ol>
+                    <button
+                      onClick={handleQuickSetup}
+                      className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg font-semibold hover:shadow-lg transition"
+                    >
+                      📋 설정 스크립트 복사
+                    </button>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <h3 className="font-semibold text-gray-900 mb-2">방법 2: Firebase Console에서 설정</h3>
+                    <button
+                      onClick={() => setShowSetupGuide(!showSetupGuide)}
+                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      {showSetupGuide ? '접기' : '상세 가이드 보기'}
+                    </button>
+                    {showSetupGuide && (
+                      <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 mt-3">
+                        <li>
+                          <a
+                            href="https://console.firebase.google.com/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            Firebase Console
+                          </a>
+                          {' '}접속
+                        </li>
+                        <li>프로젝트 선택</li>
+                        <li>Firestore Database → 데이터 탭</li>
+                        <li>users 컬렉션에서 본인의 사용자 ID 찾기</li>
+                        <li>문서 편집하여 다음 필드 추가:</li>
+                        <li className="ml-4">
+                          <pre className="bg-gray-100 p-2 rounded text-xs overflow-x-auto mt-2">
+{JSON.stringify({
+  isAdmin: true,
+  adminLevel: 'super',
+  adminSince: new Date().toISOString(),
+  permissions: {
+    canDeletePosts: true,
+    canBanUsers: true,
+    canManageSettings: true,
+    canManageReports: true,
+    canManageComments: true,
+  },
+}, null, 2)}
+                          </pre>
+                        </li>
+                      </ol>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 검색 */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
