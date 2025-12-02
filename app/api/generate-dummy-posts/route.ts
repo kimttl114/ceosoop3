@@ -1,11 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
-import { db } from '@/lib/firebase'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { initializeApp, getApps, cert } from 'firebase-admin/app'
+import { getFirestore } from 'firebase-admin/firestore'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
+
+// Firebase Admin SDK 초기화 (서버 사이드)
+function getAdminDb() {
+  if (!getApps().length) {
+    initializeApp({
+      credential: cert({
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      }),
+    })
+  }
+  return getFirestore()
+}
 
 // 게시판별 프롬프트 템플릿
 const categoryPrompts: Record<string, string> = {
@@ -79,9 +93,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!db) {
+    // Firebase Admin SDK 초기화
+    let db
+    try {
+      db = getAdminDb()
+    } catch (error: any) {
+      console.error('Firebase Admin 초기화 오류:', error)
       return NextResponse.json(
-        { error: 'Firebase가 초기화되지 않았습니다.' },
+        { error: `Firebase 초기화 실패: ${error.message}` },
         { status: 500 }
       )
     }
@@ -205,7 +224,7 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        const postRef = await addDoc(collection(db, 'posts'), {
+        const postRef = await db.collection('posts').add({
           title: postData.title.trim(),
           content: postData.content.trim(),
           category: category,
@@ -213,7 +232,8 @@ export async function POST(request: NextRequest) {
           region: '서울',
           author: randomUser.anonymousName,
           uid: randomUser.uid,
-          timestamp: serverTimestamp(),
+          timestamp: new Date(),
+          timestampMs: Date.now(), // 정렬용
           likes: 0,
           comments: comments.length,
           images: [],
@@ -231,11 +251,11 @@ export async function POST(request: NextRequest) {
           
           const commentUser = dummyUsers[Math.floor(Math.random() * dummyUsers.length)]
           try {
-            await addDoc(collection(db, 'posts', postRef.id, 'comments'), {
+            await db.collection('posts').doc(postRef.id).collection('comments').add({
               content: commentContent.trim(),
               author: commentUser.anonymousName,
               uid: commentUser.uid,
-              timestamp: serverTimestamp(),
+              timestamp: new Date(),
             })
           } catch (commentError: any) {
             console.error(`댓글 저장 실패 (글 ${i + 1}):`, commentError)
