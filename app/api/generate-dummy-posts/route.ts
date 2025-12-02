@@ -10,11 +10,20 @@ const openai = new OpenAI({
 // Firebase Admin SDK 초기화 (서버 사이드)
 function getAdminDb() {
   if (!getApps().length) {
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY
+    
+    if (!projectId || !clientEmail || !privateKey) {
+      throw new Error('Firebase Admin SDK 환경 변수가 설정되지 않았습니다.')
+    }
+    
     initializeApp({
       credential: cert({
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        projectId,
+        clientEmail,
+        // private_key는 문자열이어야 하며, \n을 실제 줄바꿈으로 변환
+        privateKey: privateKey.replace(/\\n/g, '\n'),
       }),
     })
   }
