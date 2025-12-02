@@ -172,6 +172,20 @@ export default function DiagnosePage() {
     }
   };
 
+  // 로딩 중 표시
+  if (loadingAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <Loader2 className="animate-spin text-blue-600" size={32} />
+      </div>
+    );
+  }
+
+  // 로그인하지 않은 경우 (리다이렉트 중)
+  if (!user) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pb-24">
       {/* 헤더 */}
