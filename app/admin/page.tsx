@@ -118,7 +118,7 @@ export default function AdminDashboard() {
   const categories = [
     { value: '대나무숲', label: '🗣️ 대나무숲' },
     { value: '빌런박제소', label: '❓ 빌런박제소' },
-    { value: '유머 & 이슈', label: '유머 & 이슈' },
+    { value: '유머 & 이슈', label: '😄 유머 & 이슈' },
     { value: '비틱방(자랑방)', label: '🥕 비틱방(자랑방)' },
   ]
 
@@ -149,13 +149,7 @@ export default function AdminDashboard() {
         throw new Error(data.error || '더미 글 생성에 실패했습니다.')
       }
 
-      // 성공 메시지 표시
-      if (data.success) {
-        const message = data.message || `${selectedCategory} 게시판에 ${data.successCount || data.results?.length || 0}개의 더미 글이 생성되었습니다.`
-        setGenerateResult(message)
-      } else {
-        throw new Error(data.error || '더미 글 생성에 실패했습니다.')
-      }
+      setGenerateResult(data.message)
       // 통계 새로고침
       const fetchStats = async () => {
         try {
