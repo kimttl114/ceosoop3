@@ -46,37 +46,7 @@ export default function DiagnosePage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 로그인 체크
-  useEffect(() => {
-    if (!auth) {
-      setLoadingAuth(false);
-      return;
-    }
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-      } else {
-        router.push('/login');
-      }
-      setLoadingAuth(false);
-    });
-    return () => unsubscribe();
-  }, [router]);
-
-  // 로딩 중 표시
-  if (loadingAuth) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
-        <Loader2 className="animate-spin text-blue-600" size={32} />
-      </div>
-    );
-  }
-
-  // 로그인하지 않은 경우 (리다이렉트 중)
-  if (!user) {
-    return null;
-  }
-  
+  // useForm Hook은 항상 최상위에서 호출되어야 함 (Hook 규칙 준수)
   const { control, handleSubmit, watch, setValue, resetField, formState: { errors } } = useForm<FormData>({
     defaultValues: {
       diagnosisType: undefined as DiagnosisType | undefined,
@@ -99,6 +69,23 @@ export default function DiagnosePage() {
       monthlyCommissionRate: 10,
     },
   });
+
+  // 로그인 체크
+  useEffect(() => {
+    if (!auth) {
+      setLoadingAuth(false);
+      return;
+    }
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        router.push('/login');
+      }
+      setLoadingAuth(false);
+    });
+    return () => unsubscribe();
+  }, [router]);
 
   const diagnosisType = watch('diagnosisType');
   const dailyRevenue = watch('dailyRevenue');
