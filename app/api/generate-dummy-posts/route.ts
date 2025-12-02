@@ -71,6 +71,15 @@ interface GenerateDummyPostsRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    // OpenAI API 키 확인
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json(
+        { error: 'OpenAI API 키가 설정되지 않았습니다.' },
+        { status: 500 }
+      )
+    }
+
+    // Firebase 초기화 확인
     if (!db) {
       return NextResponse.json(
         { error: 'Firebase가 초기화되지 않았습니다.' },
@@ -84,6 +93,14 @@ export async function POST(request: NextRequest) {
     if (!category || !count || count < 1 || count > 10) {
       return NextResponse.json(
         { error: '카테고리와 개수(1-10)를 올바르게 입력해주세요.' },
+        { status: 400 }
+      )
+    }
+
+    // 카테고리 유효성 검사
+    if (!categoryPrompts[category]) {
+      return NextResponse.json(
+        { error: `지원하지 않는 카테고리입니다: ${category}` },
         { status: 400 }
       )
     }
@@ -103,19 +120,29 @@ export async function POST(request: NextRequest) {
     for (let i = 0; i < count; i++) {
       try {
         // 글 생성
-        const postCompletion = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-          temperature: 0.8,
-          max_tokens: 500,
-        })
+        let postCompletion
+        try {
+          postCompletion = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+            temperature: 0.8,
+            max_tokens: 500,
+          })
+        } catch (openaiError: any) {
+          console.error(`OpenAI API 오류 (글 생성 ${i + 1}):`, openaiError)
+          throw new Error(`OpenAI API 오류: ${openaiError.message || '알 수 없는 오류'}`)
+        }
 
         const postText = postCompletion.choices[0]?.message?.content?.trim() || ''
+        if (!postText) {
+          throw new Error('OpenAI가 빈 응답을 반환했습니다.')
+        }
+
         let postData: { title: string; content: string }
 
         try {
@@ -142,19 +169,26 @@ export async function POST(request: NextRequest) {
 
         // 댓글 생성
         const commentCount = Math.floor(Math.random() * 4) + 3 // 3~6개
-        const commentCompletion = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'user',
-              content: commentPrompt(postData.title, postData.content, category),
-            },
-          ],
-          temperature: 0.7,
-          max_tokens: 300,
-        })
+        let commentCompletion
+        try {
+          commentCompletion = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'user',
+                content: commentPrompt(postData.title, postData.content, category),
+              },
+            ],
+            temperature: 0.7,
+            max_tokens: 300,
+          })
+        } catch (openaiError: any) {
+          console.error(`OpenAI API 오류 (댓글 생성 ${i + 1}):`, openaiError)
+          // 댓글 생성 실패해도 글은 저장
+          commentCompletion = null
+        }
 
-        const commentText = commentCompletion.choices[0]?.message?.content?.trim() || ''
+        const commentText = commentCompletion?.choices[0]?.message?.content?.trim() || ''
         let comments: string[] = []
 
         try {
@@ -181,31 +215,44 @@ export async function POST(request: NextRequest) {
 
         // Firestore에 글 저장
         const randomUser = dummyUsers[Math.floor(Math.random() * dummyUsers.length)]
-        const postRef = await addDoc(collection(db, 'posts'), {
-          title: postData.title,
-          content: postData.content,
-          category: category,
-          businessType: '치킨',
-          region: '서울',
-          author: randomUser.anonymousName,
-          uid: randomUser.uid,
-          timestamp: serverTimestamp(),
-          likes: 0,
-          comments: comments.length,
-          images: [],
-          videos: [],
-          isSimpleMode: false,
-        })
+        let postRef
+        try {
+          postRef = await addDoc(collection(db, 'posts'), {
+            title: postData.title,
+            content: postData.content,
+            category: category,
+            businessType: '치킨',
+            region: '서울',
+            author: randomUser.anonymousName,
+            uid: randomUser.uid,
+            timestamp: serverTimestamp(),
+            likes: 0,
+            comments: comments.length,
+            images: [],
+            videos: [],
+            isSimpleMode: false,
+          })
+        } catch (firestoreError: any) {
+          console.error(`Firestore 저장 오류 (글 ${i + 1}):`, firestoreError)
+          throw new Error(`Firestore 저장 실패: ${firestoreError.message || '알 수 없는 오류'}`)
+        }
 
         // 댓글 저장
-        for (const commentContent of comments) {
-          const commentUser = dummyUsers[Math.floor(Math.random() * dummyUsers.length)]
-          await addDoc(collection(db, 'posts', postRef.id, 'comments'), {
-            content: commentContent,
-            author: commentUser.anonymousName,
-            uid: commentUser.uid,
-            timestamp: serverTimestamp(),
-          })
+        if (comments.length > 0 && postRef) {
+          for (const commentContent of comments) {
+            try {
+              const commentUser = dummyUsers[Math.floor(Math.random() * dummyUsers.length)]
+              await addDoc(collection(db, 'posts', postRef.id, 'comments'), {
+                content: commentContent,
+                author: commentUser.anonymousName,
+                uid: commentUser.uid,
+                timestamp: serverTimestamp(),
+              })
+            } catch (commentError: any) {
+              console.error(`댓글 저장 오류 (글 ${i + 1}):`, commentError)
+              // 댓글 저장 실패해도 계속 진행
+            }
+          }
         }
 
         results.push({
@@ -218,14 +265,32 @@ export async function POST(request: NextRequest) {
         await new Promise(resolve => setTimeout(resolve, 1000))
       } catch (error: any) {
         console.error(`더미 글 ${i + 1} 생성 실패:`, error)
-        // 개별 실패는 계속 진행
+        // 개별 실패는 계속 진행하되, 에러 정보를 기록
+        results.push({
+          title: `[생성 실패] ${category} 더미 글 ${i + 1}`,
+          content: `오류: ${error.message || '알 수 없는 오류'}`,
+          comments: [],
+        })
       }
     }
 
+    // 결과 확인
+    if (results.length === 0) {
+      return NextResponse.json(
+        { error: '더미 글 생성에 실패했습니다. 모든 시도가 실패했습니다.' },
+        { status: 500 }
+      )
+    }
+
+    const successCount = results.filter(r => !r.title.includes('[생성 실패]')).length
+    const failCount = results.length - successCount
+
     return NextResponse.json({
       success: true,
-      message: `${category} 게시판에 ${results.length}개의 더미 글이 생성되었습니다.`,
+      message: `${category} 게시판에 ${successCount}개의 더미 글이 생성되었습니다.${failCount > 0 ? ` (${failCount}개 실패)` : ''}`,
       results,
+      successCount,
+      failCount,
     })
   } catch (error: any) {
     console.error('더미 글 생성 오류:', error)
@@ -235,4 +300,5 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
 
