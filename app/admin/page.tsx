@@ -149,7 +149,12 @@ export default function AdminDashboard() {
         throw new Error(data.error || '더미 글 생성에 실패했습니다.')
       }
 
-      setGenerateResult(data.message)
+      // 성공 메시지 포맷팅 (일부 실패 시 표시)
+      const successMessage = data.created !== undefined && data.requested !== undefined && data.created < data.requested
+        ? `${data.message} (일부 실패: ${data.requested - data.created}개)`
+        : data.message || '더미 글이 생성되었습니다.'
+
+      setGenerateResult(successMessage)
       // 통계 새로고침
       const fetchStats = async () => {
         try {
