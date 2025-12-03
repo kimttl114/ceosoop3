@@ -20,11 +20,14 @@ interface User {
 }
 
 export default function UsersPage() {
+  // 모든 useState를 컴포넌트 최상위에서 호출 (Hook 규칙 준수)
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [currentAdmin, setCurrentAdmin] = useState<AdminUser | null>(null)
   const [processing, setProcessing] = useState<string | null>(null)
+  const [showSetupGuide, setShowSetupGuide] = useState(false)
+  const [hasAdmin, setHasAdmin] = useState(false)
 
   useEffect(() => {
     if (!auth || !db) {
@@ -62,6 +65,16 @@ export default function UsersPage() {
 
     fetchUsers()
   }, [])
+
+  // 관리자 존재 여부 확인
+  useEffect(() => {
+    try {
+      const adminUsers = users.filter((u) => u.isAdmin)
+      setHasAdmin(adminUsers.length > 0)
+    } catch (error) {
+      console.error('관리자 확인 오류:', error)
+    }
+  }, [users])
 
   const handleToggleAdmin = async (userId: string, isAdmin: boolean, adminLevel: 'super' | 'moderator' = 'moderator') => {
     if (!currentAdmin || !currentAdmin.isAdmin) {
@@ -145,6 +158,7 @@ export default function UsersPage() {
     })
   }
 
+  // 로딩 중 표시 (조건부 return은 모든 Hook 호출 이후에)
   if (loading) {
     return (
       <AdminLayout>
@@ -157,22 +171,6 @@ export default function UsersPage() {
       </AdminLayout>
     )
   }
-
-  const [showSetupGuide, setShowSetupGuide] = useState(false)
-  const [hasAdmin, setHasAdmin] = useState(false)
-
-  useEffect(() => {
-    // 관리자 존재 여부 확인
-    const checkAdminExists = async () => {
-      try {
-        const adminUsers = users.filter((u) => u.isAdmin)
-        setHasAdmin(adminUsers.length > 0)
-      } catch (error) {
-        console.error('관리자 확인 오류:', error)
-      }
-    }
-    checkAdminExists()
-  }, [users])
 
   const handleQuickSetup = async () => {
     if (!auth || !auth.currentUser) {
