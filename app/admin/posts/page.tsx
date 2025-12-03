@@ -43,6 +43,12 @@ export default function PostsPage() {
   useEffect(() => {
     const fetchPosts = async () => {
       try {
+        if (!db) {
+          console.error('Firebase가 초기화되지 않았습니다.')
+          setLoading(false)
+          return
+        }
+
         let q
         if (filter === 'all') {
           q = query(collection(db, 'posts'), orderBy('timestamp', 'desc'))
@@ -64,8 +70,11 @@ export default function PostsPage() {
         })) as Post[]
 
         setPosts(postsList)
-      } catch (error) {
+      } catch (error: any) {
         console.error('게시글 목록 불러오기 오류:', error)
+        if (error?.code === 'permission-denied') {
+          alert('게시글 목록을 불러올 권한이 없습니다. Firestore 보안 규칙을 확인하세요.')
+        }
       } finally {
         setLoading(false)
       }
@@ -77,6 +86,10 @@ export default function PostsPage() {
   const handleHide = async (postId: string, hide: boolean) => {
     setProcessing(true)
     try {
+      if (!db) {
+        throw new Error('Firebase가 초기화되지 않았습니다.')
+      }
+
       const postRef = doc(db, 'posts', postId)
       await updateDoc(postRef, {
         hidden: hide,
@@ -88,9 +101,26 @@ export default function PostsPage() {
       )
 
       alert(hide ? '게시글이 숨김 처리되었습니다.' : '게시글이 복구되었습니다.')
-    } catch (error) {
+    } catch (error: any) {
       console.error('게시글 숨김 처리 오류:', error)
-      alert('처리 중 오류가 발생했습니다.')
+      let errorMessage = '처리 중 오류가 발생했습니다.\n\n'
+      
+      if (error?.code === 'permission-denied') {
+        errorMessage += '권한이 부족합니다. Firestore 보안 규칙을 확인하세요.\n\n'
+        errorMessage += '해결 방법:\n'
+        errorMessage += '1. Firebase Console > Firestore Database > 규칙\n'
+        errorMessage += '2. FIRESTORE_RULES_FIX.md 파일 참고\n'
+        errorMessage += '3. 관리자 권한 확인 (users 컬렉션의 isAdmin 필드)'
+      } else if (error?.code === 'not-found') {
+        errorMessage += '게시글을 찾을 수 없습니다.'
+      } else if (error?.code === 'unavailable') {
+        errorMessage += 'Firebase 서비스에 연결할 수 없습니다. 네트워크를 확인하세요.'
+      } else {
+        errorMessage += `오류: ${error?.message || '알 수 없는 오류'}\n`
+        errorMessage += `코드: ${error?.code || '없음'}`
+      }
+      
+      alert(errorMessage)
     } finally {
       setProcessing(false)
     }
@@ -103,15 +133,36 @@ export default function PostsPage() {
 
     setProcessing(true)
     try {
+      if (!db) {
+        throw new Error('Firebase가 초기화되지 않았습니다.')
+      }
+
       await deleteDoc(doc(db, 'posts', postId))
       setPosts((prev) => prev.filter((p) => p.id !== postId))
       if (selectedPost?.id === postId) {
         setSelectedPost(null)
       }
       alert('게시글이 삭제되었습니다.')
-    } catch (error) {
+    } catch (error: any) {
       console.error('게시글 삭제 오류:', error)
-      alert('삭제 중 오류가 발생했습니다.')
+      let errorMessage = '삭제 중 오류가 발생했습니다.\n\n'
+      
+      if (error?.code === 'permission-denied') {
+        errorMessage += '권한이 부족합니다. Firestore 보안 규칙을 확인하세요.\n\n'
+        errorMessage += '해결 방법:\n'
+        errorMessage += '1. Firebase Console > Firestore Database > 규칙\n'
+        errorMessage += '2. FIRESTORE_RULES_FIX.md 파일 참고\n'
+        errorMessage += '3. 관리자 권한 확인 (users 컬렉션의 isAdmin 필드)'
+      } else if (error?.code === 'not-found') {
+        errorMessage += '게시글을 찾을 수 없습니다.'
+      } else if (error?.code === 'unavailable') {
+        errorMessage += 'Firebase 서비스에 연결할 수 없습니다. 네트워크를 확인하세요.'
+      } else {
+        errorMessage += `오류: ${error?.message || '알 수 없는 오류'}\n`
+        errorMessage += `코드: ${error?.code || '없음'}`
+      }
+      
+      alert(errorMessage)
     } finally {
       setProcessing(false)
     }
