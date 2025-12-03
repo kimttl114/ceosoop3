@@ -12,20 +12,50 @@ function getAdminDb() {
   if (!getApps().length) {
     const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY
+    let privateKey = process.env.FIREBASE_PRIVATE_KEY
+    
+    console.log('[Firebase Admin] 환경 변수 확인:', {
+      projectId: projectId ? '✓ 설정됨' : '✗ 없음',
+      clientEmail: clientEmail ? '✓ 설정됨' : '✗ 없음',
+      privateKey: privateKey ? `✓ 설정됨 (길이: ${privateKey.length})` : '✗ 없음',
+    })
     
     if (!projectId || !clientEmail || !privateKey) {
       throw new Error('Firebase Admin SDK 환경 변수가 설정되지 않았습니다.')
     }
     
-    initializeApp({
-      credential: cert({
-        projectId,
-        clientEmail,
-        // private_key는 문자열이어야 하며, \n을 실제 줄바꿈으로 변환
-        privateKey: privateKey.replace(/\\n/g, '\n'),
-      }),
+    // 따옴표 제거 (환경 변수에 따옴표가 포함된 경우)
+    if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+      privateKey = privateKey.slice(1, -1)
+      console.log('[Firebase Admin] 따옴표 제거됨')
+    }
+    if (privateKey.startsWith("'") && privateKey.endsWith("'")) {
+      privateKey = privateKey.slice(1, -1)
+      console.log('[Firebase Admin] 따옴표 제거됨')
+    }
+    
+    // \n을 실제 줄바꿈으로 변환
+    privateKey = privateKey.replace(/\\n/g, '\n')
+    
+    console.log('[Firebase Admin] Private Key 형식:', {
+      시작: privateKey.substring(0, 30),
+      종료: privateKey.substring(privateKey.length - 30),
+      줄바꿈포함: privateKey.includes('\n') ? '✓' : '✗',
     })
+    
+    try {
+      initializeApp({
+        credential: cert({
+          projectId,
+          clientEmail,
+          privateKey,
+        }),
+      })
+      console.log('[Firebase Admin] ✓ 초기화 성공')
+    } catch (error: any) {
+      console.error('[Firebase Admin] ✗ 초기화 실패:', error.message)
+      throw new Error(`Firebase Admin 초기화 실패: ${error.message}`)
+    }
   }
   return getFirestore()
 }
