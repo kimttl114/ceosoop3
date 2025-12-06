@@ -617,20 +617,26 @@ function HomeContent() {
               </div>
               <div className="flex flex-wrap gap-3">
             {[
-              { id: 'diagnose', title: '내 시급은?', description: '사장님 시급 자동 계산', route: '/diagnose', icon: '🎯' },
-              { id: 'ai-marketing', title: 'AI 마케팅 문구', description: 'SNS/전단지 문구 생성', route: '/tools/ai-marketing', icon: '✨' },
-              { id: 'ai-customer-service', title: 'AI 고객 대응', description: '고객 불만 대응 가이드', route: '/tools/ai-customer-service', icon: '💬' },
-              { id: 'ai-pricing', title: 'AI 가격 조언', description: '최적 가격 전략 제안', route: '/tools/ai-pricing', icon: '🧠' },
-              { id: 'announcement', title: '안내방송 생성', description: '매장 방송 자동 제작 + 실시간 재생 기능', route: '/tools/announcement', icon: '🎙️' },
-              { id: 'music', title: 'AI 매장음악 선곡', description: '상황별 배경음악 자동 추천 + 저작권 없는 곡 선정', route: '/tools/music', icon: '🎵' },
-              { id: 'food-battle', title: '오늘 뭐먹지?', description: 'AI 음식 배틀로얄 게임', route: '/tools/food-battle', icon: '🍽️' },
-              { id: 'fortune', title: '무료 종합 운세', description: 'AI 올인원 운세 서비스', route: 'https://all-fo.vercel.app/', icon: '🔮', external: true },
+              // 실용성 높은 순서로 배치
+              { id: 'diagnose', title: '내 시급은?', description: '사장님 실제 시급 계산', route: '/diagnose', icon: '🎯', badge: 'HOT' },
+              { id: 'ai-marketing', title: 'AI 마케팅 문구', description: 'SNS/전단지 즉시 사용', route: '/tools/ai-marketing', icon: '✨' },
+              { id: 'ai-customer-service', title: 'AI 고객 대응', description: '까다로운 손님 응대법', route: '/tools/ai-customer-service', icon: '💬' },
+              { id: 'announcement', title: '안내방송 생성', description: '매장 방송 제작+재생', route: '/tools/announcement', icon: '🎙️' },
+              { id: 'music', title: 'AI 매장음악', description: '분위기별 BGM 추천', route: '/tools/music', icon: '🎵' },
+              { id: 'ai-pricing', title: 'AI 가격 조언', description: '최적 가격 전략', route: '/tools/ai-pricing', icon: '🧠' },
+              { id: 'food-battle', title: '오늘 뭐먹지?', description: 'AI 음식 배틀 게임', route: '/tools/food-battle', icon: '🍽️' },
+              { id: 'fortune', title: '무료 종합 운세', description: 'AI 운세 서비스', route: 'https://all-fo.vercel.app/', icon: '🔮', external: true },
             ].map((tool: any) => {
               const isExternal = tool.external || tool.route?.startsWith('http')
               
               const cardContent = (
                 <>
-                  <div className="absolute top-2 right-2">
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    {tool.badge && (
+                      <span className="px-2 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full animate-pulse">
+                        {tool.badge}
+                      </span>
+                    )}
                     <span className="px-2 py-0.5 text-xs font-bold text-purple-600 bg-purple-100 rounded-full">
                       AI
                     </span>
