@@ -9,14 +9,14 @@ import { motion } from 'framer-motion';
 import { formatNumber } from '@/lib/utils';
 
 const rouletteItems = [
-  { id: 0, label: '10 포인트', value: 10, emoji: '✨', color: '#E5E7EB' },
-  { id: 1, label: '20 포인트', value: 20, emoji: '⭐', color: '#F3F4F6' },
-  { id: 2, label: '50 포인트', value: 50, emoji: '💰', color: '#FEF3C7' },
-  { id: 3, label: '100 포인트', value: 100, emoji: '💎', color: '#DBEAFE' },
+  { id: 0, label: '행운', value: 0, emoji: '✨', message: '오늘은 행운의 날!', color: '#E5E7EB' },
+  { id: 1, label: '성공', value: 0, emoji: '⭐', message: '모든 일이 잘 풀릴 거예요!', color: '#F3F4F6' },
+  { id: 2, label: '번영', value: 0, emoji: '💰', message: '사업이 번창할 거예요!', color: '#FEF3C7' },
+  { id: 3, label: '대박', value: 0, emoji: '💎', message: '대박이 터질 예감!', color: '#DBEAFE' },
   { id: 4, label: '격려', value: 0, emoji: '💪', message: '오늘도 화이팅!', color: '#FCE7F3' },
-  { id: 5, label: '10 포인트', value: 10, emoji: '✨', color: '#E5E7EB' },
-  { id: 6, label: '30 포인트', value: 30, emoji: '🪙', color: '#FEF3C7' },
-  { id: 7, label: '20 포인트', value: 20, emoji: '⭐', color: '#F3F4F6' },
+  { id: 5, label: '희망', value: 0, emoji: '🌟', message: '희망찬 하루 되세요!', color: '#E5E7EB' },
+  { id: 6, label: '기쁨', value: 0, emoji: '🎉', message: '즐거운 일이 생길 거예요!', color: '#FEF3C7' },
+  { id: 7, label: '평온', value: 0, emoji: '😊', message: '평온한 하루 보내세요!', color: '#F3F4F6' },
 ];
 
 const ITEM_COUNT = rouletteItems.length;
@@ -92,16 +92,6 @@ export default function RoulettePage() {
       try {
         const today = new Date().toISOString().split('T')[0];
         const checkInRef = doc(db, 'user_checkin', user.uid);
-
-        if (selectedItem.value > 0) {
-          const userRef = doc(db, 'users', user.uid);
-          const userSnap = await getDoc(userRef);
-          const currentPoints = userSnap.data()?.points || 0;
-          await setDoc(userRef, {
-            points: currentPoints + selectedItem.value,
-          }, { merge: true });
-          setUserPoints(currentPoints + selectedItem.value);
-        }
 
         await setDoc(checkInRef, {
           lastRouletteDate: today,
@@ -209,19 +199,8 @@ export default function RoulettePage() {
               className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full text-center mb-6"
             >
               <div className="text-5xl mb-3">{result.emoji}</div>
-              {result.value > 0 ? (
-                <>
-                  <div className="text-sm text-gray-500 mb-2">축하합니다!</div>
-                  <div className="text-2xl font-bold text-gray-800">
-                    +{formatNumber(result.value)} 포인트
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="text-sm text-gray-500 mb-2">격려 메시지</div>
-                  <div className="text-lg font-bold text-gray-800">{result.message}</div>
-                </>
-              )}
+              <div className="text-sm text-gray-500 mb-2">{result.label}</div>
+              <div className="text-lg font-bold text-gray-800">{result.message}</div>
             </motion.div>
           )}
 
@@ -248,19 +227,6 @@ export default function RoulettePage() {
           )}
         </div>
 
-        {/* 포인트 정보 */}
-        <div className="bg-white rounded-2xl p-6 shadow-lg mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-green-600" />
-              <span className="font-bold text-gray-800">내 포인트</span>
-            </div>
-            <div className="text-2xl font-bold text-green-600">
-              {formatNumber(userPoints)}P
-            </div>
-          </div>
-        </div>
-
         {/* 안내 */}
         <div className="bg-white/80 rounded-2xl p-6 shadow-lg">
           <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
@@ -269,8 +235,8 @@ export default function RoulettePage() {
           </h3>
           <ul className="text-sm text-gray-600 space-y-1">
             <li>• 하루에 1회 무료로 룰렛을 돌릴 수 있어요</li>
-            <li>• 포인트부터 격려 메시지까지 다양한 보상이 있어요</li>
-            <li>• 매일 새로운 기회를 잡아보세요!</li>
+            <li>• 다양한 격려 메시지로 힐링하세요</li>
+            <li>• 매일 새로운 응원 메시지를 받아보세요!</li>
           </ul>
         </div>
       </main>

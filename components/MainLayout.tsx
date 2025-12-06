@@ -320,20 +320,6 @@ export default function MainLayout({ children }: MainLayoutProps) {
               {user ? (
                 <>
                   <Link
-                    href="/checkin"
-                    className="p-2 hover:bg-gray-100 rounded-lg transition relative"
-                    title="출석체크"
-                  >
-                    <span className="text-lg">✅</span>
-                  </Link>
-                  <Link
-                    href="/shop"
-                    className="p-2 hover:bg-gray-100 rounded-lg transition"
-                    title="포인트상점"
-                  >
-                    <ShoppingBag size={20} />
-                  </Link>
-                  <Link
                     href="/messages"
                     className="p-2 hover:bg-gray-100 rounded-lg transition relative"
                     title="쪽지"

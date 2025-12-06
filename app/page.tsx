@@ -17,7 +17,7 @@ import {
   limit,
   getDocs,
 } from 'firebase/firestore'
-import { User, Trash2, Image, Search, Bell, Mail, Flag, ShoppingBag, Heart, MessageCircle, Clock, Vote, Sparkles, Calculator, Megaphone, AlertCircle } from 'lucide-react'
+import { User, Trash2, Image, Search, Bell, Mail, Flag, Heart, MessageCircle, Clock, Vote, Sparkles, Calculator, Megaphone, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import AvatarMini from '@/components/AvatarMini'
@@ -446,19 +446,6 @@ function HomeContent() {
               <div className="flex items-center gap-2">
                 {user ? (
                   <>
-                    <button
-                      onClick={() => router.push('/checkin')}
-                      className="px-2 sm:px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded text-xs sm:text-sm font-medium transition-colors whitespace-nowrap"
-                    >
-                      출석체크
-                    </button>
-                    <button
-                      onClick={() => router.push('/shop')}
-                      className="px-2 sm:px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap"
-                    >
-                      <ShoppingBag size={14} />
-                      <span className="hidden sm:inline">포인트상점</span>
-                    </button>
                     {/* 모바일에서는 BottomNav의 글쓰기 버튼 사용, 데스크톱에서만 헤더 버튼 표시 */}
                     <button
                       onClick={() => setIsWriteMode(true)}
@@ -523,7 +510,6 @@ function HomeContent() {
           <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <ShoppingBag size={20} className="text-green-600" />
                 <span>🛒 자영업자 중고장터</span>
               </h2>
               <Link
@@ -550,7 +536,6 @@ function HomeContent() {
           <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <ShoppingBag size={20} className="text-[#1A2B4E]" />
                 <span>🛠️ 실용 도구</span>
               </h2>
               <Link
@@ -575,6 +560,7 @@ function HomeContent() {
               { id: 'ai-pricing', title: 'AI 가격 조언', description: '최적 가격 전략 제안', route: '/tools/ai-pricing', icon: '🧠' },
               { id: 'announcement', title: '안내방송 생성', description: '매장 방송 자동 제작 + 실시간 재생 기능', route: '/tools/announcement', icon: '🎙️' },
               { id: 'music', title: 'AI 매장음악 선곡', description: '상황별 배경음악 자동 추천 + 저작권 없는 곡 선정', route: '/tools/music', icon: '🎵' },
+              { id: 'food-battle', title: '오늘 뭐먹지?', description: 'AI 음식 배틀로얄 게임', route: '/tools/food-battle', icon: '🍽️' },
               { id: 'fortune', title: '무료 종합 운세', description: 'AI 올인원 운세 서비스', route: 'https://all-fo.vercel.app/', icon: '🔮', external: true },
             ].map((tool: any) => {
               const isExternal = tool.external || tool.route?.startsWith('http')

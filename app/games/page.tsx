@@ -40,7 +40,7 @@ const games = [
   {
     id: 'box',
     title: '랜덤 박스',
-    description: '매일 무료 박스 + 포인트로 추가',
+    description: '매일 무료 박스 열기',
     icon: Box,
     color: 'from-indigo-500 to-purple-500',
     route: '/games/box',
@@ -163,7 +163,7 @@ export default function GamesPage() {
           <h2 className="text-2xl font-bold text-gray-800 mb-2 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
             스트레스 해소 게임
           </h2>
-          <p className="text-gray-600 text-sm">재미있게 놀면서 포인트도 받아요! 💕</p>
+          <p className="text-gray-600 text-sm">재미있게 놀면서 스트레스 해소! 💕</p>
         </div>
 
         <div className="space-y-4">
@@ -254,7 +254,7 @@ export default function GamesPage() {
           
           <p className="text-sm text-gray-700 text-center font-medium relative z-10">
             <span className="text-lg">🎮</span> 총 <span className="font-bold text-purple-600">{games.filter(g => g.available).length}개</span>의 게임을 즐길 수 있어요!<br />
-            재미있게 놀면서 포인트도 쌓아보세요! <span className="text-lg">🎉</span>
+            재미있게 놀아보세요! <span className="text-lg">🎉</span>
           </p>
         </motion.div>
       </main>

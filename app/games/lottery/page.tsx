@@ -9,14 +9,14 @@ import { motion } from 'framer-motion';
 import { formatNumber } from '@/lib/utils';
 
 const rewards = [
-  { type: '포인트', amount: 100, emoji: '💎', color: 'from-blue-500 to-cyan-500', rarity: 'rare' },
-  { type: '포인트', amount: 50, emoji: '💰', color: 'from-green-500 to-emerald-500', rarity: 'normal' },
-  { type: '포인트', amount: 30, emoji: '🪙', color: 'from-yellow-500 to-orange-500', rarity: 'normal' },
-  { type: '포인트', amount: 20, emoji: '⭐', color: 'from-purple-500 to-pink-500', rarity: 'common' },
-  { type: '포인트', amount: 10, emoji: '✨', color: 'from-gray-400 to-gray-600', rarity: 'common' },
+  { type: '운세', amount: 0, emoji: '💎', message: '오늘은 보석같은 하루가 될 거예요!', color: 'from-blue-500 to-cyan-500', rarity: 'rare' },
+  { type: '행운', amount: 0, emoji: '💰', message: '큰 행운이 다가오고 있어요!', color: 'from-green-500 to-emerald-500', rarity: 'normal' },
+  { type: '성공', amount: 0, emoji: '🪙', message: '모든 일이 성공할 거예요!', color: 'from-yellow-500 to-orange-500', rarity: 'normal' },
+  { type: '희망', amount: 0, emoji: '⭐', message: '희망찬 하루가 펼쳐질 거예요!', color: 'from-purple-500 to-pink-500', rarity: 'common' },
+  { type: '기쁨', amount: 0, emoji: '✨', message: '즐거운 일이 생길 거예요!', color: 'from-gray-400 to-gray-600', rarity: 'common' },
   { type: '운세', amount: 0, emoji: '🔮', message: '오늘 하루 행운이 가득할 거예요!', color: 'from-indigo-500 to-purple-500', rarity: 'special' },
   { type: '격려', amount: 0, emoji: '💪', message: '오늘도 화이팅! 할 수 있어요!', color: 'from-pink-500 to-rose-500', rarity: 'special' },
-  { type: '격려', amount: 0, emoji: '🌟', message: '당신은 최고의 사장님이에요!', color: 'from-amber-500 to-yellow-500', rarity: 'special' },
+  { type: '축복', amount: 0, emoji: '🌟', message: '당신은 최고의 사장님이에요!', color: 'from-amber-500 to-yellow-500', rarity: 'special' },
 ];
 
 export default function LotteryPage() {
@@ -71,16 +71,16 @@ export default function LotteryPage() {
     
     // 확률: 특별(5%), 레어(10%), 일반(35%), 커먼(50%)
     if (rand < 0.05) {
-      // 특별 보상 (격려 메시지)
+      // 특별 보상
       return rewards.filter(r => r.rarity === 'special')[Math.floor(Math.random() * 3)];
     } else if (rand < 0.15) {
-      // 레어 보상 (100포인트)
+      // 레어 보상
       return rewards.filter(r => r.rarity === 'rare')[0];
     } else if (rand < 0.5) {
-      // 일반 보상 (30-50포인트)
+      // 일반 보상
       return rewards.filter(r => r.rarity === 'normal')[Math.floor(Math.random() * 2)];
     } else {
-      // 커먼 보상 (10-20포인트)
+      // 커먼 보상
       return rewards.filter(r => r.rarity === 'common')[Math.floor(Math.random() * 2)];
     }
   };
@@ -102,17 +102,6 @@ export default function LotteryPage() {
       try {
         const today = new Date().toISOString().split('T')[0];
         const checkInRef = doc(db, 'user_checkin', user.uid);
-
-        // 포인트 지급 (포인트 타입인 경우)
-        if (selectedReward.type === '포인트' && selectedReward.amount > 0) {
-          const userRef = doc(db, 'users', user.uid);
-          const userSnap = await getDoc(userRef);
-          const currentPoints = userSnap.data()?.points || 0;
-          await setDoc(userRef, {
-            points: currentPoints + selectedReward.amount,
-          }, { merge: true });
-          setUserPoints(currentPoints + selectedReward.amount);
-        }
 
         // 복권 기록 저장
         await setDoc(checkInRef, {
@@ -178,20 +167,10 @@ export default function LotteryPage() {
               className={`bg-gradient-to-br ${result.color} rounded-3xl p-8 shadow-2xl max-w-sm w-full text-white text-center`}
             >
               <div className="text-6xl mb-4">{result.emoji}</div>
-              {result.type === '포인트' ? (
-                <>
-                  <div className="text-sm opacity-90 mb-2">축하합니다!</div>
-                  <div className="text-3xl font-bold mb-2">+{formatNumber(result.amount)} 포인트</div>
-                  <div className="text-xs opacity-80 mt-4">포인트가 지급되었습니다!</div>
-                </>
-              ) : (
-                <>
-                  <div className="text-sm opacity-90 mb-2">{result.type}</div>
-                  <div className="text-lg font-bold leading-relaxed">
-                    {result.message}
-                  </div>
-                </>
-              )}
+              <div className="text-sm opacity-90 mb-2">{result.type}</div>
+              <div className="text-lg font-bold leading-relaxed">
+                {result.message}
+              </div>
               <div className="mt-6 pt-6 border-t border-white/20">
                 <p className="text-xs opacity-80">내일 다시 찾아와 주세요! ✨</p>
               </div>
@@ -221,19 +200,6 @@ export default function LotteryPage() {
           )}
         </div>
 
-        {/* 포인트 정보 */}
-        <div className="bg-white rounded-2xl p-6 shadow-lg mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-yellow-600" />
-              <span className="font-bold text-gray-800">내 포인트</span>
-            </div>
-            <div className="text-2xl font-bold text-yellow-600">
-              {formatNumber(userPoints)}P
-            </div>
-          </div>
-        </div>
-
         {/* 보상 안내 */}
         <div className="bg-white/80 rounded-2xl p-6 shadow-lg">
           <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
@@ -242,23 +208,23 @@ export default function LotteryPage() {
           </h3>
           <div className="space-y-2 text-sm text-gray-600">
             <div className="flex items-center justify-between">
-              <span>💎 100 포인트 (레어)</span>
+              <span>💎 운세 메시지 (레어)</span>
               <span className="text-xs text-gray-400">10%</span>
             </div>
             <div className="flex items-center justify-between">
-              <span>💰 50 포인트 (일반)</span>
+              <span>💰 행운 메시지 (일반)</span>
+              <span className="text-xs text-gray-400">18%</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>🪙 성공 메시지 (일반)</span>
+              <span className="text-xs text-gray-400">17%</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>⭐ 희망 메시지 (커먼)</span>
               <span className="text-xs text-gray-400">25%</span>
             </div>
             <div className="flex items-center justify-between">
-              <span>🪙 30 포인트 (일반)</span>
-              <span className="text-xs text-gray-400">25%</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>⭐ 20 포인트 (커먼)</span>
-              <span className="text-xs text-gray-400">25%</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>✨ 10 포인트 (커먼)</span>
+              <span>✨ 기쁨 메시지 (커먼)</span>
               <span className="text-xs text-gray-400">25%</span>
             </div>
             <div className="flex items-center justify-between pt-2 border-t border-gray-200">

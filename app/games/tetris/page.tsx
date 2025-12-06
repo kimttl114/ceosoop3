@@ -282,17 +282,6 @@ export default function TetrisPage() {
         tetrisBestScore: score,
       }, { merge: true });
       setBestScore(score);
-
-      // 포인트 지급 (점수 / 20)
-      const points = Math.floor(score / 20);
-      if (points > 0) {
-        const userRef = doc(db, 'users', user.uid);
-        const userSnap = await getDoc(userRef);
-        const currentPoints = userSnap.data()?.points || 0;
-        await setDoc(userRef, {
-          points: currentPoints + points,
-        }, { merge: true });
-      }
     } catch (error) {
       console.error('Error saving score:', error);
     }

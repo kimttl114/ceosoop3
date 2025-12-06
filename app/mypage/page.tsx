@@ -5,16 +5,12 @@ import { useRouter } from 'next/navigation'
 import { auth, db } from '@/lib/firebase'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { doc, getDoc, setDoc, collection, query, where, orderBy, onSnapshot, deleteDoc, getDocs, limit } from 'firebase/firestore'
-import { ArrowLeft, LogOut, User, MapPin, Building2, UserCircle, Loader2, FileText, Trash2, Shield, CheckCircle, Sparkles, Award } from 'lucide-react'
+import { ArrowLeft, LogOut, User, MapPin, Building2, UserCircle, Loader2, FileText, Trash2, Shield, CheckCircle } from 'lucide-react'
 import AvatarMini from '@/components/AvatarMini'
 import Link from 'next/link'
 import BottomNav from '@/components/BottomNav'
 import VerificationBadge from '@/components/VerificationBadge'
 import { getVerificationStatus, VerificationStatus } from '@/lib/verification'
-import { getLevelByPoints, getNextLevel, getProgressToNextLevel } from '@/lib/levels'
-import { getUnlockedBadges, getNewBadges, UserStats } from '@/lib/badges'
-import { formatNumber } from '@/lib/utils'
-import { motion, AnimatePresence } from 'framer-motion'
 
 // 지역 목록
 const regions = [
@@ -49,15 +45,6 @@ export default function MyPage() {
   const [loadingPosts, setLoadingPosts] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState<string>('')
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus | null>(null)
-  const [userPoints, setUserPoints] = useState(0)
-  const [userBadges, setUserBadges] = useState<string[]>([])
-  const [userStats, setUserStats] = useState<UserStats>({
-    points: 0,
-    consecutiveDays: 0,
-    postsCount: 0,
-    commentsCount: 0,
-    gamesPlayed: 0,
-  })
   const [currentPage, setCurrentPage] = useState(1)
   const postsPerPage = 10
 
@@ -82,10 +69,6 @@ export default function MyPage() {
           const userRef = doc(db, 'users', currentUser.uid)
           const userSnap = await getDoc(userRef)
           
-          // 포인트와 뱃지 초기값 설정
-          let points = 0
-          let badges: string[] = []
-          
           if (userSnap.exists()) {
             const userData = userSnap.data()
             if (userData.anonymousName) {
@@ -100,52 +83,13 @@ export default function MyPage() {
             if (userData.avatarUrl) {
               setAvatarUrl(userData.avatarUrl)
             }
-            // 포인트 불러오기
-            points = userData.points || 0
-            setUserPoints(points)
-            
-            // 뱃지 불러오기
-            badges = userData.badges || []
-            setUserBadges(badges)
           }
 
-          // 출석 기록 불러오기
-          const checkInRef = doc(db, 'user_checkin', currentUser.uid)
-          const checkInSnap = await getDoc(checkInRef)
-          let consecutiveDays = 0
-          if (checkInSnap.exists()) {
-            consecutiveDays = checkInSnap.data()?.consecutiveDays || 0
+          // 인증 상태 불러오기
+          if (currentUser) {
+            const verification = await getVerificationStatus(currentUser.uid)
+            setVerificationStatus(verification)
           }
-
-          // 내 글 수 계산
-          const postsRef = collection(db, 'posts')
-          const postsQuery = query(postsRef, where('uid', '==', currentUser.uid))
-          const postsSnapshot = await getDocs(postsQuery)
-          const postsCount = postsSnapshot.size || 0
-
-          // 통계 계산
-          const stats: UserStats = {
-            points: points,
-            consecutiveDays: consecutiveDays,
-            postsCount: postsCount,
-            commentsCount: 0, // TODO: 댓글 수 집계
-            gamesPlayed: 0, // TODO: 게임 플레이 수 집계
-          }
-            setUserStats(stats)
-            
-            // 새로운 뱃지 확인 및 추가
-            const newBadges = getNewBadges(stats, badges)
-            if (newBadges.length > 0) {
-              const updatedBadges = [...badges, ...newBadges.map(b => b.id)]
-              await setDoc(userRef, { badges: updatedBadges }, { merge: true })
-              setUserBadges(updatedBadges)
-            }
-
-            // 인증 상태 불러오기
-            if (currentUser) {
-              const verification = await getVerificationStatus(currentUser.uid)
-              setVerificationStatus(verification)
-            }
           } catch (error: any) {
             if (error?.code !== 'failed-precondition' && !error?.message?.includes('offline')) {
               console.error('사용자 정보 불러오기 오류:', error)
@@ -375,90 +319,7 @@ export default function MyPage() {
           </div>
         </div>
 
-        {/* 레벨 & 포인트 카드 */}
-        {user && (() => {
-          const currentLevel = getLevelByPoints(userPoints);
-          const nextLevel = getNextLevel(currentLevel);
-          const progress = getProgressToNextLevel(userPoints, currentLevel);
-          const unlockedBadges = getUnlockedBadges(userStats, userBadges);
-          const newBadges = getNewBadges(userStats, userBadges);
-
-          return (
-            <>
-              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl shadow-lg p-6 mb-6 border-2 border-purple-200">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-16 h-16 rounded-xl bg-gradient-to-br ${currentLevel.color} flex items-center justify-center text-3xl shadow-lg`}>
-                      {currentLevel.emoji}
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500 mb-1">현재 레벨</div>
-                      <div className="text-xl font-bold text-gray-800">{currentLevel.level}. {currentLevel.name}</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-gray-500 mb-1">포인트</div>
-                    <div className="text-xl font-bold text-purple-600">{formatNumber(userPoints)}P</div>
-                  </div>
-                </div>
-
-                {nextLevel && (
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between text-xs text-gray-600 mb-2">
-                      <span>다음 레벨: {nextLevel.emoji} {nextLevel.name}</span>
-                      <span>{userPoints} / {nextLevel.minPoints}P</span>
-                    </div>
-                    <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full bg-gradient-to-r ${nextLevel.color} transition-all duration-500 rounded-full`}
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 뱃지 섹션 */}
-              {unlockedBadges.length > 0 && (
-                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Award className="w-5 h-5 text-yellow-600" />
-                    <h3 className="text-lg font-bold text-gray-800">획득한 뱃지</h3>
-                    {newBadges.length > 0 && (
-                      <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
-                        새로 {newBadges.length}개!
-                      </span>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-4 gap-3">
-                    {unlockedBadges.map((badge) => (
-                      <div
-                        key={badge.id}
-                        className={`p-3 rounded-xl bg-gradient-to-br ${badge.color} text-white text-center shadow-md ${
-                          newBadges.find(b => b.id === badge.id) ? 'ring-4 ring-yellow-400 animate-pulse' : ''
-                        }`}
-                        title={badge.description}
-                      >
-                        <div className="text-2xl mb-1">{badge.emoji}</div>
-                        <div className="text-xs font-semibold">{badge.name}</div>
-                      </div>
-                    ))}
-                  </div>
-                  {unlockedBadges.length < 8 && (
-                    <div className="mt-4 text-center">
-                      <p className="text-xs text-gray-500">
-                        {8 - unlockedBadges.length}개의 뱃지를 더 획득할 수 있어요!
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          );
-        })()}
-
-
-        {/* 사업자 인증 카드 - 프로필 카드 바로 다음 */}
+        {/* 사업자 인증 카드 */}
         <div className="bg-gradient-to-br from-[#1A2B4E] to-[#2C3E50] rounded-2xl shadow-lg p-6 mb-6 text-white">
           <div className="flex items-start gap-3 mb-4">
             <Shield size={24} className="text-[#FFBF00] flex-shrink-0 mt-1" />
