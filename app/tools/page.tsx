@@ -16,6 +16,15 @@ const tools = [
     available: true,
   },
   {
+    id: 'wifi-qr',
+    title: '📶 매장 와이파이 QR',
+    description: 'QR 코드로 자동 연결 포스터 제작',
+    icon: Sparkles,
+    color: 'from-blue-500 to-indigo-600',
+    route: '/tools/wifi-qr',
+    available: true,
+  },
+  {
     id: 'salary',
     title: '월급 계산기',
     description: '시급/일급/월급 빠르게 계산',
