@@ -441,7 +441,6 @@ function HomeContent() {
                   <span className="text-base">📢</span>
                   <span className="hidden sm:inline">공지사항</span>
                 </Link>
-                <h1 className="text-lg sm:text-xl font-bold text-gray-900">베스트</h1>
               </div>
               <div className="flex items-center gap-2">
                 {user ? (
