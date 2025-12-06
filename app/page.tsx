@@ -546,6 +546,42 @@ function HomeContent() {
               </Link>
             </div>
 
+            {/* 미성년자 출입 방어기 - 최우선 표시 */}
+            <Link
+              href="/tools/id-check"
+              className="block mb-5 bg-gradient-to-r from-red-500 to-orange-500 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all relative overflow-hidden group"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-2xl shadow-lg">
+                      🚨
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-xl font-black text-white">미성년자 출입 방어기</h3>
+                        <span className="px-2 py-1 text-xs font-bold bg-yellow-400 text-red-900 rounded-full animate-pulse">
+                          필수
+                        </span>
+                      </div>
+                      <p className="text-sm text-white/90">신분증 나이 자동 확인 - 영업정지 100% 방지</p>
+                    </div>
+                  </div>
+                  <div className="hidden sm:block text-white/80">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs text-white/90">
+                  <span className="px-3 py-1 bg-white/20 rounded-full">✅ 만 19세 자동 계산</span>
+                  <span className="px-3 py-1 bg-white/20 rounded-full">⚠️ 빨간색 경고</span>
+                  <span className="px-3 py-1 bg-white/20 rounded-full">📱 카운터 필수 앱</span>
+                </div>
+              </div>
+            </Link>
+
             {/* AI 도구 */}
             <div className="mb-5">
               <div className="flex items-center gap-2 mb-3">

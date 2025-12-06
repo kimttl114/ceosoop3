@@ -1,11 +1,20 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Calculator, FileText, TrendingUp, Users, Percent, DollarSign, Sparkles, MessageCircle, Brain, ShoppingBag, Mic } from 'lucide-react';
+import { ArrowLeft, Calculator, FileText, TrendingUp, Users, Percent, DollarSign, Sparkles, MessageCircle, Brain, ShoppingBag, Mic, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 
 const tools = [
+  {
+    id: 'id-check',
+    title: '🚨 미성년자 출입 방어기',
+    description: '신분증 나이 확인 (영업정지 방지)',
+    icon: Shield,
+    color: 'from-red-500 to-orange-500',
+    route: '/tools/id-check',
+    available: true,
+  },
   {
     id: 'salary',
     title: '월급 계산기',
