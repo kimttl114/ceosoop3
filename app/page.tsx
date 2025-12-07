@@ -596,6 +596,7 @@ function HomeContent() {
               { id: 'ai-customer-service', title: 'AI 고객 대응', description: '까다로운 손님 응대법', route: '/tools/ai-customer-service', icon: '💬' },
               { id: 'announcement', title: '안내방송 생성', description: '매장 방송 제작+재생', route: '/tools/announcement', icon: '🎙️' },
               { id: 'music', title: 'AI 매장음악', description: '분위기별 BGM 추천', route: '/tools/music', icon: '🎵' },
+              { id: 'document', title: 'AI 문서 생성', description: '계약서 자동 생성', route: '/ai-document', icon: '📄' },
               { id: 'ai-pricing', title: 'AI 가격 조언', description: '최적 가격 전략', route: '/tools/ai-pricing', icon: '🧠' },
               { id: 'food-battle', title: '오늘 뭐먹지?', description: 'AI 음식 배틀 게임', route: '/tools/food-battle', icon: '🍽️' },
               { id: 'fortune', title: '무료 종합 운세', description: 'AI 운세 서비스', route: 'https://all-fo.vercel.app/', icon: '🔮', external: true },
@@ -663,7 +664,6 @@ function HomeContent() {
                   { id: 'labor', title: '인건비 계산기', description: '4대보험 포함 계산', route: '/tools/labor', icon: '👥' },
                   { id: 'pricing', title: '가격 책정 도우미', description: '원가 기반 가격 제안', route: '/tools/pricing', icon: '💵' },
                   { id: 'discount', title: '할인율 계산기', description: '할인 후 가격 분석', route: '/tools/discount', icon: '🎯' },
-                  { id: 'document', title: '문서 생성기', description: '계약서 자동 생성', route: '/ai-document', icon: '📄' },
                 ].map((tool) => (
                   <Link
                     key={tool.id}
