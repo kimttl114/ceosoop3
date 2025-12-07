@@ -591,15 +591,12 @@ function HomeContent() {
               <div className="flex flex-wrap gap-3">
             {[
               // 실용성 높은 순서로 배치
-              { id: 'diagnose', title: '내 시급은?', description: '사장님 실제 시급 계산', route: '/diagnose', icon: '🎯', badge: 'HOT' },
               { id: 'ai-marketing', title: 'AI 마케팅 문구', description: 'SNS/전단지 즉시 사용', route: '/tools/ai-marketing', icon: '✨' },
               { id: 'ai-customer-service', title: 'AI 고객 대응', description: '까다로운 손님 응대법', route: '/tools/ai-customer-service', icon: '💬' },
               { id: 'announcement', title: '안내방송 생성', description: '매장 방송 제작+재생', route: '/tools/announcement', icon: '🎙️' },
               { id: 'music', title: 'AI 매장음악', description: '분위기별 BGM 추천', route: '/tools/music', icon: '🎵' },
               { id: 'document', title: 'AI 문서 생성', description: '계약서 자동 생성', route: '/ai-document', icon: '📄' },
               { id: 'ai-pricing', title: 'AI 가격 조언', description: '최적 가격 전략', route: '/tools/ai-pricing', icon: '🧠' },
-              { id: 'food-battle', title: '오늘 뭐먹지?', description: 'AI 음식 배틀 게임', route: '/tools/food-battle', icon: '🍽️' },
-              { id: 'fortune', title: '무료 종합 운세', description: 'AI 운세 서비스', route: 'https://all-fo.vercel.app/', icon: '🔮', external: true },
             ].map((tool: any) => {
               const isExternal = tool.external || tool.route?.startsWith('http')
               
