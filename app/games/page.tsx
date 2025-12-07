@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Sparkles, Ticket, CircleDot, Puzzle, Dice6, Layers, Brain, Store, Box, Square } from 'lucide-react';
+import { ArrowLeft, Sparkles, Ticket, CircleDot, Puzzle, Dice6, Layers, Brain, Store, Box, Square, Scale } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import GamesBackground from '@/components/GamesBackground';
@@ -106,6 +106,17 @@ const games = [
     route: '/games/tetris',
     available: true,
     daily: false,
+  },
+  {
+    id: 'balance',
+    title: '사장님 밸런스 게임',
+    description: '현실 자극적인 선택의 순간! 🔥',
+    icon: Scale,
+    color: 'from-purple-500 to-pink-500',
+    route: '/games/balance',
+    available: true,
+    daily: false,
+    hot: true,
   },
 ];
 
