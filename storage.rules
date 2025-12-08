@@ -1,0 +1,166 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ============================================
+    // 헬퍼 함수들
+    // ============================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isImageFile() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    function isVideoFile() {
+      return request.resource.contentType.matches('video/.*');
+    }
+    
+    function isAudioFile() {
+      return request.resource.contentType.matches('audio/.*');
+    }
+    
+    function isAdminSDK() {
+      return request.auth == null;
+    }
+    
+    // ============================================
+    // 게시글 이미지 업로드
+    // ============================================
+    // 경로: posts/{userId}/images/{fileName}
+    match /posts/{userId}/images/{fileName} {
+      // 로그인한 사용자만 본인 폴더에 업로드 가능
+      allow write: if (isOwner(userId) && 
+                       isImageFile() &&
+                       request.resource.size < 104857600)  // 100MB 제한
+                       || isAdminSDK();
+      
+      // 모든 사용자 읽기 가능
+      allow read: if true;
+    }
+    
+    // ============================================
+    // 게시글 비디오 업로드
+    // ============================================
+    // 경로: posts/{userId}/videos/{fileName}
+    match /posts/{userId}/videos/{fileName} {
+      // 로그인한 사용자만 본인 폴더에 업로드 가능
+      allow write: if (isOwner(userId) && 
+                       isVideoFile() &&
+                       request.resource.size < 104857600)  // 100MB 제한
+                       || isAdminSDK();
+      
+      // 모든 사용자 읽기 가능
+      allow read: if true;
+    }
+    
+    // ============================================
+    // 생성된 문서 저장
+    // ============================================
+    // 경로: generated_documents/{userId}/{fileName}
+    match /generated_documents/{userId}/{fileName} {
+      // 본인 폴더에만 업로드 가능
+      allow write: if (isOwner(userId) && 
+                       request.resource.size < 52428800)  // 50MB 제한
+                       || isAdminSDK();
+      
+      // 본인 문서만 읽기 가능
+      allow read: if isOwner(userId) || isAdminSDK();
+    }
+    
+    // ============================================
+    // 공용 BGM 파일
+    // ============================================
+    // 경로: bgm/public/{fileName}
+    match /bgm/public/{fileName} {
+      // 모든 사용자 읽기 가능
+      allow read: if true;
+      
+      // 로그인한 사용자만 업로드 가능
+      allow write: if (isAuthenticated() && 
+                       isAudioFile() &&
+                       request.resource.size < 10485760)  // 10MB 제한
+                       || isAdminSDK();
+    }
+    
+    // ============================================
+    // 개인 BGM 파일
+    // ============================================
+    // 경로: bgm/{userId}/{fileName}
+    match /bgm/{userId}/{fileName} {
+      // 로그인한 사용자만 읽기 가능
+      allow read: if isAuthenticated();
+      
+      // 본인 폴더에만 업로드 가능
+      allow write: if (isOwner(userId) && 
+                       isAudioFile() &&
+                       request.resource.size < 10485760)  // 10MB 제limit
+                       || isAdminSDK();
+    }
+    
+    // ============================================
+    // 사용자 아바타 이미지
+    // ============================================
+    // 경로: avatars/{userId}/{fileName}
+    match /avatars/{userId}/{fileName} {
+      // 모든 사용자 읽기 가능
+      allow read: if true;
+      
+      // 본인만 이미지 업로드 가능
+      allow write: if (isOwner(userId) && 
+                       isImageFile() &&
+                       request.resource.size < 5242880)  // 5MB 제한
+                       || isAdminSDK();
+    }
+    
+    // ============================================
+    // 사업자 인증 이미지 (민감 정보)
+    // ============================================
+    // 경로: verifications/{userId}/{fileName}
+    match /verifications/{userId}/{fileName} {
+      // 본인만 읽기 가능 (보안 강화)
+      allow read: if isOwner(userId) || isAdminSDK();
+      
+      // 본인만 업로드 가능
+      allow write: if (isOwner(userId) && 
+                       isImageFile() &&
+                       request.resource.size < 5242880)  // 5MB 제한
+                       || isAdminSDK();
+    }
+    
+    // ============================================
+    // 중고장터 상품 이미지
+    // ============================================
+    // 경로: marketplace/{userId}/{fileName}
+    match /marketplace/{userId}/{fileName} {
+      // 모든 사용자 읽기 가능
+      allow read: if true;
+      
+      // 본인만 업로드 가능
+      allow write: if (isOwner(userId) && 
+                       isImageFile() &&
+                       request.resource.size < 10485760)  // 10MB 제한
+                       || isAdminSDK();
+    }
+    
+    // ============================================
+    // 공지사항 첨부파일
+    // ============================================
+    // 경로: notices/{noticeId}/{fileName}
+    match /notices/{noticeId}/{fileName} {
+      // 모든 사용자 읽기 가능
+      allow read: if true;
+      
+      // 관리자만 업로드 가능 (Admin SDK)
+      allow write: if isAdminSDK();
+    }
+  }
+}
+
