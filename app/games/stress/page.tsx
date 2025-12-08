@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { db, auth } from '@/lib/firebase'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, addDoc, Timestamp } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
 import { ArrowLeft, Flame, Sparkles, Heart, Send } from 'lucide-react'
 import { toast } from 'react-hot-toast'
@@ -93,28 +93,52 @@ export default function StressReliefPage() {
       // 1.5초 후 대나무숲에 자동 포스팅
       setTimeout(async () => {
         try {
+          console.log('[스트레스 해소] 포스팅 시작...')
+          console.log('User:', user.uid, user.email)
+          console.log('Text length:', stressText.length)
+
           // 대나무숲에 포스팅
-          const docRef = await addDoc(collection(db, 'posts'), {
+          const postData = {
             category: '대나무숲',
             title: `[스트레스 해소] ${stressText.substring(0, 30)}${stressText.length > 30 ? '...' : ''}`,
             content: stressText,
             userId: user.uid,
-            userEmail: user.email,
+            userEmail: user.email || 'anonymous@ceosoop.com',
+            userName: user.displayName || '익명의 사장님',
             isAnonymous: true,
             anonymousName: `익명의 사장님`,
             stressRelief: true, // 특별 표시
             likes: 0,
             views: 0,
-            createdAt: serverTimestamp(),
-          })
+            comments: 0,
+            createdAt: Timestamp.fromDate(new Date()),
+            updatedAt: Timestamp.fromDate(new Date()),
+          }
+
+          console.log('[스트레스 해소] 포스팅 데이터:', postData)
+
+          const docRef = await addDoc(collection(db, 'posts'), postData)
+
+          console.log('[스트레스 해소] 포스팅 성공! ID:', docRef.id)
 
           setPostId(docRef.id)
           setStep('complete')
           setIsComplete(true)
           toast.success('스트레스가 날아갔어요! 대나무숲에 올렸습니다! 🎉')
         } catch (error: any) {
-          console.error('포스팅 오류:', error)
-          toast.error('포스팅 중 오류가 발생했습니다: ' + error.message)
+          console.error('[스트레스 해소] 포스팅 오류:', error)
+          console.error('Error code:', error.code)
+          console.error('Error message:', error.message)
+          
+          let errorMessage = '포스팅 중 오류가 발생했습니다'
+          
+          if (error.code === 'permission-denied') {
+            errorMessage = 'Firebase 권한이 없습니다. 로그인을 다시 시도해주세요.'
+          } else if (error.message) {
+            errorMessage = error.message
+          }
+          
+          toast.error(errorMessage)
           setStep('write')
           setIsExploding(false)
         }
