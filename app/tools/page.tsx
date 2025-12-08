@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Calculator, FileText, TrendingUp, Users, Percent, DollarSign, Sparkles, MessageCircle, Brain, ShoppingBag, Mic, Shield } from 'lucide-react';
+import { ArrowLeft, Calculator, FileText, TrendingUp, Users, Percent, DollarSign, Sparkles, MessageCircle, Brain, ShoppingBag, Mic, Shield, Music, Utensils, PieChart } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 
@@ -94,6 +94,33 @@ const tools = [
     icon: Mic,
     color: 'from-purple-500 to-indigo-500',
     route: '/tools/announcement',
+    available: true,
+  },
+  {
+    id: 'music',
+    title: 'AI 매장음악',
+    description: '분위기별 배경음악 추천',
+    icon: Music,
+    color: 'from-pink-500 to-rose-500',
+    route: '/tools/music',
+    available: true,
+  },
+  {
+    id: 'food-battle',
+    title: '오늘 뭐먹지?',
+    description: 'AI 음식 배틀로얄 게임',
+    icon: Utensils,
+    color: 'from-orange-500 to-red-500',
+    route: '/tools/food-battle',
+    available: true,
+  },
+  {
+    id: 'revenue',
+    title: '매출 계산기',
+    description: '일일/월간 매출 자동 계산',
+    icon: PieChart,
+    color: 'from-teal-500 to-cyan-500',
+    route: '/tools/revenue',
     available: true,
   },
 ];

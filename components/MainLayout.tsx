@@ -15,7 +15,6 @@ import {
   Search,
   Bell,
   Mail,
-  ShoppingBag,
   Gamepad2,
   Wrench,
   MessageSquare,
@@ -59,7 +58,6 @@ const sidebarCategories = [
     title: '마이',
     items: [
       { path: '/mypage', label: '👤 마이페이지', icon: User },
-      { path: '/shop', label: '🛒 포인트상점', icon: ShoppingBag },
     ],
   },
 ]
