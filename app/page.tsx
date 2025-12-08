@@ -504,6 +504,68 @@ function HomeContent() {
           </div>
         )}
 
+        {/* 게임존 섹션 */}
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-200">
+          <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <span>🎮 게임존</span>
+              </h2>
+              <Link
+                href="/games"
+                className="text-sm text-purple-600 font-medium hover:underline"
+              >
+                전체보기 →
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {[
+                { id: 'diagnose', title: '내 시급은?', description: '실제 시급 자동 계산', icon: '🎯', route: '/diagnose', hot: true },
+                { id: 'balance', title: '밸런스 게임', description: '현실 자극적 선택', icon: '⚖️', route: '/games/balance', hot: true },
+                { id: 'food-battle', title: '오늘 뭐먹지?', description: 'AI 음식 배틀', icon: '🍽️', route: '/tools/food-battle' },
+                { id: 'puzzle', title: '매출 퍼즐', description: '2048 아이템 합치기', icon: '🧩', route: '/games/puzzle' },
+                { id: 'quiz', title: '비즈니스 퀴즈', description: '자영업 지식 테스트', icon: '🧠', route: '/games/quiz' },
+                { id: 'tetris', title: '블록 게임', description: '테트리스 스타일', icon: '🟦', route: '/games/tetris' },
+                { id: 'fortune', title: '무료 운세', description: 'AI 종합 운세', icon: '🔮', route: 'https://all-fo.vercel.app/', external: true },
+              ].map((game) => (
+                game.external ? (
+                  <a
+                    key={game.id}
+                    href={game.route}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all border border-purple-100 hover:border-purple-300 group relative"
+                  >
+                    {game.hot && (
+                      <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full animate-pulse">
+                        HOT
+                      </span>
+                    )}
+                    <div className="text-3xl mb-2 text-center group-hover:scale-110 transition-transform">{game.icon}</div>
+                    <div className="text-sm font-semibold text-gray-900 text-center mb-1">{game.title}</div>
+                    <div className="text-xs text-gray-600 text-center">{game.description}</div>
+                  </a>
+                ) : (
+                  <Link
+                    key={game.id}
+                    href={game.route}
+                    className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all border border-purple-100 hover:border-purple-300 group relative"
+                  >
+                    {game.hot && (
+                      <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full animate-pulse">
+                        HOT
+                      </span>
+                    )}
+                    <div className="text-3xl mb-2 text-center group-hover:scale-110 transition-transform">{game.icon}</div>
+                    <div className="text-sm font-semibold text-gray-900 text-center mb-1">{game.title}</div>
+                    <div className="text-xs text-gray-600 text-center">{game.description}</div>
+                  </Link>
+                )
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* 도구존 섹션 - 최상단에 배치, 모든 도구 한 화면에 표시 */}
         <div className="bg-white border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4">
@@ -674,66 +736,6 @@ function HomeContent() {
                   </Link>
                 ))}
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 게임존 섹션 */}
-        <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-200">
-          <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <span>🎮 게임존</span>
-              </h2>
-              <Link
-                href="/games"
-                className="text-sm text-purple-600 font-medium hover:underline"
-              >
-                전체보기 →
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {[
-                { id: 'diagnose', title: '내 시급은?', icon: '🎯', route: '/diagnose', hot: true },
-                { id: 'balance', title: '밸런스 게임', icon: '⚖️', route: '/games/balance', hot: true },
-                { id: 'food-battle', title: '오늘 뭐먹지?', icon: '🍽️', route: '/tools/food-battle' },
-                { id: 'puzzle', title: '매출 퍼즐', icon: '🧩', route: '/games/puzzle' },
-                { id: 'quiz', title: '비즈니스 퀴즈', icon: '🧠', route: '/games/quiz' },
-                { id: 'tetris', title: '블록 게임', icon: '🟦', route: '/games/tetris' },
-                { id: 'fortune', title: '무료 운세', icon: '🔮', route: 'https://all-fo.vercel.app/', external: true },
-              ].map((game) => (
-                game.external ? (
-                  <a
-                    key={game.id}
-                    href={game.route}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all border border-purple-100 hover:border-purple-300 group text-center relative"
-                  >
-                    {game.hot && (
-                      <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full animate-pulse">
-                        HOT
-                      </span>
-                    )}
-                    <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">{game.icon}</div>
-                    <div className="text-sm font-semibold text-gray-900">{game.title}</div>
-                  </a>
-                ) : (
-                  <Link
-                    key={game.id}
-                    href={game.route}
-                    className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all border border-purple-100 hover:border-purple-300 group text-center relative"
-                  >
-                    {game.hot && (
-                      <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full animate-pulse">
-                        HOT
-                      </span>
-                    )}
-                    <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">{game.icon}</div>
-                    <div className="text-sm font-semibold text-gray-900">{game.title}</div>
-                  </Link>
-                )
-              ))}
             </div>
           </div>
         </div>
