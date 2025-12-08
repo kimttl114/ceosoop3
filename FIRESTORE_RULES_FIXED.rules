@@ -1,0 +1,274 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================
+    // 헬퍼 함수들
+    // ============================================
+    
+    // 사용자 인증 확인
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // 본인인지 확인
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // 관리자 권한 확인
+    function isAdmin() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // 작성자 또는 관리자 확인
+    function isAuthorOrAdmin(authorUid) {
+      return isAuthenticated() && 
+             (request.auth.uid == authorUid || isAdmin());
+    }
+    
+    // Admin SDK 접근 확인 (서버 사이드)
+    function isAdminSDK() {
+      return request.auth == null;
+    }
+    
+    // ============================================
+    // 사용자 정보
+    // ============================================
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isOwner(userId);
+      
+      // isAdmin 필드 보호
+      allow update: if isAuthenticated() && 
+                    isOwner(userId) &&
+                    (!request.resource.data.diff(resource.data).affectedKeys()
+                      .hasAny(['isAdmin', 'adminLevel', 'permissions', 'adminSince']));
+      
+      // Admin SDK는 모든 작업 가능
+      allow read, write: if isAdminSDK();
+    }
+    
+    // ============================================
+    // 게시글 (posts) - 🔥 스트레스 해소 포함
+    // ============================================
+    match /posts/{postId} {
+      allow read: if true;
+      
+      // ✅ 수정: 필드 검증 추가 + userId 통일
+      allow create: if (isAuthenticated() && 
+                        request.resource.data.userId == request.auth.uid &&
+                        request.resource.data.keys().hasAll([
+                          'category', 'title', 'content', 'userId', 'createdAt'
+                        ]) &&
+                        // 선택적 필드들
+                        request.resource.data.keys().hasOnly([
+                          'category', 'title', 'content', 'userId', 'userEmail', 
+                          'userName', 'isAnonymous', 'anonymousName', 'stressRelief',
+                          'likes', 'views', 'comments', 'createdAt', 'updatedAt'
+                        ]))
+                        || isAdminSDK();  // Admin SDK 허용
+      
+      // ✅ 수정: userId로 통일
+      allow update: if isAuthorOrAdmin(resource.data.userId) || isAdminSDK();
+      allow delete: if isAuthorOrAdmin(resource.data.userId) || isAdminSDK();
+    }
+    
+    // ============================================
+    // 댓글 (서브컬렉션)
+    // ============================================
+    match /posts/{postId}/comments/{commentId} {
+      allow read: if true;
+      
+      allow create: if (isAuthenticated() &&
+                        request.resource.data.userId == request.auth.uid)
+                        || isAdminSDK();
+      
+      // ✅ 수정: userId로 통일
+      allow update: if isAuthorOrAdmin(resource.data.userId) || isAdminSDK();
+      allow delete: if isAuthorOrAdmin(resource.data.userId) || isAdminSDK();
+    }
+    
+    // ============================================
+    // 댓글 (루트 컬렉션) - 밸런스 게임용
+    // ============================================
+    match /comments/{commentId} {
+      allow read: if true;
+      
+      allow create: if (isAuthenticated() &&
+                        request.resource.data.userId == request.auth.uid)
+                        || isAdminSDK();
+      
+      allow update: if isAuthorOrAdmin(resource.data.userId) || isAdminSDK();
+      allow delete: if isAuthorOrAdmin(resource.data.userId) || isAdminSDK();
+    }
+    
+    // ============================================
+    // 투표 (decision_polls)
+    // ============================================
+    match /decision_polls/{pollId} {
+      allow read: if true;
+      allow create: if isAuthenticated() || isAdminSDK();
+      allow update: if isAuthorOrAdmin(resource.data.authorId) || isAdminSDK();
+      allow delete: if isAuthorOrAdmin(resource.data.authorId) || isAdminSDK();
+      
+      // 투표 댓글
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isAuthenticated() || isAdminSDK();
+        allow update: if isAuthorOrAdmin(resource.data.userId) || isAdminSDK();
+        allow delete: if isAuthorOrAdmin(resource.data.userId) || isAdminSDK();
+      }
+      
+      // 투표 응답
+      match /votes/{userId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && isOwner(userId);
+        allow update: if isAuthenticated() && isOwner(userId);
+        allow delete: if isAuthenticated() && isOwner(userId);
+      }
+    }
+    
+    // ============================================
+    // 밸런스 게임 투표 (balance_votes)
+    // ============================================
+    match /balance_votes/{voteId} {
+      allow read: if true;
+      allow create: if isAuthenticated() || isAdminSDK();
+      allow update: if isAuthenticated() || isAdminSDK();
+      allow delete: if isAuthenticated() || isAdminSDK();
+    }
+    
+    // ============================================
+    // 밸런스 게임 댓글 (balance_comments)
+    // ============================================
+    match /balance_comments/{commentId} {
+      allow read: if true;
+      allow create: if isAuthenticated() || isAdminSDK();
+      allow update: if isAuthorOrAdmin(resource.data.userId) || isAdminSDK();
+      allow delete: if isAuthorOrAdmin(resource.data.userId) || isAdminSDK();
+    }
+    
+    // ============================================
+    // 메시지
+    // ============================================
+    match /messages/{messageId} {
+      // 본인의 메시지만 조회
+      allow read: if isAuthenticated() && 
+        (resource.data.senderId == request.auth.uid || 
+         resource.data.receiverId == request.auth.uid);
+      
+      allow create: if isAuthenticated() || isAdminSDK();
+      allow update: if (isAuthenticated() && resource.data.receiverId == request.auth.uid)
+                       || isAdminSDK();
+      allow delete: if (isAuthenticated() && 
+                        (resource.data.senderId == request.auth.uid || 
+                         resource.data.receiverId == request.auth.uid))
+                       || isAdminSDK();
+    }
+    
+    // ============================================
+    // 체크인
+    // ============================================
+    match /user_checkin/{userId} {
+      allow read: if true;
+      allow write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // ============================================
+    // 게임 데이터
+    // ============================================
+    match /user_games/{userId} {
+      allow read: if isAuthenticated() && isOwner(userId);
+      allow write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // ============================================
+    // 랭킹
+    // ============================================
+    match /rankings/{rankingId} {
+      allow read: if true;
+      allow write: if isAdminSDK();  // 서버에서만 업데이트
+    }
+    
+    // ============================================
+    // 신고 (관리자 전용)
+    // ============================================
+    match /reports/{reportId} {
+      // 관리자만 모든 신고 조회 가능
+      allow read: if isAdmin() || isAdminSDK();
+      allow create: if isAuthenticated() || isAdminSDK();
+      
+      // 관리자만 신고 처리 가능
+      allow update: if isAdmin() || isAdminSDK();
+      allow delete: if isAdmin() || isAdminSDK();
+    }
+    
+    // ============================================
+    // 생성된 문서
+    // ============================================
+    match /generated_documents/{docId} {
+      allow read: if (isAuthenticated() && resource.data.userId == request.auth.uid)
+                     || isAdminSDK();
+      allow create: if isAuthenticated() || isAdminSDK();
+      allow update: if false;
+      allow delete: if (isAuthenticated() && resource.data.userId == request.auth.uid)
+                       || isAdminSDK();
+    }
+    
+    // ============================================
+    // 인증 정보 (사업자 인증)
+    // ============================================
+    match /verifications/{userId} {
+      allow read: if isAuthenticated() && isOwner(userId);
+      allow write: if isAdminSDK();  // 서버에서만 업데이트
+    }
+    
+    // ============================================
+    // 포인트 상점 아이템
+    // ============================================
+    match /shopItems/{itemId} {
+      allow read: if true;
+      allow write: if isAdminSDK();  // 서버에서만 업데이트
+    }
+    
+    // ============================================
+    // 사용자 구매 내역
+    // ============================================
+    match /purchases/{purchaseId} {
+      allow read: if (isAuthenticated() && resource.data.userId == request.auth.uid)
+                     || isAdminSDK();
+      allow create: if isAuthenticated() || isAdminSDK();
+      allow update: if false;
+      allow delete: if false;
+    }
+    
+    // ============================================
+    // 공지사항
+    // ============================================
+    match /notices/{noticeId} {
+      allow read: if true;
+      allow write: if isAdmin() || isAdminSDK();
+    }
+    
+    // ============================================
+    // 중고장터
+    // ============================================
+    match /marketplace/{itemId} {
+      allow read: if true;
+      
+      // ✅ 수정: 필드 검증 추가
+      allow create: if (isAuthenticated() && 
+                        request.resource.data.userId == request.auth.uid)
+                        || isAdminSDK();
+      
+      // 작성자 또는 관리자만 수정/삭제 가능
+      allow update: if isAuthorOrAdmin(resource.data.userId) || isAdminSDK();
+      allow delete: if isAuthorOrAdmin(resource.data.userId) || isAdminSDK();
+    }
+  }
+}
+
