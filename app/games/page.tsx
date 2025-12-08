@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Puzzle, Brain, Square, Scale, Target, Utensils, Sparkles } from 'lucide-react';
+import { ArrowLeft, Puzzle, Brain, Square, Scale, Target, Utensils, Sparkles, Flame } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import GamesBackground from '@/components/GamesBackground';
@@ -25,6 +25,17 @@ const games = [
     icon: Scale,
     color: 'from-purple-500 to-pink-500',
     route: '/games/balance',
+    available: true,
+    daily: false,
+    hot: true,
+  },
+  {
+    id: 'stress',
+    title: '스트레스 날려버리기',
+    description: '하소연 쓰고 확 날리기! 💥',
+    icon: Flame,
+    color: 'from-red-500 to-orange-500',
+    route: '/games/stress',
     available: true,
     daily: false,
     hot: true,
