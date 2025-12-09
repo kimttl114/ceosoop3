@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Calculator, FileText, TrendingUp, Users, Percent, DollarSign, Sparkles, MessageCircle, Brain, ShoppingBag, Mic, Shield, Music, Utensils, PieChart } from 'lucide-react';
+import { ArrowLeft, Calculator, FileText, TrendingUp, Users, Percent, DollarSign, Sparkles, MessageCircle, Brain, ShoppingBag, Mic, Shield, Music, Utensils, PieChart, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 
@@ -23,6 +23,16 @@ const tools = [
     color: 'from-blue-500 to-indigo-600',
     route: '/tools/wifi-qr',
     available: true,
+  },
+  {
+    id: 'health-calculator',
+    title: '💀 건강 수명 계산기',
+    description: '이러다 죽어 - 사장님 신체 나이 진단',
+    icon: AlertTriangle,
+    color: 'from-gray-900 to-red-900',
+    route: '/tools/health-calculator',
+    available: true,
+    badge: 'NEW',
   },
   {
     id: 'salary',
