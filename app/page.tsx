@@ -522,7 +522,6 @@ function HomeContent() {
               {[
                 { id: 'diagnose', title: '내 시급은?', description: '실제 시급 자동 계산', icon: '🎯', route: '/diagnose', hot: true },
                 { id: 'balance', title: '밸런스 게임', description: '현실 자극적 선택', icon: '⚖️', route: '/games/balance', hot: true },
-                { id: 'stress', title: '스트레스 날리기', description: '하소연 쓰고 확 날리기', icon: '💥', route: '/games/stress', hot: true },
                 { id: 'food-battle', title: '오늘 뭐먹지?', description: 'AI 음식 배틀', icon: '🍽️', route: '/tools/food-battle' },
                 { id: 'puzzle', title: '매출 퍼즐', description: '2048 아이템 합치기', icon: '🧩', route: '/games/puzzle' },
                 { id: 'quiz', title: '비즈니스 퀴즈', description: '자영업 지식 테스트', icon: '🧠', route: '/games/quiz' },
